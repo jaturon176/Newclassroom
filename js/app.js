@@ -1192,8 +1192,26 @@ function updateCourseDropdowns() {
   });
 
   if (hwCourseSelect) hwCourseSelect.innerHTML = options;
-  if (quizCourseSelect) quizCourseSelect.innerHTML = options;
+if (quizCourseSelect) quizCourseSelect.innerHTML = options;
   if (repCourseFilter) repCourseFilter.innerHTML = `<option value="">-- ทุกรายวิชา --</option>` + options.replace('<option value="">-- เลือกรายวิชา --</option>', '');
+}
+
+function formatThaiDate(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      const day = parseInt(parts[2]);
+      const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+      const thaiYear = year > 2500 ? year : year + 543;
+      return `${day} ${months[month - 1]} ${thaiYear}`;
+    }
+    return dateStr;
+  } catch (e) {
+    return dateStr;
+  }
 }
 
 function populateGradeLevelDropdowns(selectId, selectedValue = '') {
@@ -1358,7 +1376,7 @@ function readFileAsBase64(file) {
   });
 }
 
-function openCreateHomeworkModal() {
+function openCreateHomeworkModal(preselectedCourseId = '') {
   document.getElementById('hw-title').value = '';
   document.getElementById('hw-desc').value = '';
   document.getElementById('hw-max-score').value = 10;
@@ -1366,7 +1384,12 @@ function openCreateHomeworkModal() {
   document.getElementById('hw-youtube-url').value = '';
   document.getElementById('hw-img-file').value = '';
 
-  const courseId = document.getElementById('hw-course-id') ? document.getElementById('hw-course-id').value : '';
+  const courseSelect = document.getElementById('hw-course-id');
+  if (courseSelect && preselectedCourseId) {
+    courseSelect.value = preselectedCourseId;
+  }
+
+  const courseId = courseSelect ? courseSelect.value : '';
   renderTargetClassChips('hw-target-chips-container', courseId, ['all']);
 
   openModal('modal-create-homework');
@@ -1436,13 +1459,28 @@ function renderCoursesList() {
   const courseKeys = Object.keys(coursesData);
 
   if (courseKeys.length === 0) {
-    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:30px;">ยังไม่มีรายวิชาในระบบ</p>`;
+    container.innerHTML = `
+      <div style="text-align:center; padding:48px 20px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:18px; margin:10px 0;">
+        <div style="width:64px; height:64px; border-radius:50%; background:#eff6ff; color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">
+          <i class="fa-solid fa-folder-open"></i>
+        </div>
+        <h4 style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:6px;">ยังไม่มีรายวิชาในระบบ</h4>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:18px;">คุณครูสามารถสร้างรายวิชาและมอบหมายการบ้านเพื่อเริ่มต้นการเรียนการสอนได้ทันที</p>
+        ${(currentUser && currentUser.role !== 'student') ? `
+          <button class="btn btn-primary" onclick="openAddCourseModal()" style="border-radius:10px; font-weight:700;">
+            <i class="fa-solid fa-plus-circle"></i> สร้างรายวิชาแรก
+          </button>
+        ` : ''}
+      </div>
+    `;
     return;
   }
 
   let html = '';
   courseKeys.forEach(courseId => {
     const course = coursesData[courseId];
+    const cleanTeacher = (course.teacher || 'ยังไม่ระบุ').trim().replace(/^"|"$/g, '');
+    const cleanCode = (course.code || '-').trim();
     
     // Find homeworks for this course
     const courseHws = Object.keys(homeworkData)
@@ -1463,30 +1501,59 @@ function renderCoursesList() {
       .map(hwId => ({ id: hwId, ...homeworkData[hwId] }));
 
     html += `
-      <div style="background:#ffffff; border:1px solid var(--border); border-radius:16px; padding:22px; margin-bottom:24px; box-shadow:var(--shadow-sm);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+      <div class="course-card-modern">
+        <!-- Course Header -->
+        <div class="course-card-header">
           <div>
-            <span class="badge badge-purple" style="font-size:0.9rem;">${course.code}</span>
-            <h3 style="font-size:1.4rem; font-weight:700; color:#0f172a; margin-top:4px;">${course.name} (ระดับชั้น ${course.level})</h3>
-            <div style="font-size:0.88rem; color:var(--text-muted);"><i class="fa-solid fa-chalkboard-user"></i> ครูผู้สอน: ${course.teacher}</div>
+            <div class="course-meta-pills">
+              <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-family:monospace; font-weight:800; font-size:0.88rem; padding:4px 10px; border-radius:8px;">
+                <i class="fa-solid fa-barcode"></i> ${cleanCode}
+              </span>
+              <span class="badge badge-purple" style="font-size:0.84rem; font-weight:700; padding:4px 12px; border-radius:8px;">
+                <i class="fa-solid fa-graduation-cap"></i> ระดับชั้น ${course.level || '-'}
+              </span>
+              <span class="badge ${courseHws.length > 0 ? 'badge-green' : 'badge-yellow'}" style="font-size:0.84rem; font-weight:700; padding:4px 12px; border-radius:8px;">
+                <i class="fa-solid fa-clipboard-list"></i> ${courseHws.length} ชิ้นงาน
+              </span>
+            </div>
+            <h3 class="course-title-text">${course.name}</h3>
+            <div class="course-teacher-info">
+              <i class="fa-solid fa-chalkboard-user"></i> ครูผู้สอน: <span style="color:#0f172a; font-weight:700;">${cleanTeacher}</span>
+            </div>
           </div>
+
           ${(currentUser && currentUser.role !== 'student') ? `
-            <div style="display:flex; gap:8px;">
-              <button class="btn btn-sm btn-outline-primary" onclick="openEditCourseModal('${courseId}')"><i class="fa-solid fa-pen-to-square"></i> แก้ไขวิชา</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteCourse('${courseId}')"><i class="fa-solid fa-trash"></i> ลบวิชา</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-sm btn-success" onclick="openCreateHomeworkModal('${courseId}')" style="border-radius:9px; font-weight:700;" title="สั่งการบ้านในวิชานี้">
+                <i class="fa-solid fa-plus-circle"></i> สั่งการบ้าน
+              </button>
+              <button class="btn btn-sm btn-outline-primary" onclick="openEditCourseModal('${courseId}')" style="border-radius:9px; font-weight:600;" title="แก้ไขข้อมูลวิชา">
+                <i class="fa-solid fa-pen-to-square"></i> แก้ไขวิชา
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteCourse('${courseId}')" style="border-radius:9px; font-weight:600;" title="ลบรายวิชานี้">
+                <i class="fa-solid fa-trash-can"></i> ลบวิชา
+              </button>
             </div>
           ` : ''}
         </div>
 
-        <h4 style="font-size:1.1rem; font-weight:700; color:#334155; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-          <i class="fa-solid fa-list-check" style="color:var(--primary);"></i> รายการการบ้านที่มอบหมาย (${courseHws.length} ชิ้น)
-        </h4>
+        <!-- Homework Section Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 10px;">
+          <div style="font-size:1rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-list-check" style="color:var(--primary);"></i> รายการการบ้านและชิ้นงาน (${courseHws.length} ชิ้น)
+          </div>
+        </div>
     `;
 
     if (courseHws.length === 0) {
-      html += `<p class="text-muted" style="font-size:0.95rem; padding:10px 0;">ยังไม่มีการบ้านในวิชานี้ (หรือไม่มีงานที่มอบหมายให้ห้องของคุณ)</p>`;
+      html += `
+        <div style="padding:22px; background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; text-align:center; color:#64748b; font-size:0.92rem; margin-top:10px;">
+          <i class="fa-solid fa-inbox" style="font-size:1.4rem; color:#94a3b8; display:block; margin-bottom:6px;"></i>
+          ยังไม่มีการบ้านในวิชานี้ (หรือไม่มีงานที่มอบหมายให้ห้องของคุณ)
+        </div>
+      `;
     } else {
-      html += `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;">`;
+      html += `<div class="homework-grid">`;
       courseHws.forEach(hw => {
         const studentSub = (submissionsData[hw.id] && currentUser.studentId) 
           ? submissionsData[hw.id][currentUser.studentId] 
@@ -1507,60 +1574,81 @@ function renderCoursesList() {
         const isPdf = fileUrl && (fileUrl.includes('application/pdf') || fileUrl.includes('.pdf') || fileUrl.toLowerCase().includes('pdf'));
         const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
         const isTargetAll = targets.includes('all') || targets.length === 0;
-        const targetLabel = isTargetAll ? 'ทุกห้อง' : 'ห้อง ' + targets.join(', ');
+        const targetLabel = isTargetAll ? 'ทุกห้องเรียน' : 'ห้อง ' + targets.join(', ');
         const embedUrl = getYouTubeEmbedUrl(hw.youtubeUrl);
 
         html += `
-          <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
+          <div class="homework-card-modern">
             <div>
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:6px;">
-                <h5 style="font-size:1.1rem; font-weight:700; color:#0f172a;">${hw.title}</h5>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                  <span class="badge ${isTargetAll ? 'badge-purple' : 'badge-yellow'}" style="font-size:0.78rem;">
-                    <i class="fa-solid fa-users-rectangle"></i> ${targetLabel}
-                  </span>
-                  <span class="badge badge-blue">เต็ม ${hw.maxScore} คะแนน</span>
-                </div>
+              <!-- Top Badges -->
+              <div class="hw-card-top">
+                <span class="badge ${isTargetAll ? 'badge-purple' : 'badge-yellow'}" style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:8px;">
+                  <i class="${isTargetAll ? 'fa-solid fa-globe' : 'fa-solid fa-chalkboard'}"></i> ${targetLabel}
+                </span>
+                <span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:800; font-size:0.78rem; padding:4px 10px; border-radius:8px;">
+                  <i class="fa-solid fa-star"></i> เต็ม ${hw.maxScore} คะแนน
+                </span>
               </div>
-              <p style="font-size:0.92rem; color:var(--text-main); margin:8px 0;">${hw.desc || '-'}</p>
 
+              <!-- Title & Description -->
+              <h4 class="hw-title-text">${hw.title}</h4>
+              <div class="hw-desc-text">${hw.desc || '-'}</div>
+
+              <!-- YouTube Embed -->
               ${embedUrl ? `
-                <div style="margin:10px 0; border-radius:10px; overflow:hidden; border:1px solid var(--border); box-shadow:var(--shadow-sm); background:#000;">
+                <div style="margin:10px 0; border-radius:12px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.1); background:#000;">
                   <div style="position:relative; padding-bottom:56.25%; height:0;">
                     <iframe src="${embedUrl}" title="${hw.title || 'YouTube video'}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                   </div>
                 </div>
               ` : ''}
               
+              <!-- PDF / Image Attachment Button -->
               ${fileUrl ? `
-                <div style="margin:10px 0;">
-                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:6px 14px; border-radius:8px;">
-                    <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'}; font-size:1.1rem;"></i> 
-                    <span>📄 เอกสารแนบ ${isPdf ? 'PDF' : 'รูปภาพ'} (${fileName})</span>
+                <div style="margin:8px 0;">
+                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="width:100%; justify-content:flex-start; text-align:left; padding:8px 12px; border-radius:10px; font-weight:600; font-size:0.84rem; background:#ffffff; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                    <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="font-size:1.15rem; color:${isPdf ? '#ef4444' : '#2563eb'};"></i> 
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">📄 ${fileName}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.75rem; opacity:0.6;"></i>
                   </button>
                 </div>
               ` : ''}
 
-              <div style="font-size:0.82rem; color:var(--text-muted); margin-top:8px;">
-                <i class="fa-solid fa-calendar"></i> กำหนดส่ง: ${hw.dueDate}
+              <!-- Due Date -->
+              <div class="hw-due-date-badge">
+                <i class="fa-regular fa-calendar-check" style="color:var(--primary); font-size:0.9rem;"></i> กำหนดส่ง: <span style="color:#1e293b; font-weight:700;">${formatThaiDate(hw.dueDate)}</span>
               </div>
             </div>
 
-            <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-              ${currentUser.role === 'student' ? `
+            <!-- Footer Controls -->
+            <div class="hw-card-bottom">
+              ${(currentUser && currentUser.role === 'student') ? `
                 ${studentSub ? `
-                  <span class="badge badge-green"><i class="fa-solid fa-check"></i> ส่งแล้ว (${studentSub.score !== undefined ? studentSub.score + ' คะแนน' : 'รอตรวจ'})</span>
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:8px 12px; width:100%;">
+                    <span style="color:#059669; font-weight:700; font-size:0.86rem;"><i class="fa-solid fa-circle-check"></i> ส่งงานเรียบร้อยแล้ว</span>
+                    <span class="badge ${studentSub.score !== undefined ? 'badge-green' : 'badge-yellow'}" style="font-weight:800; font-size:0.82rem; padding:4px 10px;">
+                      ${studentSub.score !== undefined ? studentSub.score + ' / ' + hw.maxScore + ' คะแนน' : 'รอตรวจ'}
+                    </span>
+                  </div>
                 ` : `
-                  <button class="btn btn-sm btn-primary" onclick="openSubmitHomeworkModal('${hw.id}')">
-                    <i class="fa-solid fa-paper-plane"></i> ส่งงาน
+                  <button class="btn btn-primary" onclick="openSubmitHomeworkModal('${hw.id}')" style="width:100%; border-radius:10px; font-weight:700; padding:9px 14px; background:linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow:0 3px 8px rgba(37,99,235,0.25);">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> ส่งการบ้านชิ้นนี้
                   </button>
                 `}
               ` : `
-                <span class="badge badge-purple">ส่งแล้ว ${subCount} คน</span>
+                <span class="badge badge-purple" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
+                  <i class="fa-solid fa-user-check"></i> ส่งแล้ว ${subCount} คน
+                </span>
                 <div style="display:flex; gap:6px;">
-                  <button class="btn btn-sm btn-outline-primary" onclick="openEditHomeworkModal('${hw.id}')" title="แก้ไขการบ้าน"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteHomework('${hw.id}')" title="ลบการบ้าน"><i class="fa-solid fa-trash"></i> ลบ</button>
-                  <button class="btn btn-sm btn-secondary" onclick="openGradeSubmissionsModal('${hw.id}')" title="ตรวจงานนักเรียน"><i class="fa-solid fa-pen-to-square"></i> ตรวจงาน</button>
+                  <button class="btn btn-sm btn-primary" onclick="openGradeSubmissionsModal('${hw.id}')" title="ตรวจงานนักเรียน" style="border-radius:8px; font-weight:600; padding:5px 10px;">
+                    <i class="fa-solid fa-clipboard-check"></i> ตรวจงาน
+                  </button>
+                  <button class="btn btn-sm btn-outline-primary" onclick="openEditHomeworkModal('${hw.id}')" title="แก้ไขการบ้าน" style="border-radius:8px; padding:5px 8px;">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteHomework('${hw.id}')" title="ลบการบ้าน" style="border-radius:8px; padding:5px 8px;">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
                 </div>
               `}
             </div>
