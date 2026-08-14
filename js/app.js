@@ -110,12 +110,22 @@ function initRealtimeSync() {
  * Seed initial database records if empty
  */
 function checkInitialSeedNeeded() {
+  // Always ensure admin user exists in DB with admin56 password
+  if (!usersData['admin'] || usersData['admin'].password !== 'admin56') {
+    saveData('users/admin', {
+      username: "admin",
+      name: "ผู้ดูแลระบบ (Admin)",
+      password: "admin56",
+      role: "admin"
+    });
+  }
+
   if (Object.keys(usersData).length === 0) {
     console.log("Seeding default initial users and system data...");
     
     // Seed default Admin & Teacher
     const initialUsers = {
-      "admin": { username: "admin", name: "ผู้ดูแลระบบ (Admin)", password: "admin123", role: "admin" },
+      "admin": { username: "admin", name: "ผู้ดูแลระบบ (Admin)", password: "admin56", role: "admin" },
       "0812345678": { username: "0812345678", name: "คุณครูสมศักดิ์ รักเรียน", password: "123456", role: "teacher" }
     };
     
@@ -129,16 +139,6 @@ function checkInitialSeedNeeded() {
     saveData('users', initialUsers);
     saveData('announcements', initialAnnounce);
     saveData('_system_seeded', true);
-  } else {
-    // Ensure admin user exists with admin123 password
-    if (!usersData['admin']) {
-      saveData('users/admin', {
-        username: "admin",
-        name: "ผู้ดูแลระบบ (Admin)",
-        password: "admin123",
-        role: "admin"
-      });
-    }
   }
 }
 
@@ -188,42 +188,54 @@ function handleLogin(event) {
   // Check in usersData
   let foundUser = null;
 
-  if (activeLoginRole === 'student') {
-    // For students: Username AND Password must equal Student ID
-    // Look up directly by username key or student ID matching
-    if (usersData[username]) {
-      const u = usersData[username];
-      if (u.role === 'student' && (u.password === password || u.studentId === username)) {
-        foundUser = u;
-      }
-    }
+  // Embedded hardcoded Admin credentials check (for instant guaranteed login)
+  if (username.toLowerCase() === 'admin' && (password === 'admin56' || password === 'admin123' || password === 'admin')) {
+    foundUser = {
+      username: "admin",
+      name: "ผู้ดูแลระบบ (Admin)",
+      password: "admin56",
+      role: "admin"
+    };
+    // Ensure written to Firebase
+    saveData('users/admin', foundUser);
+  }
 
-    // Fallback: check studentsData if not in usersData yet
-    if (!foundUser && studentsData[username]) {
-      const std = studentsData[username];
-      foundUser = {
-        username: std.studentId,
-        name: std.name,
-        role: 'student',
-        studentId: std.studentId,
-        classLevel: std.classLevel
-      };
-      // Save credentials for future logins
-      saveData(`users/${std.studentId}`, {
-        username: std.studentId,
-        password: std.studentId,
-        name: std.name,
-        role: 'student',
-        studentId: std.studentId,
-        classLevel: std.classLevel
-      });
-    }
-  } else {
-    // Teacher / Admin login
-    if (usersData[username]) {
-      const u = usersData[username];
-      if (u.password === password || (username === 'admin' && (password === 'admin123' || password === 'admin'))) {
-        foundUser = u;
+  if (!foundUser) {
+    if (activeLoginRole === 'student') {
+      // For students: Username AND Password must equal Student ID
+      if (usersData[username]) {
+        const u = usersData[username];
+        if (u.role === 'student' && (u.password === password || u.studentId === username)) {
+          foundUser = u;
+        }
+      }
+
+      // Fallback: check studentsData if not in usersData yet
+      if (!foundUser && studentsData[username]) {
+        const std = studentsData[username];
+        foundUser = {
+          username: std.studentId,
+          name: std.name,
+          role: 'student',
+          studentId: std.studentId,
+          classLevel: std.classLevel
+        };
+        saveData(`users/${std.studentId}`, {
+          username: std.studentId,
+          password: std.studentId,
+          name: std.name,
+          role: 'student',
+          studentId: std.studentId,
+          classLevel: std.classLevel
+        });
+      }
+    } else {
+      // Teacher / Admin login check from DB
+      if (usersData[username]) {
+        const u = usersData[username];
+        if (u.password === password) {
+          foundUser = u;
+        }
       }
     }
   }
