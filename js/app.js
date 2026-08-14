@@ -113,8 +113,8 @@ function initRealtimeSync() {
   // Listen to Students Roster
   listenToData('students', (data) => {
     studentsData = data || {};
-    renderStudentsTable();
     updateClassFilterDropdowns();
+    renderStudentsTable();
     updateDashboardStats();
     renderScoreReports();
   });
@@ -608,66 +608,246 @@ function logActivity(text) {
 /* -------------------------------------------------------------
    5. STUDENT ROSTER & CSV IMPORT
 ------------------------------------------------------------- */
+function updateClassFilterDropdowns() {
+  const classSet = new Set();
+  Object.values(studentsData).forEach(s => {
+    if (s.classLevel && s.classLevel.trim()) {
+      classSet.add(s.classLevel.trim().replace(/^"|"$/g, ''));
+    }
+  });
+
+  const sortedClasses = Array.from(classSet).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+
+  const stdFilter = document.getElementById('student-class-filter');
+  const repFilter = document.getElementById('report-class-filter');
+
+  // Find preferred default room: ม.1/1 first, or the first available room
+  let defaultRoom = '';
+  if (sortedClasses.includes('ม.1/1')) {
+    defaultRoom = 'ม.1/1';
+  } else if (sortedClasses.length > 0) {
+    defaultRoom = sortedClasses[0];
+  }
+
+  let stdOptions = '';
+  sortedClasses.forEach(c => {
+    stdOptions += `<option value="${c}">ห้อง ${c}</option>`;
+  });
+  stdOptions += `<option value="all">-- แสดงทุกห้องเรียน (${sortedClasses.length} ห้อง) --</option>`;
+
+  if (stdFilter) {
+    const currentVal = stdFilter.value;
+    stdFilter.innerHTML = stdOptions;
+    if (currentVal && (sortedClasses.includes(currentVal) || currentVal === 'all')) {
+      stdFilter.value = currentVal;
+    } else if (defaultRoom) {
+      stdFilter.value = defaultRoom;
+    }
+  }
+
+  let repOptions = `<option value="">-- ทุกระดับชั้น --</option>`;
+  sortedClasses.forEach(c => {
+    repOptions += `<option value="${c}">${c}</option>`;
+  });
+  if (repFilter) repFilter.innerHTML = repOptions;
+}
+
 function renderStudentsTable() {
   const tbody = document.getElementById('students-table-body');
+  const summaryCard = document.getElementById('student-room-summary-card');
   const search = document.getElementById('student-search-input').value.toLowerCase().trim();
   const classFilter = document.getElementById('student-class-filter').value;
 
-  const keys = Object.keys(studentsData);
-  if (keys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px;" class="text-muted">ยังไม่มีข้อมูลนักเรียนในระบบ</td></tr>`;
+  const allStudents = Object.values(studentsData);
+  if (allStudents.length === 0) {
+    if (summaryCard) summaryCard.innerHTML = '';
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px;" class="text-muted"><i class="fa-solid fa-folder-open fa-2x" style="margin-bottom:8px; display:block; color:#94a3b8;"></i>ยังไม่มีข้อมูลนักเรียนในระบบ กรุณานำเข้าไฟล์ CSV หรือเพิ่มนักเรียนใหม่</td></tr>`;
+    return;
+  }
+
+  // Filter students based on classroom and search
+  const filteredStudents = allStudents.filter(std => {
+    const cleanClass = (std.classLevel || '').trim().replace(/^"|"$/g, '');
+    if (classFilter && classFilter !== 'all' && cleanClass !== classFilter) {
+      return false;
+    }
+    if (search) {
+      const searchStr = `${std.no || ''} ${std.studentId || ''} ${std.name || ''} ${std.classLevel || ''}`.toLowerCase();
+      if (!searchStr.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // Sort numerically by เลขที่ (no)
+  filteredStudents.sort((a, b) => {
+    const noA = parseInt(a.no) || 9999;
+    const noB = parseInt(b.no) || 9999;
+    if (noA !== noB) return noA - noB;
+    return (a.studentId || '').localeCompare(b.studentId || '', 'th');
+  });
+
+  // Determine current room metadata
+  let currentRoomTitle = classFilter && classFilter !== 'all' ? `ห้อง ${classFilter}` : `ทุกห้องเรียนทั้งหมด`;
+  let advisors = new Set();
+  filteredStudents.forEach(s => {
+    if (s.advisor) advisors.add(s.advisor.trim().replace(/^"|"$/g, ''));
+  });
+  let advisorText = advisors.size > 0 ? Array.from(advisors).join(', ') : 'ยังไม่ระบุ';
+
+  // Render Room Summary Card
+  if (summaryCard) {
+    summaryCard.innerHTML = `
+      <div style="background:linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); border:1px solid #bfdbfe; border-radius:14px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 6px rgba(37,99,235,0.06);">
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          <span class="badge badge-purple" style="font-size:0.95rem; padding:6px 14px; font-weight:800; border-radius:10px;">
+            <i class="fa-solid fa-graduation-cap"></i> ${currentRoomTitle}
+          </span>
+          <div style="font-size:0.92rem; font-weight:700; color:#1e293b;">
+            <i class="fa-solid fa-users" style="color:var(--primary);"></i> จำนวนนักเรียน: <span style="color:var(--primary);">${filteredStudents.length} คน</span>
+          </div>
+          <div style="font-size:0.9rem; color:#475569;">
+            <i class="fa-solid fa-chalkboard-user" style="color:#0284c7;"></i> ครูที่ปรึกษา: <strong>${advisorText}</strong>
+          </div>
+        </div>
+        <div style="font-size:0.82rem; color:#16a34a; font-weight:700; display:flex; align-items:center; gap:6px;">
+          <i class="fa-solid fa-circle-check"></i> บัญชี Login ซิงค์อัตโนมัติ 100%
+        </div>
+      </div>
+    `;
+  }
+
+  if (filteredStudents.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:36px;" class="text-muted"><i class="fa-solid fa-magnifying-glass fa-2x" style="margin-bottom:8px; display:block; color:#94a3b8;"></i>ไม่พบรายชื่อนักเรียนในห้องนี้ หรือไม่ตรงกับคำค้นหา</td></tr>`;
     return;
   }
 
   let html = '';
-  keys.forEach(id => {
-    const std = studentsData[id];
-    
-    // Filter conditions
-    if (classFilter && std.classLevel !== classFilter) return;
-    if (search && !std.studentId.toLowerCase().includes(search) && !std.name.toLowerCase().includes(search)) return;
-
+  filteredStudents.forEach(std => {
     const hasUserAccount = usersData[std.studentId] ? true : false;
     const accountBadge = hasUserAccount 
-      ? `<span class="badge badge-green"><i class="fa-solid fa-check-circle"></i> พร้อมใช้งาน</span>`
-      : `<span class="badge badge-yellow"><i class="fa-solid fa-clock"></i> รอดำเนินการ</span>`;
+      ? `<span class="badge badge-green" style="padding:4px 10px; font-size:0.8rem;"><i class="fa-solid fa-circle-check"></i> พร้อมใช้งาน</span>`
+      : `<span class="badge badge-yellow" style="padding:4px 10px; font-size:0.8rem;"><i class="fa-solid fa-clock"></i> รอดำเนินการ</span>`;
+
+    const cleanAdvisor = (std.advisor || '-').trim().replace(/^"|"$/g, '');
+    const cleanClass = (std.classLevel || '-').trim().replace(/^"|"$/g, '');
 
     html += `
-      <tr>
-        <td><strong>${std.no || '-'}</strong></td>
-        <td><code style="font-weight:bold; color:var(--primary);">${std.studentId}</code></td>
-        <td><strong>${std.name}</strong></td>
-        <td><span class="badge badge-blue">${std.classLevel || '-'}</span></td>
-        <td>${std.advisor || '-'}</td>
-        <td>${accountBadge}</td>
+      <tr style="transition:background 0.2s ease;">
+        <td style="text-align:center; font-weight:800; color:#334155; font-size:0.95rem;">${std.no || '-'}</td>
+        <td>
+          <span style="font-family:monospace; font-size:0.95rem; font-weight:700; color:#1d4ed8; background:#eff6ff; padding:3px 8px; border-radius:6px; border:1px solid #bfdbfe;">
+            ${std.studentId}
+          </span>
+        </td>
+        <td>
+          <div style="font-weight:700; color:#0f172a; font-size:0.95rem;">${std.name}</div>
+        </td>
+        <td style="text-align:center;">
+          <span class="badge badge-purple" style="font-size:0.82rem; padding:3px 10px; font-weight:700;">
+            ${cleanClass}
+          </span>
+        </td>
+        <td style="color:#334155; font-size:0.9rem;">
+          <i class="fa-solid fa-user-tie" style="color:#94a3b8; margin-right:4px;"></i> ${cleanAdvisor}
+        </td>
+        <td style="text-align:center;">${accountBadge}</td>
         <td class="teacher-only" style="text-align:center;">
-          <button class="btn btn-sm btn-danger" onclick="deleteStudent('${std.studentId}')" title="ลบข้อมูลนักเรียน">
-            <i class="fa-solid fa-trash"></i>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteStudent('${std.studentId}')" title="ลบข้อมูลนักเรียนคนนี้" style="padding:4px 8px; border-radius:8px;">
+            <i class="fa-solid fa-trash-can"></i>
           </button>
         </td>
       </tr>
     `;
   });
 
-  tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center; padding:30px;" class="text-muted">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</td></tr>`;
+  tbody.innerHTML = html;
 }
 
-function updateClassFilterDropdowns() {
-  const classes = new Set();
-  Object.values(studentsData).forEach(s => {
-    if (s.classLevel) classes.add(s.classLevel);
+function openBatchDeleteStudentsModal() {
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์", "นักเรียนไม่มีสิทธิ์ดำเนินการนี้");
+    return;
+  }
+
+  const allStudents = Object.values(studentsData);
+  if (allStudents.length === 0) {
+    showPopupWarning("ไม่พบข้อมูล", "ยังไม่มีรายชื่อนักเรียนในระบบให้ลบ");
+    return;
+  }
+
+  // Count students per classroom
+  const classCountMap = {};
+  allStudents.forEach(s => {
+    const c = (s.classLevel || 'ไม่ระบุห้อง').trim().replace(/^"|"$/g, '');
+    classCountMap[c] = (classCountMap[c] || 0) + 1;
   });
 
-  const stdFilter = document.getElementById('student-class-filter');
-  const repFilter = document.getElementById('report-class-filter');
+  const sortedRooms = Object.keys(classCountMap).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
 
-  let options = `<option value="">-- ทุกระดับชั้น --</option>`;
-  classes.forEach(c => {
-    options += `<option value="${c}">${c}</option>`;
+  let optionsHtml = '';
+  sortedRooms.forEach(room => {
+    optionsHtml += `<option value="${room}">ห้อง ${room} (${classCountMap[room]} คน)</option>`;
   });
+  optionsHtml += `<option value="ALL_CLASSES" style="color:#ef4444; font-weight:bold;">⚠️ ลบนักเรียนทั้งหมดทุกห้อง (${allStudents.length} คน)</option>`;
 
-  if (stdFilter) stdFilter.innerHTML = options;
-  if (repFilter) repFilter.innerHTML = options;
+  Swal.fire({
+    title: '<span style="font-weight:800; color:#0f172a;"><i class="fa-solid fa-trash-can" style="color:#ef4444;"></i> เลือกลบรายชื่อนักเรียน</span>',
+    html: `
+      <div style="text-align:left; font-size:0.95rem; color:#475569; margin-bottom:14px; line-height:1.5;">
+        กรุณาเลือกห้องเรียนที่ต้องการลบข้อมูลนักเรียนและบัญชีผู้ใช้งานออกจากระบบ:
+      </div>
+      <select id="swal-batch-delete-class" class="swal2-select" style="width:100%; padding:10px 14px; font-weight:700; border-radius:10px; border:1.5px solid #cbd5e1; font-size:1rem; color:#0f172a; margin:0 0 14px 0;">
+        ${optionsHtml}
+      </select>
+      <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:10px 14px; font-size:0.85rem; color:#991b1b; text-align:left;">
+        <i class="fa-solid fa-triangle-exclamation"></i> <strong>คำเตือน:</strong> ข้อมูลนักเรียนและบัญชี Login ในห้องที่เลือกจะถูกลบออกจากฐานข้อมูลอย่างถาวร
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: '<i class="fa-solid fa-trash-can"></i> ยืนยันการลบข้อมูล',
+    cancelButtonText: 'ยกเลิก',
+    preConfirm: () => {
+      const selectedClass = document.getElementById('swal-batch-delete-class').value;
+      if (!selectedClass) {
+        Swal.showValidationMessage('กรุณาเลือกห้องเรียนที่ต้องการลบ');
+        return false;
+      }
+      return selectedClass;
+    }
+  }).then((result) => {
+    if (result.isConfirmed && result.value) {
+      const targetRoom = result.value;
+      const studentsToDelete = allStudents.filter(s => {
+        if (targetRoom === 'ALL_CLASSES') return true;
+        const c = (s.classLevel || 'ไม่ระบุห้อง').trim().replace(/^"|"$/g, '');
+        return c === targetRoom;
+      });
+
+      if (studentsToDelete.length === 0) {
+        showPopupWarning("ไม่พบข้อมูล", "ไม่พบนักเรียนในห้องที่เลือก");
+        return;
+      }
+
+      // Execute batch deletion
+      const deletePromises = [];
+      studentsToDelete.forEach(s => {
+        deletePromises.push(deleteData(`students/${s.studentId}`));
+        deletePromises.push(deleteData(`users/${s.studentId}`));
+      });
+
+      Promise.all(deletePromises).then(() => {
+        const roomNameText = targetRoom === 'ALL_CLASSES' ? 'ทุกห้องเรียน' : `ห้อง ${targetRoom}`;
+        showPopupSuccess("ลบรายชื่อสำเร็จ!", `ลบข้อมูลนักเรียน ${roomNameText} จำนวน ${studentsToDelete.length} คน เรียบร้อยแล้ว`);
+        logActivity(`ลบรายชื่อนักเรียน ${roomNameText} จำนวน ${studentsToDelete.length} คน`);
+        
+        // Auto refresh
+        updateClassFilterDropdowns();
+        renderStudentsTable();
+      });
+    }
+  });
 }
 
 function openAddStudentModal() {
