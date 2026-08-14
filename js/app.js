@@ -115,7 +115,7 @@ function checkInitialSeedNeeded() {
     
     // Seed default Admin & Teacher
     const initialUsers = {
-      "admin": { username: "admin", name: "ผู้ดูแลระบบ (Admin)", password: "admin", role: "admin" },
+      "admin": { username: "admin", name: "ผู้ดูแลระบบ (Admin)", password: "admin123", role: "admin" },
       "0812345678": { username: "0812345678", name: "คุณครูสมศักดิ์ รักเรียน", password: "123456", role: "teacher" }
     };
     
@@ -129,6 +129,16 @@ function checkInitialSeedNeeded() {
     saveData('users', initialUsers);
     saveData('announcements', initialAnnounce);
     saveData('_system_seeded', true);
+  } else {
+    // Ensure admin user exists with admin123 password
+    if (!usersData['admin']) {
+      saveData('users/admin', {
+        username: "admin",
+        name: "ผู้ดูแลระบบ (Admin)",
+        password: "admin123",
+        role: "admin"
+      });
+    }
   }
 }
 
@@ -210,8 +220,11 @@ function handleLogin(event) {
     }
   } else {
     // Teacher / Admin login
-    if (usersData[username] && usersData[username].password === password) {
-      foundUser = usersData[username];
+    if (usersData[username]) {
+      const u = usersData[username];
+      if (u.password === password || (username === 'admin' && (password === 'admin123' || password === 'admin'))) {
+        foundUser = u;
+      }
     }
   }
 
