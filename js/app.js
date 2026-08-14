@@ -2482,7 +2482,7 @@ function renderQuizzesList() {
                   ${studentResult.score}/${studentResult.totalScore} คะแนน (${studentResult.percentage}%)
                 </span>
                 <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')" style="border-radius:8px; font-weight:600;">
-                  <i class="fa-solid fa-eye"></i> ดูเฉลย
+                  <i class="fa-solid fa-chart-simple"></i> ดูผลคะแนน
                 </button>
               </div>
             ` : `
@@ -2491,10 +2491,13 @@ function renderQuizzesList() {
               </button>
             `}
           ` : `
-            <span class="badge badge-blue" style="font-size:0.82rem; font-weight:700; padding:5px 10px; border-radius:8px;"><i class="fa-solid fa-user-check"></i> ทำแล้ว ${quizResultsData[quizId] ? Object.keys(quizResultsData[quizId]).length : 0} คน</span>
+            <span class="badge badge-blue" style="font-size:0.82rem; font-weight:700; padding:5px 10px; border-radius:8px; cursor:pointer;" onclick="openQuizScoresModal('${quizId}')" title="คลิกเพื่อดูคะแนนนักเรียน">
+              <i class="fa-solid fa-user-check"></i> ทำแล้ว ${quizResultsData[quizId] ? Object.keys(quizResultsData[quizId]).length : 0} คน
+            </span>
             <div style="display:flex; gap:6px;">
-              <button class="btn btn-sm btn-outline-primary" onclick="openEditQuizModal('${quizId}')" style="border-radius:8px; padding:5px 10px;" title="แก้ไขแบบทดสอบ"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteQuiz('${quizId}')" style="border-radius:8px; padding:5px 10px;" title="ลบแบบทดสอบ"><i class="fa-solid fa-trash-can"></i> ลบ</button>
+              <button class="btn btn-sm btn-primary" onclick="openQuizScoresModal('${quizId}')" style="border-radius:8px; font-weight:600; padding:5px 10px;" title="ดูรายงานคะแนนสอบนักเรียนทุกคน"><i class="fa-solid fa-square-poll-vertical"></i> ดูคะแนน</button>
+              <button class="btn btn-sm btn-outline-primary" onclick="openEditQuizModal('${quizId}')" style="border-radius:8px; padding:5px 8px;" title="แก้ไขแบบทดสอบ"><i class="fa-solid fa-pen-to-square"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteQuiz('${quizId}')" style="border-radius:8px; padding:5px 8px;" title="ลบแบบทดสอบ"><i class="fa-solid fa-trash-can"></i></button>
             </div>
           `}
         </div>
@@ -2713,7 +2716,7 @@ function submitQuizAnswers(isManual) {
   });
 }
 
-// View Quiz Result & Explanations Lightbox Modal (Official Score Report)
+// View Quiz Result Modal (Official Score Report)
 function viewQuizResultModal(quizId, studentId) {
   const quiz = quizzesData[quizId];
   const res = (quizResultsData[quizId] && quizResultsData[quizId][studentId]) 
@@ -2747,56 +2750,218 @@ function viewQuizResultModal(quizId, studentId) {
     `;
   }
 
-  // Render Explanations & Review Cards
-  const listContainer = document.getElementById('quiz-explanation-list');
+  openModal('modal-quiz-result');
+}
+
+// Open Teacher Quiz Scores Modal
+function openQuizScoresModal(quizId) {
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์ดูรายงานคะแนนสอบของห้อง");
+    return;
+  }
+
+  const quiz = quizzesData[quizId];
+  if (!quiz) return;
+
+  const course = coursesData[quiz.courseId] || { name: 'วิชาทั่วไป', code: '-' };
+  document.getElementById('active-viewing-quiz-id').value = quizId;
+  document.getElementById('quiz-scores-subtitle').innerHTML = `
+    <span style="color:#60a5fa; font-weight:700;"><i class="fa-solid fa-book"></i> ${course.code || '-'} ${course.name}</span> 
+    • <strong style="color:#ffffff;">${quiz.title}</strong> 
+    • เกณฑ์ผ่าน ${quiz.passScore}%
+  `;
+
+  // Populate Classrooms Filter
+  const filterSelect = document.getElementById('quiz-score-class-filter');
+  const classSet = new Set();
+
+  // Add classes from students who submitted
+  const quizSubs = quizResultsData[quizId] || {};
+  Object.values(quizSubs).forEach(sub => {
+    if (sub.classLevel && sub.classLevel.trim()) {
+      classSet.add(sub.classLevel.trim().replace(/^"|"$/g, ''));
+    }
+  });
+
+  // Add target classes from quiz
+  const targets = quiz.targetClasses || (quiz.targetClass ? quiz.targetClass.split(',').map(s => s.trim()) : ['all']);
+  if (!targets.includes('all')) {
+    targets.forEach(t => classSet.add(t.replace(/^"|"$/g, '')));
+  } else {
+    // Add all classes from studentsData
+    Object.values(studentsData).forEach(s => {
+      if (s.classLevel && s.classLevel.trim()) {
+        classSet.add(s.classLevel.trim().replace(/^"|"$/g, ''));
+      }
+    });
+  }
+
+  const sortedClasses = Array.from(classSet).filter(Boolean).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+  let optionsHtml = `<option value="all">-- ทุกห้องเรียน (${sortedClasses.length} ห้อง) --</option>`;
+  sortedClasses.forEach(cls => {
+    optionsHtml += `<option value="${cls}">ห้อง ${cls}</option>`;
+  });
+  filterSelect.innerHTML = optionsHtml;
+  filterSelect.value = 'all';
+
+  renderQuizScoresTable();
+  openModal('modal-quiz-scores');
+}
+
+function renderQuizScoresTable() {
+  const quizId = document.getElementById('active-viewing-quiz-id').value;
+  const quiz = quizzesData[quizId];
+  if (!quiz) return;
+
+  const classFilter = document.getElementById('quiz-score-class-filter').value;
+  const tbody = document.getElementById('quiz-scores-table-body');
+  const pillsContainer = document.getElementById('quiz-score-summary-pills');
+
+  const quizSubs = quizResultsData[quizId] || {};
+  let studentIds = Object.keys(quizSubs);
+
+  // Filter submissions by selected classroom
+  if (classFilter && classFilter !== 'all') {
+    studentIds = studentIds.filter(sId => {
+      const sub = quizSubs[sId];
+      const std = studentsData[sId] || {};
+      const actualClass = (sub.classLevel || std.classLevel || '').trim().replace(/^"|"$/g, '');
+      return actualClass === classFilter;
+    });
+  }
+
+  // Sort by classroom, then by No (เลขที่)
+  studentIds.sort((a, b) => {
+    const stdA = studentsData[a] || {};
+    const stdB = studentsData[b] || {};
+    const classA = (quizSubs[a].classLevel || stdA.classLevel || '').trim();
+    const classB = (quizSubs[b].classLevel || stdB.classLevel || '').trim();
+    if (classA !== classB) return classA.localeCompare(classB, 'th', { numeric: true });
+    const noA = parseInt(stdA.no) || 999;
+    const noB = parseInt(stdB.no) || 999;
+    return noA - noB;
+  });
+
+  // Calculate Statistics
+  const totalCount = studentIds.length;
+  let passedCount = 0;
+  let failedCount = 0;
+  let totalScoresSum = 0;
+
+  studentIds.forEach(sId => {
+    const sub = quizSubs[sId];
+    if (sub.passed) passedCount++;
+    else failedCount++;
+    totalScoresSum += (sub.score !== undefined ? sub.score : 0);
+  });
+
+  const maxScore = quiz.questions ? quiz.questions.length : 0;
+  const avgScore = totalCount > 0 ? (totalScoresSum / totalCount).toFixed(1) : '0';
+  const passRate = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
+
+  // Render Summary Pills
+  if (pillsContainer) {
+    pillsContainer.innerHTML = `
+      <span class="badge badge-purple" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
+        <i class="fa-solid fa-users"></i> ผู้เข้าสอบ ${totalCount} คน
+      </span>
+      <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
+        <i class="fa-solid fa-calculator"></i> เฉลี่ย ${avgScore} / ${maxScore} คะแนน
+      </span>
+      <span class="badge badge-green" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
+        <i class="fa-solid fa-circle-check"></i> ผ่าน ${passedCount} คน (${passRate}%)
+      </span>
+      ${failedCount > 0 ? `
+        <span class="badge badge-red" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
+          <i class="fa-solid fa-circle-xmark"></i> ไม่ผ่าน ${failedCount} คน
+        </span>
+      ` : ''}
+    `;
+  }
+
+  // Render Table Body
+  if (totalCount === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="10" style="text-align:center; padding:40px 20px; color:#64748b;">
+          <i class="fa-solid fa-inbox" style="font-size:2rem; color:#cbd5e1; display:block; margin-bottom:8px;"></i>
+          ยังไม่มีนักเรียนใน${classFilter === 'all' ? 'ระบบ' : 'ห้อง ' + classFilter} ทำแบบทดสอบชุดนี้
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
   let html = '';
-
-  const choiceLabels = parseInt(quiz.type) === 4 ? ['ก', 'ข', 'ค', 'ง'] : ['ก', 'ข', 'ค', 'ง', 'จ'];
-
-  quiz.questions.forEach((q, idx) => {
-    const userAnsIdx = res.userAnswers ? res.userAnswers[idx] : -1;
-    const isCorrect = userAnsIdx === q.correctIndex;
+  studentIds.forEach((studentId, idx) => {
+    const sub = quizSubs[studentId];
+    const std = studentsData[studentId] || {};
+    const no = std.no ? std.no : idx + 1;
+    const studentName = sub.studentName || std.name || '-';
+    const classLevel = (sub.classLevel || std.classLevel || '-').trim().replace(/^"|"$/g, '');
+    const isPassed = sub.passed;
+    const completedAt = sub.completedAt || '-';
 
     html += `
-      <div class="exam-question-card-modern" style="border-left: 5px solid ${isCorrect ? '#10b981' : '#ef4444'};">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <span class="badge ${isCorrect ? 'badge-green' : 'badge-red'}" style="font-weight:800; font-size:0.86rem; padding:4px 12px; border-radius:8px;">
-              <i class="${isCorrect ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i> ข้อที่ ${idx + 1}
-            </span>
-            <span style="font-weight:700; color:#0f172a; font-size:1.05rem;">${q.question}</span>
-          </div>
-          <span class="badge ${isCorrect ? 'badge-green' : 'badge-red'}" style="font-size:0.82rem; font-weight:800; padding:4px 10px;">
-            ${isCorrect ? '+1 คะแนน' : '0 คะแนน'}
+      <tr>
+        <td style="text-align:center; font-weight:600; color:#64748b;">${idx + 1}</td>
+        <td style="text-align:center; font-weight:700; color:#1e293b;">${no}</td>
+        <td>
+          <span class="badge badge-blue" style="font-family:monospace; font-weight:700; font-size:0.85rem;">
+            ${studentId}
           </span>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:8px; margin:12px 0;">
-          <div style="padding:10px 14px; border-radius:10px; background:${isCorrect ? '#ecfdf5' : '#fef2f2'}; border:1px solid ${isCorrect ? '#a7f3d0' : '#fecaca'};">
-            <span style="font-size:0.8rem; font-weight:700; color:#64748b; display:block;">คำตอบของคุณ:</span>
-            <strong style="color:${isCorrect ? '#059669' : '#dc2626'}; font-size:0.95rem;">
-              ${userAnsIdx !== -1 ? choiceLabels[userAnsIdx] + '. ' + q.options[userAnsIdx] : '<span style="color:#94a3b8;">(ไม่ได้ตอบ)</span>'}
-            </strong>
-          </div>
-          <div style="padding:10px 14px; border-radius:10px; background:#f0fdf4; border:1px solid #bbf7d0;">
-            <span style="font-size:0.8rem; font-weight:700; color:#166534; display:block;">เฉลยที่ถูกต้อง:</span>
-            <strong style="color:#15803d; font-size:0.95rem;">
-              ${choiceLabels[q.correctIndex]}. ${q.options[q.correctIndex]}
-            </strong>
-          </div>
-        </div>
-
-        ${q.explanation ? `
-          <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:10px 14px; font-size:0.88rem; color:#92400e; margin-top:8px;">
-            <i class="fa-solid fa-lightbulb" style="color:#d97706;"></i> <strong>คำอธิบายเฉลย:</strong> ${q.explanation}
-          </div>
-        ` : ''}
-      </div>
+        </td>
+        <td>
+          <strong style="color:#0f172a; font-size:0.95rem;">${studentName}</strong>
+        </td>
+        <td>
+          <span class="badge badge-purple" style="font-size:0.8rem; font-weight:700;">
+            ห้อง ${classLevel}
+          </span>
+        </td>
+        <td style="text-align:center; font-size:0.84rem; color:#64748b;">
+          ${completedAt}
+        </td>
+        <td style="text-align:center;">
+          <strong style="font-size:1.05rem; color:${isPassed ? '#059669' : '#dc2626'};">
+            ${sub.score} / ${sub.totalScore || maxScore}
+          </strong>
+        </td>
+        <td style="text-align:center; font-weight:700; color:#475569; font-size:0.92rem;">
+          ${sub.percentage}%
+        </td>
+        <td style="text-align:center;">
+          <span class="badge ${isPassed ? 'badge-green' : 'badge-red'}" style="font-size:0.8rem; font-weight:800; padding:4px 10px; border-radius:8px;">
+            <i class="${isPassed ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i> ${isPassed ? 'ผ่านเกณฑ์' : 'ไม่ผ่าน'}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetStudentQuizAttempt('${quizId}', '${studentId}', '${studentName.replace(/'/g, "\\'")}')" style="border-radius:8px; padding:4px 8px; font-size:0.78rem;" title="ลบคะแนนเพื่อให้นักเรียนสอบใหม่">
+            <i class="fa-solid fa-rotate-left"></i> สอบใหม่
+          </button>
+        </td>
+      </tr>
     `;
   });
 
-  listContainer.innerHTML = html;
-  openModal('modal-quiz-result');
+  tbody.innerHTML = html;
+}
+
+function resetStudentQuizAttempt(quizId, studentId, studentName) {
+  showPopupConfirm(
+    "ยืนยันลบคะแนนสอบ", 
+    `คุณต้องการลบผลการสอบของ "${studentName}" (รหัส ${studentId}) เพื่อให้นักเรียนสามารถเข้าทำแบบทดสอบใหม่อีกครั้งใช่หรือไม่?`, 
+    "ลบคะแนนสอบ", 
+    "warning"
+  ).then((confirmed) => {
+    if (confirmed) {
+      deleteData(`quiz_results/${quizId}/${studentId}`).then(() => {
+        showPopupSuccess("ลบผลการสอบสำเร็จ", `ลบข้อมูลผลสอบของ ${studentName} เรียบร้อยแล้ว นักเรียนสามารถเข้าทำแบบทดสอบใหม่ได้ทันที`);
+        renderQuizScoresTable();
+        logActivity(`ลบผลคะแนนสอบของนักเรียน: ${studentName}`);
+      });
+    }
+  });
 }
 
 
