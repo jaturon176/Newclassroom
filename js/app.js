@@ -1697,12 +1697,14 @@ async function handleStudentHomeworkSubmit(e) {
 
   const btnSubmit = document.getElementById('btn-do-submit-hw');
   btnSubmit.disabled = true;
-  btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังส่งงาน...`;
+  btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบีบอัดและอัปโหลดภาพ...`;
 
   let imageUrl = null;
   if (imgFile) {
-    imageUrl = await readFileAsBase64(imgFile);
+    imageUrl = await uploadImageFile(imgFile);
   }
+
+  btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกข้อมูล...`;
 
   // Save submission non-conflicting key: homework_submissions/{hwId}/{studentId}
   const submissionPath = `homework_submissions/${hwId}/${currentUser.studentId}`;
@@ -1719,7 +1721,7 @@ async function handleStudentHomeworkSubmit(e) {
     btnSubmit.disabled = false;
     btnSubmit.innerHTML = `<i class="fa-solid fa-paper-plane"></i> ยืนยันการส่งงาน`;
     closeModal('modal-submit-homework');
-    showPopupSuccess("ส่งการบ้านเรียบร้อย!", "ส่งการบ้านและแนบไฟล์ชิ้นงานเข้าสู่ระบบเรียบร้อยแล้ว");
+    showPopupSuccess("ส่งการบ้านเรียบร้อย!", "ส่งการบ้านและอัปโหลดไฟล์ชิ้นงานเข้าสู่ระบบเรียบร้อยแล้ว");
     logActivity(`นักเรียน ${currentUser.name} ส่งการบ้านเรียบร้อยแล้ว`);
   });
 }
