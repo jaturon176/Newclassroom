@@ -75,7 +75,7 @@
         </div>
 
         <!-- Login Form (Unified Single Sign-On) -->
-        <form id="login-form" onsubmit="handleLogin(event)">
+        <form id="login-form" onsubmit="event.preventDefault(); handleLogin(event); return false;">
           <div class="form-group">
             <label class="form-label" id="username-label">ชื่อผู้ใช้งาน หรือ รหัสประจำตัว (Username / Student ID)</label>
             <div class="input-with-icon">
@@ -1098,8 +1098,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=7.0.0"></script>
-  <script src="js/cloudinary.js?v=7.0.0"></script>
-  <script src="js/app.js?v=7.0.0"></script>
+  <script src="js/firebase-config.js?v=8.0.0"></script>
+  <script src="js/cloudinary.js?v=8.0.0"></script>
+  <script src="js/app.js?v=8.0.0"></script>
 </body>
 </html>

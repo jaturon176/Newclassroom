@@ -1294,6 +1294,32 @@ async function saveHomeworkForm(e) {
   });
 }
 
+function openHomeworkAttachment(hwId) {
+  const hw = homeworkData[hwId];
+  if (!hw) return;
+  let fileUrl = null;
+  let fileName = hw.title || 'เอกสารคำสั่งงาน';
+  if (hw.pdfs && Array.isArray(hw.pdfs) && hw.pdfs.length > 0 && hw.pdfs[0].url) {
+    fileUrl = hw.pdfs[0].url;
+    if (hw.pdfs[0].name) fileName = hw.pdfs[0].name;
+  } else if (hw.imageUrl) {
+    fileUrl = hw.imageUrl;
+  }
+  if (fileUrl) {
+    showPDFPreviewModal(fileUrl, fileName);
+  }
+}
+
+function openSubmissionAttachment(hwId, studentId) {
+  const sub = (submissionsData[hwId] && submissionsData[hwId][studentId]) ? submissionsData[hwId][studentId] : null;
+  if (!sub) return;
+  const fileUrl = sub.fileUrl || sub.submittedImageUrl || sub.imageUrl;
+  const fileName = sub.fileName || sub.studentName || 'ไฟล์งานที่ส่ง';
+  if (fileUrl) {
+    showPDFPreviewModal(fileUrl, fileName);
+  }
+}
+
 function renderCoursesList() {
   const container = document.getElementById('courses-list-container');
   const courseKeys = Object.keys(coursesData);
@@ -1395,7 +1421,7 @@ function renderCoursesList() {
               
               ${fileUrl ? `
                 <div style="margin:10px 0;">
-                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:6px 14px; border-radius:8px;">
+                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="openHomeworkAttachment('${hw.id}')" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:6px 14px; border-radius:8px;">
                     <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'}; font-size:1.1rem;"></i> 
                     <span>📄 เอกสารแนบ ${isPdf ? 'PDF' : 'รูปภาพ'} (${fileName})</span>
                   </button>
@@ -1624,7 +1650,7 @@ function openSubmitHomeworkModal(hwId) {
   if (fileUrl) {
     mediaHtml += `
       <div style="margin:8px 0;">
-        <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; border-radius:8px;">
+        <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="openHomeworkAttachment('${hwId}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; border-radius:8px;">
           <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> 
           <span>📄 ดูเอกสารคำสั่งงาน (${fileName})</span>
         </button>
@@ -1710,9 +1736,9 @@ function openGradeSubmissionsModal(hwId) {
           <td style="font-size:0.85rem;">${sub.submittedAt}</td>
           <td>
             <div>${sub.textAnswer || '-'}</div>
-            ${sub.imageUrl ? `
-              <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:4px;" onclick="showPDFPreviewModal('${sub.imageUrl.replace(/'/g, "\\'")}', '${sub.studentName.replace(/'/g, "\\'")}')">
-                <i class="${(sub.imageUrl.includes('.pdf') || sub.imageUrl.includes('data:application/pdf')) ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูไฟล์แนบชิ้นงาน
+            ${(sub.imageUrl || sub.fileUrl) ? `
+              <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:4px;" onclick="openSubmissionAttachment('${hwId}', '${studentId}')">
+                <i class="${((sub.imageUrl || sub.fileUrl).includes('.pdf') || (sub.imageUrl || sub.fileUrl).includes('data:application/pdf')) ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูไฟล์แนบชิ้นงาน
               </button>
             ` : ''}
           </td>
