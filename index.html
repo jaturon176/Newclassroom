@@ -74,20 +74,10 @@
           <p class="login-desc">กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเข้าใช้งานระบบ Myclassroom</p>
         </div>
 
-        <!-- Role Select Tabs -->
-        <div class="role-tabs">
-          <button type="button" class="role-tab-btn active" id="tab-teacher" onclick="switchLoginRole('teacher')">
-            <i class="fa-solid fa-chalkboard-user"></i> ครู / บุคลากร
-          </button>
-          <button type="button" class="role-tab-btn" id="tab-student" onclick="switchLoginRole('student')">
-            <i class="fa-solid fa-user-graduate"></i> นักเรียน
-          </button>
-        </div>
-
-        <!-- Login Form -->
+        <!-- Login Form (Unified Single Sign-On) -->
         <form id="login-form" onsubmit="handleLogin(event)">
           <div class="form-group">
-            <label class="form-label" id="username-label">ชื่อผู้ใช้งาน (Username)</label>
+            <label class="form-label" id="username-label">ชื่อผู้ใช้งาน หรือ รหัสประจำตัว (Username / Student ID)</label>
             <div class="input-with-icon">
               <i class="fa-solid fa-user input-icon"></i>
               <input type="text" id="login-username" class="form-control" placeholder="เบอร์โทรศัพท์ (ครู) / รหัสประจำตัว (นักเรียน)" required autocomplete="username">
@@ -108,11 +98,11 @@
           <!-- Helpful Info Callout Box -->
           <div class="login-info-box" id="login-info-box">
             <div class="login-info-title">
-              <i class="fa-solid fa-circle-info"></i> รูปแบบการเข้าใช้งาน:
+              <i class="fa-solid fa-circle-info"></i> คำแนะนำการเข้าใช้งาน:
             </div>
-            <ul class="login-info-list">
-              <li id="info-teacher-desc"><strong>ครู / บุคลากร:</strong> ใช้ ชื่อผู้ใช้ และ รหัสผ่าน ที่กำหนดไว้</li>
-              <li id="info-student-desc" style="display:none;"><strong>นักเรียน:</strong> ใช้ <u>รหัสประจำตัวนักเรียน</u> เป็นทั้งชื่อผู้ใช้และรหัสผ่าน</li>
+            <ul class="login-info-list" style="padding-left:18px; margin:0; line-height:1.5;">
+              <li><strong>ครู / ผู้ดูแลระบบ:</strong> ใช้ Username และ Password ของท่าน</li>
+              <li><strong>นักเรียน:</strong> ใช้ <u>รหัสประจำตัวนักเรียน</u> ทั้งช่องชื่อผู้ใช้และรหัสผ่าน</li>
             </ul>
           </div>
 

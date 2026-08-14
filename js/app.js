@@ -194,35 +194,11 @@ function checkInitialSeedNeeded() {
 
 
 /* -------------------------------------------------------------
-   2. AUTHENTICATION & LOGIN LOGIC
+   2. AUTHENTICATION & LOGIN LOGIC (Unified Single Sign-On)
 ------------------------------------------------------------- */
 function switchLoginRole(role) {
+  // Kept for backward compatibility
   activeLoginRole = role;
-  const tabTeacher = document.getElementById('tab-teacher');
-  const tabStudent = document.getElementById('tab-student');
-  const usernameLabel = document.getElementById('username-label');
-  const usernameInput = document.getElementById('login-username');
-  const pwdInput = document.getElementById('login-password');
-  const infoTeacher = document.getElementById('info-teacher-desc');
-  const infoStudent = document.getElementById('info-student-desc');
-
-  if (role === 'teacher') {
-    tabTeacher.classList.add('active');
-    tabStudent.classList.remove('active');
-    usernameLabel.innerText = "ชื่อผู้ใช้งาน (Username)";
-    usernameInput.placeholder = "เบอร์โทรศัพท์ (ครู) / Admin";
-    pwdInput.placeholder = "รหัสผ่าน";
-    infoTeacher.style.display = "block";
-    infoStudent.style.display = "none";
-  } else {
-    tabStudent.classList.add('active');
-    tabTeacher.classList.remove('active');
-    usernameLabel.innerText = "รหัสประจำตัวนักเรียน (Student ID)";
-    usernameInput.placeholder = "กรอกรหัสประจำตัวนักเรียน เช่น 66001";
-    pwdInput.placeholder = "กรอกรหัสประจำตัวนักเรียนอีกครั้ง";
-    infoTeacher.style.display = "none";
-    infoStudent.style.display = "block";
-  }
 }
 
 function handleLogin(event) {
@@ -235,10 +211,9 @@ function handleLogin(event) {
     return;
   }
 
-  // Check in usersData
   let foundUser = null;
 
-  // Embedded hardcoded Admin credentials check (for instant guaranteed login)
+  // 1. Embedded hardcoded Admin credentials check (for instant guaranteed login)
   if (username.toLowerCase() === 'admin' && (password === 'admin56' || password === 'admin123' || password === 'admin')) {
     foundUser = {
       username: "admin",
@@ -246,47 +221,42 @@ function handleLogin(event) {
       password: "admin56",
       role: "admin"
     };
-    // Ensure written to Firebase
     saveData('users/admin', foundUser);
   }
 
-  if (!foundUser) {
-    if (activeLoginRole === 'student') {
-      // For students: Username AND Password must equal Student ID
-      if (usersData[username]) {
-        const u = usersData[username];
-        if (u.role === 'student' && (u.password === password || u.studentId === username)) {
-          foundUser = u;
-        }
-      }
+  // 2. Direct key match in usersData (Teacher, Admin, or Student)
+  if (!foundUser && usersData[username]) {
+    const u = usersData[username];
+    if (u.password === password || (u.role === 'student' && (u.studentId === password || password === username))) {
+      foundUser = u;
+    }
+  }
 
-      // Fallback: check studentsData if not in usersData yet
-      if (!foundUser && studentsData[username]) {
-        const std = studentsData[username];
-        foundUser = {
-          username: std.studentId,
-          name: std.name,
-          role: 'student',
-          studentId: std.studentId,
-          classLevel: std.classLevel
-        };
-        saveData(`users/${std.studentId}`, {
-          username: std.studentId,
-          password: std.studentId,
-          name: std.name,
-          role: 'student',
-          studentId: std.studentId,
-          classLevel: std.classLevel
-        });
-      }
-    } else {
-      // Teacher / Admin login check from DB
-      if (usersData[username]) {
-        const u = usersData[username];
-        if (u.password === password) {
-          foundUser = u;
-        }
-      }
+  // 3. Search by username or studentId across all usersData
+  if (!foundUser) {
+    const matchedKey = Object.keys(usersData).find(k => {
+      const u = usersData[k];
+      return (u.username === username || u.studentId === username || k === username) && 
+             (u.password === password || (u.role === 'student' && password === username));
+    });
+    if (matchedKey) {
+      foundUser = usersData[matchedKey];
+    }
+  }
+
+  // 4. Check in studentsData (Auto Student ID Login)
+  if (!foundUser) {
+    const std = studentsData[username] || Object.values(studentsData).find(s => s.studentId === username);
+    if (std && (password === std.studentId || password === username)) {
+      foundUser = {
+        username: std.studentId,
+        password: std.studentId,
+        name: std.name,
+        role: 'student',
+        studentId: std.studentId,
+        classLevel: std.classLevel
+      };
+      saveData(`users/${std.studentId}`, foundUser);
     }
   }
 
@@ -296,11 +266,7 @@ function handleLogin(event) {
     showAppScreen();
     logActivity(`ผู้ใช้งาน ${currentUser.name} เข้าสู่ระบบแล้ว`);
   } else {
-    if (activeLoginRole === 'student') {
-      showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ไม่พบข้อมูลนักเรียน หรือ รหัสประจำตัวไม่ถูกต้อง (ใช้อย่างเดียวกันทั้งชื่อผู้ใช้และรหัสผ่าน)");
-    } else {
-      showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
-    }
+    showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง (สำหรับนักเรียนให้ใช้รหัสประจำตัวเป็นทั้งชื่อผู้ใช้และรหัสผ่าน)");
   }
 }
 
