@@ -1070,11 +1070,30 @@ function saveCourseForm(e) {
   });
 }
 
+function getYouTubeEmbedUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const str = url.trim();
+  if (!str) return null;
+
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = str.match(regExp);
+
+  if (match && match[2].length === 11) {
+    return `https://www.youtube.com/embed/${match[2]}`;
+  }
+  
+  if (str.includes('youtube.com/embed/')) {
+    return str;
+  }
+  return null;
+}
+
 function openCreateHomeworkModal() {
   document.getElementById('hw-title').value = '';
   document.getElementById('hw-desc').value = '';
   document.getElementById('hw-max-score').value = 10;
   document.getElementById('hw-due-date').value = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+  document.getElementById('hw-youtube-url').value = '';
   document.getElementById('hw-img-file').value = '';
 
   const courseId = document.getElementById('hw-course-id') ? document.getElementById('hw-course-id').value : '';
@@ -1092,11 +1111,12 @@ async function saveHomeworkForm(e) {
   const desc = document.getElementById('hw-desc').value.trim();
   const maxScore = parseInt(document.getElementById('hw-max-score').value) || 10;
   const dueDate = document.getElementById('hw-due-date').value;
+  const youtubeUrl = document.getElementById('hw-youtube-url').value.trim();
   const imgFile = document.getElementById('hw-img-file').files[0];
 
   const btnSave = document.getElementById('btn-save-hw');
   btnSave.disabled = true;
-  btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังอัปโหลดไฟล์...`;
+  btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึกการบ้าน...`;
 
   let imageUrl = null;
   if (imgFile) {
@@ -1111,6 +1131,7 @@ async function saveHomeworkForm(e) {
     desc,
     maxScore,
     dueDate,
+    youtubeUrl: youtubeUrl || null,
     imageUrl,
     createdAt: new Date().toISOString(),
     createdBy: currentUser.name
@@ -1147,7 +1168,7 @@ function renderCoursesList() {
           const studentClass = (currentUser.classLevel || '').trim();
           const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
           if (!targets.includes('all') && targets.length > 0 && !targets.includes(studentClass)) {
-            return false; // Not intended for this student's classroom
+            return false;
           }
         }
         return true;
@@ -1187,6 +1208,7 @@ function renderCoursesList() {
         const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
         const isTargetAll = targets.includes('all') || targets.length === 0;
         const targetLabel = isTargetAll ? 'ทุกห้อง' : 'ห้อง ' + targets.join(', ');
+        const embedUrl = getYouTubeEmbedUrl(hw.youtubeUrl);
 
         html += `
           <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
@@ -1201,11 +1223,19 @@ function renderCoursesList() {
                 </div>
               </div>
               <p style="font-size:0.92rem; color:var(--text-main); margin:8px 0;">${hw.desc || '-'}</p>
+
+              ${embedUrl ? `
+                <div style="margin:10px 0; border-radius:10px; overflow:hidden; border:1px solid var(--border); box-shadow:var(--shadow-sm); background:#000;">
+                  <div style="position:relative; padding-bottom:56.25%; height:0;">
+                    <iframe src="${embedUrl}" title="${hw.title || 'YouTube video'}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                  </div>
+                </div>
+              ` : ''}
               
               ${hw.imageUrl ? `
                 <div style="margin:8px 0;">
-                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="openFilePreviewModal('${hw.imageUrl}', '${hw.title.replace(/'/g, "\\'")}')">
-                    <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูตัวอย่างไฟล์สั่งงาน (${isPdf ? 'PDF' : 'รูปภาพ'})
+                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="openFilePreviewModal('${hw.imageUrl}', '${hw.title.replace(/'/g, "\\'")}')">
+                    <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> ดูเอกสารคำสั่งงาน (${isPdf ? 'PDF' : 'รูปภาพ'})
                   </button>
                 </div>
               ` : ''}
@@ -1301,6 +1331,7 @@ function openEditHomeworkModal(hwId) {
   document.getElementById('edit-hw-desc').value = hw.desc || '';
   document.getElementById('edit-hw-max-score').value = hw.maxScore || 10;
   document.getElementById('edit-hw-due-date').value = hw.dueDate || '';
+  document.getElementById('edit-hw-youtube-url').value = hw.youtubeUrl || '';
   document.getElementById('edit-hw-file').value = '';
 
   const selectedTargets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
@@ -1311,8 +1342,8 @@ function openEditHomeworkModal(hwId) {
     const isPdf = hw.imageUrl.includes('.pdf') || hw.imageUrl.includes('data:application/pdf');
     currentFileDiv.innerHTML = `
       <div style="font-size:0.88rem; color:var(--text-muted); margin-bottom:4px;">ไฟล์แนบปัจจุบัน:</div>
-      <button type="button" class="btn btn-sm btn-outline-primary" onclick="openFilePreviewModal('${hw.imageUrl}', '${hw.title.replace(/'/g, "\\'")}')">
-        <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูตัวอย่างไฟล์แนบปัจจุบัน (${isPdf ? 'PDF' : 'รูปภาพ'})
+      <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="openFilePreviewModal('${hw.imageUrl}', '${hw.title.replace(/'/g, "\\'")}')">
+        <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> ดูตัวอย่างไฟล์แนบปัจจุบัน (${isPdf ? 'PDF' : 'รูปภาพ'})
       </button>
     `;
   } else {
@@ -1331,6 +1362,7 @@ async function saveEditHomeworkForm(e) {
   const desc = document.getElementById('edit-hw-desc').value.trim();
   const maxScore = parseInt(document.getElementById('edit-hw-max-score').value) || 10;
   const dueDate = document.getElementById('edit-hw-due-date').value;
+  const youtubeUrl = document.getElementById('edit-hw-youtube-url').value.trim();
   const fileInput = document.getElementById('edit-hw-file').files[0];
 
   const btnUpdate = document.getElementById('btn-update-hw');
@@ -1351,6 +1383,7 @@ async function saveEditHomeworkForm(e) {
     desc,
     maxScore,
     dueDate,
+    youtubeUrl: youtubeUrl || null,
     imageUrl,
     updatedAt: new Date().toISOString()
   }).then(() => {
@@ -1381,11 +1414,37 @@ function openSubmitHomeworkModal(hwId) {
   const hw = homeworkData[hwId];
   if (!hw) return;
 
+  const embedUrl = getYouTubeEmbedUrl(hw.youtubeUrl);
+  const isPdf = hw.imageUrl && (hw.imageUrl.includes('.pdf') || hw.imageUrl.includes('data:application/pdf'));
+
+  let mediaHtml = '';
+  if (embedUrl) {
+    mediaHtml += `
+      <div style="margin:10px 0; border-radius:10px; overflow:hidden; border:1px solid var(--border); background:#000;">
+        <div style="position:relative; padding-bottom:56.25%; height:0;">
+          <iframe src="${embedUrl}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        </div>
+      </div>
+    `;
+  }
+  if (hw.imageUrl) {
+    mediaHtml += `
+      <div style="margin:8px 0;">
+        <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="openFilePreviewModal('${hw.imageUrl}', '${hw.title.replace(/'/g, "\\'")}')">
+          <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> ดูเอกสารคำสั่งงาน (${isPdf ? 'ไฟล์ PDF' : 'รูปภาพ'})
+        </button>
+      </div>
+    `;
+  }
+
   document.getElementById('submit-hw-id').value = hwId;
   document.getElementById('submit-hw-details').innerHTML = `
-    <h4 style="font-weight:700; color:#0f172a;">${hw.title}</h4>
-    <p style="font-size:0.92rem; color:var(--text-muted);">${hw.desc || ''}</p>
-    <div style="font-size:0.85rem; color:var(--primary); margin-top:4px;">คะแนนเต็ม: ${hw.maxScore} คะแนน | กำหนดส่ง: ${hw.dueDate}</div>
+    <h4 style="font-weight:700; color:#0f172a; font-size:1.15rem;">${hw.title}</h4>
+    <p style="font-size:0.92rem; color:var(--text-main); margin-top:4px;">${hw.desc || ''}</p>
+    ${mediaHtml}
+    <div style="font-size:0.85rem; color:var(--primary); margin-top:8px; font-weight:600;">
+      <i class="fa-solid fa-award"></i> คะแนนเต็ม: ${hw.maxScore} คะแนน | <i class="fa-solid fa-calendar"></i> กำหนดส่ง: ${hw.dueDate}
+    </div>
   `;
   document.getElementById('submit-text-answer').value = '';
   document.getElementById('submit-img-file').value = '';
