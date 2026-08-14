@@ -226,16 +226,24 @@ function switchLoginRole(role) {
   activeLoginRole = role;
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value.trim();
+  const usernameInput = document.getElementById('login-username').value.trim();
+  const passwordInput = document.getElementById('login-password').value.trim();
 
-  if (!username || !password) {
+  if (!usernameInput || !passwordInput) {
     showPopupWarning("กรุณากรอกข้อมูล", "กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน");
     return;
   }
 
+  const btnLogin = document.getElementById('btn-login-submit');
+  if (btnLogin) {
+    btnLogin.disabled = true;
+    btnLogin.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังเข้าสู่ระบบ...`;
+  }
+
+  const username = usernameInput;
+  const password = passwordInput;
   let foundUser = null;
 
   // 1. Embedded hardcoded Admin credentials check (for instant guaranteed login)
@@ -249,40 +257,89 @@ function handleLogin(event) {
     saveData('users/admin', foundUser);
   }
 
-  // 2. Direct key match in usersData (Teacher, Admin, or Student)
-  if (!foundUser && usersData[username]) {
-    const u = usersData[username];
-    if (u.password === password || (u.role === 'student' && (u.studentId === password || password === username))) {
-      foundUser = u;
+  // 2. Direct key match in memory usersData
+  if (!foundUser && usersData) {
+    if (usersData[username]) {
+      const u = usersData[username];
+      if (u.password === password || (u.role === 'student' && (u.studentId === password || password === username))) {
+        foundUser = u;
+      }
     }
   }
 
-  // 3. Search by username or studentId across all usersData
-  if (!foundUser) {
+  // 3. Search by username or studentId across all usersData in memory
+  if (!foundUser && usersData) {
     const matchedKey = Object.keys(usersData).find(k => {
       const u = usersData[k];
-      return (u.username === username || u.studentId === username || k === username) && 
-             (u.password === password || (u.role === 'student' && password === username));
+      if (!u) return false;
+      const matchUsername = (u.username && u.username.toLowerCase() === username.toLowerCase()) ||
+                            (u.studentId && u.studentId.toLowerCase() === username.toLowerCase()) ||
+                            (k.toLowerCase() === username.toLowerCase());
+      const matchPassword = (u.password === password) ||
+                            (u.role === 'student' && (password === u.studentId || password === username));
+      return matchUsername && matchPassword;
     });
     if (matchedKey) {
       foundUser = usersData[matchedKey];
     }
   }
 
-  // 4. Check in studentsData (Auto Student ID Login)
-  if (!foundUser) {
-    const std = studentsData[username] || Object.values(studentsData).find(s => s.studentId === username);
-    if (std && (password === std.studentId || password === username)) {
+  // 4. Check in studentsData (Auto Student ID Login with leading-zero flexibility)
+  if (!foundUser && studentsData) {
+    const rawNoZero = username.replace(/^0+/, '');
+    const std = studentsData[username] || 
+                studentsData[rawNoZero] ||
+                Object.values(studentsData).find(s => s.studentId === username || (rawNoZero && s.studentId === rawNoZero)) ||
+                Object.values(studentsData).find(s => s.studentId && s.studentId.padStart(5, '0') === username);
+    if (std && (password === std.studentId || password === username || (rawNoZero && password === rawNoZero))) {
       foundUser = {
         username: std.studentId,
         password: std.studentId,
         name: std.name,
         role: 'student',
         studentId: std.studentId,
-        classLevel: std.classLevel
+        classLevel: std.classLevel || ''
       };
       saveData(`users/${std.studentId}`, foundUser);
     }
+  }
+
+  // 5. Direct Firebase Live Query Fallback (If memory sync was slow or connection delayed)
+  if (!foundUser && typeof db !== 'undefined' && db) {
+    try {
+      const userSnap = await db.ref(`users/${username}`).once('value');
+      if (userSnap.exists()) {
+        const u = userSnap.val();
+        if (u.password === password || (u.role === 'student' && (u.studentId === password || password === username))) {
+          foundUser = u;
+        }
+      }
+
+      if (!foundUser) {
+        const stdSnap = await db.ref(`students/${username}`).once('value');
+        if (stdSnap.exists()) {
+          const std = stdSnap.val();
+          if (password === std.studentId || password === username) {
+            foundUser = {
+              username: std.studentId,
+              password: std.studentId,
+              name: std.name,
+              role: 'student',
+              studentId: std.studentId,
+              classLevel: std.classLevel || ''
+            };
+            saveData(`users/${std.studentId}`, foundUser);
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn("Direct Firebase login lookup error:", dbErr);
+    }
+  }
+
+  if (btnLogin) {
+    btnLogin.disabled = false;
+    btnLogin.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ (Sign In)`;
   }
 
   if (foundUser) {
@@ -291,7 +348,7 @@ function handleLogin(event) {
     showAppScreen();
     logActivity(`ผู้ใช้งาน ${currentUser.name} เข้าสู่ระบบแล้ว`);
   } else {
-    showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง (สำหรับนักเรียนให้ใช้รหัสประจำตัวเป็นทั้งชื่อผู้ใช้และรหัสผ่าน)");
+    showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง\n• แอดมิน: admin / admin56\n• นักเรียน: ใช้รหัสประจำตัวทั้งชื่อผู้ใช้และรหัสผ่าน");
   }
 }
 
