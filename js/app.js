@@ -308,12 +308,19 @@ function showAppScreen() {
   document.getElementById('sidebar-user-role').innerText = roleText;
 
   // Toggle role-specific controls
+  const isStudent = currentUser && currentUser.role === 'student';
   const teacherElements = document.querySelectorAll('.teacher-only');
   teacherElements.forEach(el => {
-    if (currentUser.role === 'student') {
-      el.style.display = 'none';
+    if (isStudent) {
+      el.style.setProperty('display', 'none', 'important');
     } else {
-      el.style.display = 'flex';
+      if (el.classList.contains('nav-item')) {
+        el.style.display = 'flex';
+      } else if (el.tagName === 'BUTTON' || el.classList.contains('btn')) {
+        el.style.display = 'inline-flex';
+      } else {
+        el.style.display = 'flex';
+      }
     }
   });
 
@@ -338,6 +345,14 @@ function togglePasswordVisibility(inputId, buttonEl) {
    3. NAVIGATION & VIEW SWITCHING
 ------------------------------------------------------------- */
 function switchNav(viewName) {
+  // Security permission guard for students: only allowed dashboard, courses, quizzes
+  if (currentUser && currentUser.role === 'student') {
+    const studentAllowedViews = ['dashboard', 'courses', 'quizzes'];
+    if (!studentAllowedViews.includes(viewName)) {
+      viewName = 'dashboard';
+    }
+  }
+
   activeNavView = viewName;
   
   // Update sidebar active link
@@ -382,15 +397,55 @@ function toggleSidebar() {
    4. DASHBOARD RENDERERS
 ------------------------------------------------------------- */
 function updateDashboardStats() {
+  const isStudent = currentUser && currentUser.role === 'student';
+  const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
+
   const studentCount = Object.keys(studentsData).length;
   const courseCount = Object.keys(coursesData).length;
-  const homeworkCount = Object.keys(homeworkData).length;
   const quizCount = Object.keys(quizzesData).length;
 
-  document.getElementById('stat-students-count').innerText = studentCount;
-  document.getElementById('stat-courses-count').innerText = courseCount;
-  document.getElementById('stat-homework-count').innerText = homeworkCount;
-  document.getElementById('stat-quizzes-count').innerText = quizCount;
+  if (isStudent) {
+    // Filter homework for this student's class
+    const myHwKeys = Object.keys(homeworkData).filter(id => {
+      const hw = homeworkData[id];
+      const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+      return targets.includes('all') || targets.length === 0 || targets.includes(studentClass);
+    });
+
+    document.getElementById('stat-students-count').innerText = studentClass || 'นักเรียน';
+    const lbl1 = document.querySelector('#stat-students-count + .stat-label');
+    if (lbl1) lbl1.innerText = 'ห้องเรียนของฉัน';
+
+    document.getElementById('stat-courses-count').innerText = courseCount;
+    const lbl2 = document.querySelector('#stat-courses-count + .stat-label');
+    if (lbl2) lbl2.innerText = 'รายวิชาทั้งหมด';
+
+    document.getElementById('stat-homework-count').innerText = myHwKeys.length;
+    const lbl3 = document.querySelector('#stat-homework-count + .stat-label');
+    if (lbl3) lbl3.innerText = 'การบ้านห้องของฉัน';
+
+    document.getElementById('stat-quizzes-count').innerText = quizCount;
+    const lbl4 = document.querySelector('#stat-quizzes-count + .stat-label');
+    if (lbl4) lbl4.innerText = 'แบบทดสอบที่เปิดทำ';
+  } else {
+    const homeworkCount = Object.keys(homeworkData).length;
+
+    document.getElementById('stat-students-count').innerText = studentCount;
+    const lbl1 = document.querySelector('#stat-students-count + .stat-label');
+    if (lbl1) lbl1.innerText = 'นักเรียนในระบบ (คน)';
+
+    document.getElementById('stat-courses-count').innerText = courseCount;
+    const lbl2 = document.querySelector('#stat-courses-count + .stat-label');
+    if (lbl2) lbl2.innerText = 'รายวิชาทั้งหมด';
+
+    document.getElementById('stat-homework-count').innerText = homeworkCount;
+    const lbl3 = document.querySelector('#stat-homework-count + .stat-label');
+    if (lbl3) lbl3.innerText = 'การบ้านที่สั่งแล้ว';
+
+    document.getElementById('stat-quizzes-count').innerText = quizCount;
+    const lbl4 = document.querySelector('#stat-quizzes-count + .stat-label');
+    if (lbl4) lbl4.innerText = 'แบบทดสอบที่สร้าง';
+  }
 }
 
 function renderAnnouncements() {
@@ -429,9 +484,10 @@ function saveAnnouncementForm(e) {
 function renderDashboardHomeworkSummary() {
   const container = document.getElementById('dashboard-homework-summary');
   let hwKeys = Object.keys(homeworkData);
+  const isStudent = currentUser && currentUser.role === 'student';
+  const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
 
-  if (currentUser && currentUser.role === 'student') {
-    const studentClass = (currentUser.classLevel || '').trim();
+  if (isStudent) {
     hwKeys = hwKeys.filter(id => {
       const hw = homeworkData[id];
       const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
@@ -440,7 +496,7 @@ function renderDashboardHomeworkSummary() {
   }
 
   if (hwKeys.length === 0) {
-    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีข้อมูลการบ้าน</p>`;
+    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีข้อมูลการบ้าน (หรือไม่มีงานที่มอบหมายให้ห้องของคุณ)</p>`;
     return;
   }
 
@@ -450,14 +506,26 @@ function renderDashboardHomeworkSummary() {
     const course = coursesData[hw.courseId] || { code: 'วิชา', name: '' };
     const subs = submissionsData[id] ? Object.keys(submissionsData[id]).length : 0;
 
+    let statusBadge = '';
+    if (isStudent) {
+      const mySub = (submissionsData[id] && currentUser.studentId) ? submissionsData[id][currentUser.studentId] : null;
+      if (mySub) {
+        statusBadge = `<span class="badge badge-green"><i class="fa-solid fa-check"></i> ส่งแล้ว (${mySub.score !== undefined ? mySub.score + ' คะแนน' : 'รอตรวจ'})</span>`;
+      } else {
+        statusBadge = `<button class="btn btn-sm btn-primary" onclick="switchNav('courses')"><i class="fa-solid fa-paper-plane"></i> ส่งงาน</button>`;
+      }
+    } else {
+      statusBadge = `<span class="badge badge-blue">ส่งแล้ว ${subs} คน</span>`;
+    }
+
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border-radius:12px; border:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border-radius:12px; border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
         <div>
           <div style="font-weight:700; color:#0f172a;">${hw.title}</div>
           <div style="font-size:0.85rem; color:var(--text-muted);">${course.code} ${course.name} | กำหนดส่ง: ${hw.dueDate}</div>
         </div>
         <div style="text-align:right;">
-          <span class="badge badge-blue">ส่งแล้ว ${subs} คน</span>
+          ${statusBadge}
         </div>
       </div>
     `;
