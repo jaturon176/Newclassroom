@@ -26,6 +26,55 @@ let quizRemainingSeconds = 0;
 // Dynamic Quiz Builder State
 let quizQuestionsList = [];
 
+/* -------------------------------------------------------------
+   POPUP & NOTIFICATION HELPER ENGINE (SweetAlert2 Modern UI)
+------------------------------------------------------------- */
+function showPopupAlert(title, text = '', icon = 'info') {
+  if (typeof Swal !== 'undefined') {
+    return Swal.fire({
+      title: title,
+      text: text,
+      icon: icon,
+      confirmButtonText: 'ตกลง',
+      confirmButtonColor: '#2563eb',
+      customClass: { popup: 'swal2-popup' }
+    });
+  } else {
+    alert(text ? `${title}\n${text}` : title);
+  }
+}
+
+function showPopupSuccess(title, text = '') {
+  return showPopupAlert(title, text, 'success');
+}
+
+function showPopupWarning(title, text = '') {
+  return showPopupAlert(title, text, 'warning');
+}
+
+function showPopupError(title, text = '') {
+  return showPopupAlert(title, text, 'error');
+}
+
+function showPopupConfirm(title, text = '', confirmText = 'ยืนยัน', icon = 'warning') {
+  if (typeof Swal !== 'undefined') {
+    return Swal.fire({
+      title: title,
+      text: text,
+      icon: icon,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      reverseButtons: true,
+      customClass: { popup: 'swal2-popup' }
+    }).then((result) => result.isConfirmed);
+  } else {
+    return Promise.resolve(confirm(text ? `${title}\n${text}` : title));
+  }
+}
+
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
   console.log("Myclassroom application starting...");
@@ -181,7 +230,7 @@ function handleLogin(event) {
   const password = document.getElementById('login-password').value.trim();
 
   if (!username || !password) {
-    alert("กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน");
+    showPopupWarning("กรุณากรอกข้อมูล", "กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน");
     return;
   }
 
@@ -247,9 +296,9 @@ function handleLogin(event) {
     logActivity(`ผู้ใช้งาน ${currentUser.name} เข้าสู่ระบบแล้ว`);
   } else {
     if (activeLoginRole === 'student') {
-      alert("ไม่พบข้อมูลนักเรียน หรือ รหัสประจำตัวไม่ถูกต้อง (ใช้อย่างเดียวกันทั้งชื่อผู้ใช้และรหัสผ่าน)");
+      showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ไม่พบข้อมูลนักเรียน หรือ รหัสประจำตัวไม่ถูกต้อง (ใช้อย่างเดียวกันทั้งชื่อผู้ใช้และรหัสผ่าน)");
     } else {
-      alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+      showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
     }
   }
 }
@@ -267,12 +316,15 @@ function checkSavedSession() {
 }
 
 function handleLogout() {
-  if (confirm("คุณต้องการออกจากระบบใช่หรือไม่?")) {
-    currentUser = null;
-    sessionStorage.removeItem('myclassroom_user');
-    document.getElementById('app-screen').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-  }
+  showPopupConfirm("ยืนยันออกจากระบบ", "คุณต้องการออกจากระบบ Myclassroom ใช่หรือไม่?", "ออกจากระบบ", "warning").then((confirmed) => {
+    if (confirmed) {
+      currentUser = null;
+      sessionStorage.removeItem('myclassroom_user');
+      document.getElementById('app-screen').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      showPopupSuccess("ออกจากระบบเรียบร้อย", "ขอบคุณที่ใช้งานระบบ Myclassroom");
+    }
+  });
 }
 
 function showAppScreen() {
@@ -402,6 +454,7 @@ function saveAnnouncementForm(e) {
     updatedBy: currentUser.name
   }).then(() => {
     closeModal('modal-announcement');
+    showPopupSuccess("บันทึกประกาศสำเร็จ!", "ปรับปรุงประกาศข่าวสารห้องเรียนเรียบร้อยแล้ว");
     logActivity(`ปรับปรุงประกาศห้องเรียน: ${title}`);
   });
 }
@@ -589,15 +642,19 @@ function saveStudentForm(e) {
   });
 
   closeModal('modal-add-student');
+  showPopupSuccess("บันทึกข้อมูลสำเร็จ!", `เพิ่มนักเรียน ${name} (รหัส ${studentId}) เข้าสู่ระบบเรียบร้อยแล้ว`);
   logActivity(`เพิ่มนักเรียนใหม่: ${name} (รหัส ${studentId})`);
 }
 
 function deleteStudent(studentId) {
-  if (confirm(`คุณต้องการลบข้อมูลนักเรียนรหัส ${studentId} ใช่หรือไม่?`)) {
-    deleteData(`students/${studentId}`);
-    deleteData(`users/${studentId}`);
-    logActivity(`ลบข้อมูลนักเรียนรหัส ${studentId}`);
-  }
+  showPopupConfirm("ยืนยันลบข้อมูลนักเรียน", `คุณต้องการลบข้อมูลนักเรียนรหัส ${studentId} ใช่หรือไม่?`, "ลบข้อมูล", "warning").then((confirmed) => {
+    if (confirmed) {
+      deleteData(`students/${studentId}`);
+      deleteData(`users/${studentId}`);
+      showPopupSuccess("ลบข้อมูลสำเร็จ", `ลบข้อมูลนักเรียนรหัส ${studentId} เรียบร้อยแล้ว`);
+      logActivity(`ลบข้อมูลนักเรียนรหัส ${studentId}`);
+    }
+  });
 }
 
 function openImportCsvModal() {
@@ -623,7 +680,7 @@ function parseAndImportCsvData(csvText) {
   // Normalize line endings
   const lines = csvText.split(/\r\n|\n|\r/);
   if (lines.length < 2) {
-    alert("ไฟล์ CSV ไม่มีข้อมูลเพียงพอ");
+    showPopupWarning("ไม่พบข้อมูล", "ไฟล์ CSV ไม่มีข้อมูลเพียงพอ");
     return;
   }
 
@@ -638,7 +695,7 @@ function parseAndImportCsvData(csvText) {
   const idxAdvisor = headers.findIndex(h => h.includes('ครูที่ปรึกษา') || h.includes('ครู'));
 
   if (idxId === -1 || idxName === -1) {
-    alert("รูปแบบคอลัมน์ CSV ไม่ถูกต้อง กรุณาตรวจสอบหัวคอลัมน์: เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น, ครูที่ปรึกษา");
+    showPopupError("รูปแบบไฟล์ไม่ถูกต้อง", "รูปแบบคอลัมน์ CSV ไม่ถูกต้อง กรุณาตรวจสอบหัวคอลัมน์: เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น, ครูที่ปรึกษา");
     return;
   }
 
@@ -681,7 +738,7 @@ function parseAndImportCsvData(csvText) {
   }
 
   closeModal('modal-import-csv');
-  alert(`นำข้อมูลนักเรียนเข้าสู่ระบบสำเร็จจำนวน ${importedCount} รายการ!`);
+  showPopupSuccess("นำเข้าข้อมูลสำเร็จ!", `นำข้อมูลนักเรียนเข้าสู่ระบบสำเร็จจำนวน ${importedCount} รายการ!`);
   logActivity(`นำเข้าข้อมูลนักเรียนด้วย CSV จำนวน ${importedCount} คน`);
 }
 
@@ -728,6 +785,7 @@ function saveCourseForm(e) {
     createdAt: new Date().toISOString()
   }).then(() => {
     closeModal('modal-add-course');
+    showPopupSuccess("สร้างรายวิชาสำเร็จ!", `สร้างรายวิชา ${code} ${name} เรียบร้อยแล้ว`);
     logActivity(`สร้างรายวิชาใหม่: ${code} ${name}`);
   });
 }
@@ -772,6 +830,7 @@ async function saveHomeworkForm(e) {
     btnSave.disabled = false;
     btnSave.innerHTML = `<i class="fa-solid fa-paper-plane"></i> ประกาศการบ้าน`;
     closeModal('modal-create-homework');
+    showPopupSuccess("ประกาศการบ้านสำเร็จ!", `มอบหมายการบ้าน ${title} เรียบร้อยแล้ว`);
     logActivity(`สั่งการบ้านใหม่: ${title}`);
   });
 }
@@ -874,10 +933,13 @@ function renderCoursesList() {
 }
 
 function deleteCourse(courseId) {
-  if (confirm("คุณต้องการลบรายวิชานี้และข้อมูลการบ้านทั้งหมดใช่หรือไม่?")) {
-    deleteData(`courses/${courseId}`);
-    logActivity(`ลบรายวิชา`);
-  }
+  showPopupConfirm("ยืนยันลบรายวิชา", "คุณต้องการลบรายวิชานี้และข้อมูลการบ้านทั้งหมดใช่หรือไม่?", "ลบรายวิชา", "warning").then((confirmed) => {
+    if (confirmed) {
+      deleteData(`courses/${courseId}`);
+      showPopupSuccess("ลบรายวิชาสำเร็จ", "ลบข้อมูลรายวิชาเรียบร้อยแล้ว");
+      logActivity(`ลบรายวิชา`);
+    }
+  });
 }
 
 // Student Submit Homework
@@ -926,7 +988,7 @@ async function handleStudentHomeworkSubmit(e) {
     btnSubmit.disabled = false;
     btnSubmit.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันการส่งงาน`;
     closeModal('modal-submit-homework');
-    alert("ส่งการบ้านเรียบร้อยแล้ว!");
+    showPopupSuccess("ส่งการบ้านเรียบร้อย!", "ส่งการบ้านและแนบไฟล์ชิ้นงานเข้าสู่ระบบเรียบร้อยแล้ว");
     logActivity(`นักเรียน ${currentUser.name} ส่งการบ้านเรียบร้อยแล้ว`);
   });
 }
@@ -991,7 +1053,7 @@ function saveSubmissionGrade(hwId, studentId) {
   const commentVal = document.getElementById(`grade-comment-${hwId}-${studentId}`).value.trim();
 
   if (scoreVal === '') {
-    alert("กรุณากรอกคะแนนก่อนบันทึก");
+    showPopupWarning("กรุณากรอกคะแนน", "กรุณากรอกคะแนนตัวเลขให้ถูกต้องก่อนบันทึก");
     return;
   }
 
@@ -1002,7 +1064,7 @@ function saveSubmissionGrade(hwId, studentId) {
     gradedAt: new Date().toLocaleString('th-TH'),
     gradedBy: currentUser.name
   }).then(() => {
-    alert("บันทึกคะแนนเรียบร้อยแล้ว");
+    showPopupSuccess("บันทึกคะแนนเรียบร้อย", "บันทึกผลการตรวจชิ้นงานเรียบร้อยแล้ว");
   });
 }
 
@@ -1127,6 +1189,7 @@ function saveQuizForm(e) {
     createdBy: currentUser.name
   }).then(() => {
     closeModal('modal-create-quiz');
+    showPopupSuccess("สร้างแบบทดสอบสำเร็จ!", `สร้างแบบทดสอบ ${title} เรียบร้อยแล้ว`);
     logActivity(`สร้างแบบทดสอบใหม่: ${title}`);
   });
 }
@@ -1193,10 +1256,13 @@ function renderQuizzesList() {
 }
 
 function deleteQuiz(quizId) {
-  if (confirm("คุณต้องการลบแบบทดสอบนี้ใช่หรือไม่?")) {
-    deleteData(`quizzes/${quizId}`);
-    logActivity(`ลบแบบทดสอบ`);
-  }
+  showPopupConfirm("ยืนยันลบแบบทดสอบ", "คุณต้องการลบแบบทดสอบนี้ใช่หรือไม่?", "ลบข้อสอบ", "warning").then((confirmed) => {
+    if (confirmed) {
+      deleteData(`quizzes/${quizId}`);
+      showPopupSuccess("ลบแบบทดสอบสำเร็จ", "ลบแบบทดสอบออกจากระบบเรียบร้อยแล้ว");
+      logActivity(`ลบแบบทดสอบ`);
+    }
+  });
 }
 
 // Start Quiz Runner (Timer Engine)
@@ -1246,7 +1312,7 @@ function startQuizRunner(quizId) {
 
     if (quizRemainingSeconds <= 0) {
       clearInterval(activeQuizTimerInterval);
-      alert("หมดเวลาการทำแบบทดสอบ! ระบบกำลังส่งคำตอบอัตโนมัติ...");
+      showPopupWarning("หมดเวลาทำข้อสอบ", "หมดเวลาการทำแบบทดสอบ! ระบบกำลังประมวลผลคำตอบอัตโนมัติ...");
       submitQuizAnswers(false);
     }
   }, 1000);
@@ -1269,10 +1335,12 @@ function updateTimerDisplay() {
 }
 
 function confirmCancelQuiz() {
-  if (confirm("หากยกเลิกตอนนี้ คำตอบของคุณจะไม่ถูกบันทึก ยืนยันการยกเลิกหรือไม่?")) {
-    clearInterval(activeQuizTimerInterval);
-    closeModal('modal-take-quiz');
-  }
+  showPopupConfirm("ยกเลิกการทำข้อสอบ", "หากยกเลิกตอนนี้ คำตอบของคุณจะไม่ถูกบันทึก ยืนยันการยกเลิกหรือไม่?", "ยกเลิกทำสอบ", "warning").then((confirmed) => {
+    if (confirmed) {
+      clearInterval(activeQuizTimerInterval);
+      closeModal('modal-take-quiz');
+    }
+  });
 }
 
 function submitQuizAnswers(isManual) {
@@ -1517,6 +1585,7 @@ function saveUserForm(e) {
     createdAt: new Date().toISOString()
   }).then(() => {
     closeModal('modal-add-user');
+    showPopupSuccess("สร้างผู้ใช้สำเร็จ!", `สร้างบัญชีผู้ใช้งาน ${name} (${role}) เรียบร้อยแล้ว`);
     logActivity(`เพิ่มผู้ใช้งานใหม่: ${name} (${role})`);
   });
 }
@@ -1540,7 +1609,7 @@ function saveChangePassword(e) {
     password: newPassword
   }).then(() => {
     closeModal('modal-change-password');
-    alert("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
+    showPopupSuccess("เปลี่ยนรหัสผ่านสำเร็จ!", `อัปเดตรหัสผ่านใหม่สำหรับ ${username} เรียบร้อยแล้ว`);
     logActivity(`เปลี่ยนรหัสผ่านสำหรับผู้ใช้: ${username}`);
   });
 }

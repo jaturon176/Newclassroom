@@ -1125,3 +1125,45 @@ body {
     border: none !important;
   }
 }
+
+/* -------------------------------------------------------------
+   SWEETALERT2 CUSTOM POPUP STYLING (Modern & Sleek)
+------------------------------------------------------------- */
+.swal2-popup {
+  font-family: var(--font-family) !important;
+  border-radius: 24px !important;
+  padding: 26px !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+}
+
+.swal2-title {
+  font-family: var(--font-family) !important;
+  font-weight: 700 !important;
+  font-size: 1.55rem !important;
+  color: #0f172a !important;
+}
+
+.swal2-html-container {
+  font-family: var(--font-family) !important;
+  font-size: 1.05rem !important;
+  color: #334155 !important;
+}
+
+.swal2-confirm {
+  font-family: var(--font-family) !important;
+  border-radius: 12px !important;
+  padding: 10px 26px !important;
+  font-weight: 600 !important;
+  font-size: 1.02rem !important;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3) !important;
+}
+
+.swal2-cancel {
+  font-family: var(--font-family) !important;
+  border-radius: 12px !important;
+  padding: 10px 26px !important;
+  font-weight: 600 !important;
+  font-size: 1.02rem !important;
+}
+
