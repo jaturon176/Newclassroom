@@ -935,10 +935,146 @@ function updateCourseDropdowns() {
   if (repCourseFilter) repCourseFilter.innerHTML = `<option value="">-- ทุกรายวิชา --</option>` + options.replace('<option value="">-- เลือกรายวิชา --</option>', '');
 }
 
+function populateGradeLevelDropdowns(selectId, selectedValue = '') {
+  const selectEl = document.getElementById(selectId);
+  if (!selectEl) return;
+
+  // 1. Extract existing grade levels from studentsData
+  const systemLevels = new Set();
+  Object.values(studentsData).forEach(s => {
+    if (s.classLevel && s.classLevel.trim()) {
+      const fullClass = s.classLevel.trim();
+      const baseLevel = fullClass.split('/')[0].trim();
+      if (baseLevel) systemLevels.add(baseLevel);
+      systemLevels.add(fullClass);
+    }
+  });
+
+  // 2. Extract existing levels from coursesData
+  Object.values(coursesData).forEach(c => {
+    if (c.level && c.level.trim()) {
+      systemLevels.add(c.level.trim());
+    }
+  });
+
+  // 3. Standard school / vocational levels in Thailand
+  const standardLevels = [
+    'ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6',
+    'ปวช.1', 'ปวช.2', 'ปวช.3',
+    'ปวส.1', 'ปวส.2',
+    'ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6'
+  ];
+
+  // Merge unique levels
+  const allLevels = new Set([...Array.from(systemLevels), ...standardLevels]);
+  if (selectedValue && selectedValue.trim()) {
+    allLevels.add(selectedValue.trim());
+  }
+
+  const sortedLevels = Array.from(allLevels).sort((a, b) => a.localeCompare(b, 'th'));
+
+  let html = `<option value="">-- เลือกระดับชั้น --</option>`;
+
+  // Add system detected levels if any
+  const detectedList = Array.from(systemLevels).sort((a, b) => a.localeCompare(b, 'th'));
+  if (detectedList.length > 0) {
+    html += `<optgroup label="✨ ระดับชั้นที่มีในระบบ (นักเรียน/วิชา)">`;
+    detectedList.forEach(lvl => {
+      html += `<option value="${lvl}">${lvl}</option>`;
+    });
+    html += `</optgroup>`;
+  }
+
+  // Add all standard options
+  html += `<optgroup label="📚 ระดับชั้นมาตรฐานทั้งหมด">`;
+  sortedLevels.forEach(lvl => {
+    if (!systemLevels.has(lvl)) {
+      html += `<option value="${lvl}">${lvl}</option>`;
+    }
+  });
+  html += `</optgroup>`;
+
+  html += `<optgroup label="⚙️ อื่นๆ">`;
+  html += `<option value="__custom__">+ กำหนดระดับชั้นอื่นเอง...</option>`;
+  html += `</optgroup>`;
+
+  selectEl.innerHTML = html;
+
+  if (selectedValue) {
+    const exists = Array.from(selectEl.options).some(opt => opt.value === selectedValue);
+    if (!exists) {
+      const newOpt = document.createElement('option');
+      newOpt.value = selectedValue;
+      newOpt.text = selectedValue;
+      selectEl.appendChild(newOpt);
+    }
+    selectEl.value = selectedValue;
+  }
+
+  selectEl.onchange = function() {
+    if (this.value === '__custom__') {
+      promptCustomGradeLevel(selectId);
+    }
+  };
+}
+
+function promptCustomGradeLevel(selectId) {
+  const selectEl = document.getElementById(selectId);
+  if (!selectEl) return;
+
+  if (typeof Swal !== 'undefined') {
+    Swal.fire({
+      title: 'กำหนดระดับชั้นใหม่',
+      text: 'กรอกชื่อระดับชั้นที่ต้องการ (เช่น ม.1, ม.2, ปวช.1, ปวช.2):',
+      input: 'text',
+      inputPlaceholder: 'เช่น ปวช.3 พิเศษ',
+      showCancelButton: true,
+      confirmButtonText: 'บันทึกระดับชั้น',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#2563eb',
+      customClass: { popup: 'swal2-popup' },
+      inputValidator: (value) => {
+        if (!value || !value.trim()) {
+          return 'กรุณากรอกชื่อระดับชั้น!';
+        }
+      }
+    }).then((result) => {
+      if (result.isConfirmed && result.value) {
+        const customVal = result.value.trim();
+        let opt = selectEl.querySelector(`option[value="${customVal}"]`);
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = customVal;
+          opt.text = customVal;
+          selectEl.insertBefore(opt, selectEl.lastElementChild);
+        }
+        selectEl.value = customVal;
+      } else {
+        selectEl.value = '';
+      }
+    });
+  } else {
+    const customVal = prompt('กรุณากรอกชื่อระดับชั้น (เช่น ม.1, ปวช.2):');
+    if (customVal && customVal.trim()) {
+      const val = customVal.trim();
+      let opt = selectEl.querySelector(`option[value="${val}"]`);
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = val;
+        opt.text = val;
+        selectEl.appendChild(opt);
+      }
+      selectEl.value = val;
+    } else {
+      selectEl.value = '';
+    }
+  }
+}
+
 function openAddCourseModal() {
   document.getElementById('course-code').value = '';
   document.getElementById('course-name').value = '';
-  document.getElementById('course-level').value = '';
+  populateGradeLevelDropdowns('course-level');
   populateTeacherDropdowns();
   openModal('modal-add-course');
 }
@@ -1155,8 +1291,8 @@ function openEditCourseModal(courseId) {
   document.getElementById('edit-course-id').value = courseId;
   document.getElementById('edit-course-code').value = course.code || '';
   document.getElementById('edit-course-name').value = course.name || '';
-  document.getElementById('edit-course-level').value = course.level || '';
   
+  populateGradeLevelDropdowns('edit-course-level', course.level || '');
   populateTeacherDropdowns();
   const teacherSelect = document.getElementById('edit-course-teacher');
   if (teacherSelect) teacherSelect.value = course.teacher || '';
