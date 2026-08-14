@@ -897,7 +897,8 @@ function renderCoursesList() {
             <h3 style="font-size:1.4rem; font-weight:700; color:#0f172a; margin-top:4px;">${course.name} (ระดับชั้น ${course.level})</h3>
             <div style="font-size:0.88rem; color:var(--text-muted);"><i class="fa-solid fa-chalkboard-user"></i> ครูผู้สอน: ${course.teacher}</div>
           </div>
-          <div class="teacher-only">
+          <div class="teacher-only" style="display:flex; gap:8px;">
+            <button class="btn btn-sm btn-outline-primary" onclick="openEditCourseModal('${courseId}')"><i class="fa-solid fa-pen-to-square"></i> แก้ไขวิชา</button>
             <button class="btn btn-sm btn-danger" onclick="deleteCourse('${courseId}')"><i class="fa-solid fa-trash"></i> ลบวิชา</button>
           </div>
         </div>
@@ -910,13 +911,14 @@ function renderCoursesList() {
     if (courseHws.length === 0) {
       html += `<p class="text-muted" style="font-size:0.95rem; padding:10px 0;">ยังไม่มีการบ้านในวิชานี้</p>`;
     } else {
-      html += `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">`;
+      html += `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;">`;
       courseHws.forEach(hw => {
         const studentSub = (submissionsData[hw.id] && currentUser.studentId) 
           ? submissionsData[hw.id][currentUser.studentId] 
           : null;
         
         const subCount = submissionsData[hw.id] ? Object.keys(submissionsData[hw.id]).length : 0;
+        const isPdf = hw.imageUrl && (hw.imageUrl.includes('.pdf') || hw.imageUrl.includes('data:application/pdf'));
 
         html += `
           <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
@@ -929,8 +931,8 @@ function renderCoursesList() {
               
               ${hw.imageUrl ? `
                 <div style="margin:8px 0;">
-                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="openLightbox('${hw.imageUrl}')">
-                    <i class="fa-solid fa-image"></i> ดูรูปคำสั่งงาน
+                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="openFilePreviewModal('${hw.imageUrl}', '${hw.title.replace(/'/g, "\\'")}')">
+                    <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูตัวอย่างไฟล์สั่งงาน (${isPdf ? 'PDF' : 'รูปภาพ'})
                   </button>
                 </div>
               ` : ''}
@@ -940,7 +942,7 @@ function renderCoursesList() {
               </div>
             </div>
 
-            <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
               ${currentUser.role === 'student' ? `
                 ${studentSub ? `
                   <span class="badge badge-green"><i class="fa-solid fa-check"></i> ส่งแล้ว (${studentSub.score !== undefined ? studentSub.score + ' คะแนน' : 'รอตรวจ'})</span>
@@ -950,10 +952,12 @@ function renderCoursesList() {
                   </button>
                 `}
               ` : `
-                <span class="badge badge-purple">นักเรียนส่งงานแล้ว ${subCount} คน</span>
-                <button class="btn btn-sm btn-secondary" onclick="openGradeSubmissionsModal('${hw.id}')">
-                  <i class="fa-solid fa-pen-to-square"></i> ตรวจงาน
-                </button>
+                <span class="badge badge-purple">ส่งแล้ว ${subCount} คน</span>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn btn-sm btn-outline-primary" onclick="openEditHomeworkModal('${hw.id}')" title="แก้ไขการบ้าน"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>
+                  <button class="btn btn-sm btn-danger" onclick="deleteHomework('${hw.id}')" title="ลบการบ้าน"><i class="fa-solid fa-trash"></i> ลบ</button>
+                  <button class="btn btn-sm btn-secondary" onclick="openGradeSubmissionsModal('${hw.id}')" title="ตรวจงานนักเรียน"><i class="fa-solid fa-pen-to-square"></i> ตรวจงาน</button>
+                </div>
               `}
             </div>
           </div>
@@ -974,6 +978,120 @@ function deleteCourse(courseId) {
       deleteData(`courses/${courseId}`);
       showPopupSuccess("ลบรายวิชาสำเร็จ", "ลบข้อมูลรายวิชาเรียบร้อยแล้ว");
       logActivity(`ลบรายวิชา`);
+    }
+  });
+}
+
+function openEditCourseModal(courseId) {
+  const course = coursesData[courseId];
+  if (!course) return;
+
+  document.getElementById('edit-course-id').value = courseId;
+  document.getElementById('edit-course-code').value = course.code || '';
+  document.getElementById('edit-course-name').value = course.name || '';
+  document.getElementById('edit-course-level').value = course.level || '';
+  
+  populateTeacherDropdowns();
+  const teacherSelect = document.getElementById('edit-course-teacher');
+  if (teacherSelect) teacherSelect.value = course.teacher || '';
+
+  openModal('modal-edit-course');
+}
+
+function saveEditCourseForm(e) {
+  e.preventDefault();
+  const courseId = document.getElementById('edit-course-id').value;
+  const code = document.getElementById('edit-course-code').value.trim();
+  const name = document.getElementById('edit-course-name').value.trim();
+  const level = document.getElementById('edit-course-level').value.trim();
+  const teacher = document.getElementById('edit-course-teacher').value.trim();
+
+  updateData(`courses/${courseId}`, {
+    code,
+    name,
+    level,
+    teacher,
+    updatedAt: new Date().toISOString()
+  }).then(() => {
+    closeModal('modal-edit-course');
+    showPopupSuccess("แก้ไขรายวิชาสำเร็จ!", `อัปเดตข้อมูลวิชา ${code} ${name} เรียบร้อยแล้ว`);
+    logActivity(`แก้ไขรายวิชา: ${code} ${name}`);
+  });
+}
+
+function openEditHomeworkModal(hwId) {
+  const hw = homeworkData[hwId];
+  if (!hw) return;
+
+  document.getElementById('edit-hw-id').value = hwId;
+  document.getElementById('edit-hw-title').value = hw.title || '';
+  document.getElementById('edit-hw-desc').value = hw.desc || '';
+  document.getElementById('edit-hw-max-score').value = hw.maxScore || 10;
+  document.getElementById('edit-hw-due-date').value = hw.dueDate || '';
+  document.getElementById('edit-hw-file').value = '';
+
+  const currentFileDiv = document.getElementById('edit-hw-file-current');
+  if (hw.imageUrl) {
+    const isPdf = hw.imageUrl.includes('.pdf') || hw.imageUrl.includes('data:application/pdf');
+    currentFileDiv.innerHTML = `
+      <div style="font-size:0.88rem; color:var(--text-muted); margin-bottom:4px;">ไฟล์แนบปัจจุบัน:</div>
+      <button type="button" class="btn btn-sm btn-outline-primary" onclick="openFilePreviewModal('${hw.imageUrl}', '${hw.title.replace(/'/g, "\\'")}')">
+        <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูตัวอย่างไฟล์แนบปัจจุบัน (${isPdf ? 'PDF' : 'รูปภาพ'})
+      </button>
+    `;
+  } else {
+    currentFileDiv.innerHTML = '<span style="font-size:0.85rem; color:var(--text-muted);">ยังไม่มีไฟล์แนบ</span>';
+  }
+
+  openModal('modal-edit-homework');
+}
+
+async function saveEditHomeworkForm(e) {
+  e.preventDefault();
+  const hwId = document.getElementById('edit-hw-id').value;
+  const title = document.getElementById('edit-hw-title').value.trim();
+  const desc = document.getElementById('edit-hw-desc').value.trim();
+  const maxScore = parseInt(document.getElementById('edit-hw-max-score').value) || 10;
+  const dueDate = document.getElementById('edit-hw-due-date').value;
+  const fileInput = document.getElementById('edit-hw-file').files[0];
+
+  const btnUpdate = document.getElementById('btn-update-hw');
+  btnUpdate.disabled = true;
+  btnUpdate.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...`;
+
+  const existingHw = homeworkData[hwId];
+  let imageUrl = existingHw ? existingHw.imageUrl : null;
+
+  if (fileInput) {
+    imageUrl = await uploadImageFile(fileInput);
+  }
+
+  updateData(`homework/${hwId}`, {
+    title,
+    desc,
+    maxScore,
+    dueDate,
+    imageUrl,
+    updatedAt: new Date().toISOString()
+  }).then(() => {
+    btnUpdate.disabled = false;
+    btnUpdate.innerHTML = `<i class="fa-solid fa-save"></i> บันทึกการแก้ไข`;
+    closeModal('modal-edit-homework');
+    showPopupSuccess("แก้ไขการบ้านสำเร็จ!", `อัปเดตข้อมูลการบ้าน ${title} เรียบร้อยแล้ว`);
+    logActivity(`แก้ไขการบ้าน: ${title}`);
+  });
+}
+
+function deleteHomework(hwId) {
+  const hw = homeworkData[hwId];
+  const title = hw ? hw.title : 'การบ้าน';
+
+  showPopupConfirm("ยืนยันลบการบ้าน", `คุณต้องการลบการบ้าน "${title}" ใช่หรือไม่?`, "ลบการบ้าน", "warning").then((confirmed) => {
+    if (confirmed) {
+      deleteData(`homework/${hwId}`);
+      deleteData(`homework_submissions/${hwId}`);
+      showPopupSuccess("ลบการบ้านสำเร็จ", `ลบการบ้าน "${title}" ออกจากระบบเรียบร้อยแล้ว`);
+      logActivity(`ลบการบ้าน: ${title}`);
     }
   });
 }
@@ -1059,8 +1177,8 @@ function openGradeSubmissionsModal(hwId) {
           <td>
             <div>${sub.textAnswer || '-'}</div>
             ${sub.imageUrl ? `
-              <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:4px;" onclick="openLightbox('${sub.imageUrl}')">
-                <i class="fa-solid fa-image"></i> รูปชิ้นงาน
+              <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:4px;" onclick="openFilePreviewModal('${sub.imageUrl}', '${sub.studentName.replace(/'/g, "\\'")}')">
+                <i class="${(sub.imageUrl.includes('.pdf') || sub.imageUrl.includes('data:application/pdf')) ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูไฟล์แนบชิ้นงาน
               </button>
             ` : ''}
           </td>
@@ -1664,8 +1782,29 @@ function closeModal(modalId) {
   if (el) el.classList.remove('active');
 }
 
+function openFilePreviewModal(fileUrl, fileTitle = 'ตัวอย่างไฟล์แนบ') {
+  if (!fileUrl) return;
+
+  document.getElementById('file-preview-title').innerHTML = `<i class="fa-solid fa-eye"></i> ${fileTitle}`;
+  const downloadBtn = document.getElementById('file-preview-download');
+  if (downloadBtn) downloadBtn.href = fileUrl;
+
+  const container = document.getElementById('file-preview-body');
+  const isPdf = fileUrl.includes('.pdf') || fileUrl.includes('data:application/pdf');
+
+  if (isPdf) {
+    container.innerHTML = `
+      <iframe src="${fileUrl}" style="width:100%; height:70vh; border:1px solid var(--border); border-radius:14px;" frameborder="0"></iframe>
+    `;
+  } else {
+    container.innerHTML = `
+      <img src="${fileUrl}" style="max-width:100%; max-height:70vh; object-fit:contain; border-radius:14px; box-shadow:var(--shadow-md);" alt="ตัวอย่างรูปภาพ">
+    `;
+  }
+
+  openModal('modal-file-preview');
+}
+
 function openLightbox(imageUrl) {
-  const target = document.getElementById('lightbox-img-target');
-  target.src = imageUrl;
-  openModal('modal-lightbox');
+  openFilePreviewModal(imageUrl, 'รูปภาพชิ้นงาน');
 }

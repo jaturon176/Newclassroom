@@ -653,8 +653,8 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">รูปภาพแนบคำสั่งงาน (อัปโหลดเข้า Cloudinary)</label>
-            <input type="file" id="hw-img-file" class="form-control" accept="image/*" style="padding-left:14px;">
+            <label class="form-label">แนบไฟล์รูปภาพ หรือ ไฟล์ PDF คำสั่งงาน (อัปโหลด Cloudinary CDN)</label>
+            <input type="file" id="hw-img-file" class="form-control" accept="image/*,application/pdf" style="padding-left:14px;">
           </div>
         </div>
         <div class="modal-footer">
@@ -662,6 +662,95 @@
           <button type="submit" class="btn btn-success" id="btn-save-hw">
             <i class="fa-solid fa-paper-plane"></i> ประกาศการบ้าน
           </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 4.1: Edit Course Modal -->
+  <div class="modal-overlay" id="modal-edit-course">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อมูลรายวิชา</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-edit-course')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveEditCourseForm(event)">
+        <input type="hidden" id="edit-course-id">
+        <div class="modal-body">
+          <div style="display:grid; grid-template-columns:1fr 2fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">รหัสวิชา *</label>
+              <input type="text" id="edit-course-code" class="form-control" style="padding-left:14px;" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อรายวิชา *</label>
+              <input type="text" id="edit-course-name" class="form-control" style="padding-left:14px;" required>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">ระดับชั้น *</label>
+              <input type="text" id="edit-course-level" class="form-control" style="padding-left:14px;" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ครูผู้สอน *</label>
+              <select id="edit-course-teacher" class="form-control" style="padding-left:14px;" required>
+                <option value="">-- เลือกครูผู้สอน --</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-course')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> บันทึกการแก้ไข</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 4.2: Edit Homework Modal -->
+  <div class="modal-overlay" id="modal-edit-homework">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-pen-to-square"></i> แก้ไขข้อมูลการบ้าน</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-edit-homework')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveEditHomeworkForm(event)">
+        <input type="hidden" id="edit-hw-id">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">หัวข้อการบ้าน / ชิ้นงาน *</label>
+            <input type="text" id="edit-hw-title" class="form-control" style="padding-left:14px;" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">รายละเอียดคำสั่งงาน</label>
+            <textarea id="edit-hw-desc" class="form-control" style="padding-left:14px; height:90px;"></textarea>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">คะแนนเต็ม *</label>
+              <input type="number" id="edit-hw-max-score" class="form-control" style="padding-left:14px;" required min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">กำหนดส่ง *</label>
+              <input type="date" id="edit-hw-due-date" class="form-control" style="padding-left:14px;" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">แนบไฟล์รูปภาพ หรือ ไฟล์ PDF คำสั่งงาน (อัปโหลด Cloudinary CDN)</label>
+            <input type="file" id="edit-hw-file" class="form-control" accept="image/*,application/pdf" style="padding-left:14px;">
+            <div id="edit-hw-file-current" style="margin-top:8px;"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-homework')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="btn-update-hw"><i class="fa-solid fa-save"></i> บันทึกการแก้ไข</button>
         </div>
       </form>
     </div>
@@ -688,8 +777,8 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">ถ่ายรูป / แนบรูปภาพชิ้นงาน (Cloudinary CDN)</label>
-            <input type="file" id="submit-img-file" class="form-control" accept="image/*" style="padding-left:14px;">
+            <label class="form-label">ถ่ายรูป / แนบรูปภาพ หรือ ไฟล์ PDF ชิ้นงาน (Cloudinary CDN)</label>
+            <input type="file" id="submit-img-file" class="form-control" accept="image/*,application/pdf" style="padding-left:14px;">
           </div>
         </div>
         <div class="modal-footer">
@@ -947,13 +1036,19 @@
   </div>
 
 
-  <!-- Modal 13: Image Lightbox Preview Modal -->
-  <div class="modal-overlay" id="modal-lightbox">
-    <div class="modal-container" style="max-width:90vw; background:transparent; box-shadow:none;">
-      <div style="text-align:right; margin-bottom:10px;">
-        <button class="btn btn-sm btn-danger" onclick="closeModal('modal-lightbox')"><i class="fa-solid fa-xmark"></i> ปิดรูปภาพ</button>
+  <!-- Modal 13: File Preview (Image & PDF Viewer) Modal -->
+  <div class="modal-overlay" id="modal-file-preview">
+    <div class="modal-container" style="max-width:920px; width:95vw; background:#ffffff; border-radius:24px; padding:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+        <h3 class="modal-title" id="file-preview-title"><i class="fa-solid fa-eye"></i> ตัวอย่างไฟล์แนบ</h3>
+        <div style="display:flex; gap:10px;">
+          <a id="file-preview-download" href="#" target="_blank" class="btn btn-sm btn-primary"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแท็บใหม่ / ดาวน์โหลด</a>
+          <button class="btn btn-sm btn-danger" onclick="closeModal('modal-file-preview')"><i class="fa-solid fa-xmark"></i> ปิด</button>
+        </div>
       </div>
-      <img id="lightbox-img-target" src="" class="lightbox-img" alt="ชิ้นงานรูปใหญ่">
+      <div id="file-preview-body" style="text-align:center; min-height:450px; max-height:75vh; overflow-y:auto; display:flex; align-items:center; justify-content:center;">
+        <!-- Embedded Image or PDF Frame rendered here -->
+      </div>
     </div>
   </div>
 
