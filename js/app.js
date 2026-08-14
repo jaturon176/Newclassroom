@@ -993,18 +993,40 @@ function parseAndImportCsvData(csvText) {
 ------------------------------------------------------------- */
 function populateTeacherDropdowns() {
   const courseTeacherSelect = document.getElementById('course-teacher');
+  const editCourseTeacherSelect = document.getElementById('edit-course-teacher');
   const stdAdvisorSelect = document.getElementById('std-advisor');
 
-  // Collect teachers and admins from usersData
+  // Collect teachers and admins from usersData, coursesData, studentsData, and currentUser
   const teachers = [];
+
+  // 1. From usersData
   Object.values(usersData).forEach(u => {
-    if (u.name && (u.role === 'teacher' || u.role === 'admin')) {
-      teachers.push(u.name);
+    if (u.name && (u.role === 'teacher' || u.role === 'admin' || !u.role)) {
+      teachers.push(u.name.trim().replace(/^"|"$/g, ''));
     }
   });
 
+  // 2. From coursesData
+  Object.values(coursesData).forEach(c => {
+    if (c.teacher && c.teacher.trim()) {
+      teachers.push(c.teacher.trim().replace(/^"|"$/g, ''));
+    }
+  });
+
+  // 3. From studentsData advisors
+  Object.values(studentsData).forEach(s => {
+    if (s.advisor && s.advisor.trim()) {
+      teachers.push(s.advisor.trim().replace(/^"|"$/g, ''));
+    }
+  });
+
+  // 4. Current user
+  if (currentUser && currentUser.name) {
+    teachers.push(currentUser.name.trim().replace(/^"|"$/g, ''));
+  }
+
   // Unique teacher names
-  const uniqueTeachers = Array.from(new Set(teachers));
+  const uniqueTeachers = Array.from(new Set(teachers.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'th'));
 
   let optionsCourse = `<option value="">-- เลือกครูผู้สอน --</option>`;
   let optionsAdvisor = `<option value="">-- เลือกครูที่ปรึกษา --</option>`;
@@ -1019,6 +1041,10 @@ function populateTeacherDropdowns() {
     if (currentUser && currentUser.name && uniqueTeachers.includes(currentUser.name)) {
       courseTeacherSelect.value = currentUser.name;
     }
+  }
+
+  if (editCourseTeacherSelect) {
+    editCourseTeacherSelect.innerHTML = optionsCourse;
   }
 
   if (stdAdvisorSelect) {
@@ -1578,8 +1604,21 @@ function openEditCourseModal(courseId) {
   
   populateGradeLevelDropdowns('edit-course-level', course.level || '');
   populateTeacherDropdowns();
+
   const teacherSelect = document.getElementById('edit-course-teacher');
-  if (teacherSelect) teacherSelect.value = course.teacher || '';
+  if (teacherSelect) {
+    const courseTeacher = (course.teacher || '').trim().replace(/^"|"$/g, '');
+    if (courseTeacher) {
+      let exists = Array.from(teacherSelect.options).some(opt => opt.value === courseTeacher);
+      if (!exists) {
+        const newOpt = document.createElement('option');
+        newOpt.value = courseTeacher;
+        newOpt.textContent = courseTeacher;
+        teacherSelect.appendChild(newOpt);
+      }
+      teacherSelect.value = courseTeacher;
+    }
+  }
 
   openModal('modal-edit-course');
 }
