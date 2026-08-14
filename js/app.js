@@ -2159,6 +2159,11 @@ let currentPdfScale = 1.25;
 let currentPdfDoc = null;
 
 async function renderPdfDocument(fileUrl, fileTitle) {
+  // Enforce HTTPS
+  fileUrl = fileUrl.replace(/^http:\/\//i, 'https://');
+  const isCloudinary = fileUrl.includes('cloudinary.com');
+  const cloudinaryImgPreview = isCloudinary ? (fileUrl.replace(/\.[a-zA-Z0-9]+$/, '').replace('/upload/', '/upload/f_auto,q_auto,w_1200/') + '.jpg') : null;
+
   const container = document.getElementById('file-preview-body');
   container.innerHTML = `
     <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
@@ -2243,22 +2248,32 @@ async function renderPdfDocument(fileUrl, fileTitle) {
       }).promise;
     }
   } catch (err) {
-    console.warn("PDF.js render error or CORS block, loading fallback iframe:", err);
-    scrollContainer.innerHTML = `
-      <div style="background:#ffffff; padding:24px; border-radius:12px; text-align:center; max-width:550px;">
-        <i class="fa-solid fa-file-pdf fa-3x" style="color:#ef4444; margin-bottom:12px;"></i>
-        <h4 style="font-weight:700; color:#0f172a; margin-bottom:6px;">เปิดดูเอกสาร PDF</h4>
-        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">สามารถคลิกเปิดอ่านไฟล์ PDF เต็มหน้าจอ หรือดาวน์โหลดเก็บไว้ได้ทันที</p>
-        <div style="display:flex; justify-content:center; gap:10px;">
-          <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดอ่านในแท็บใหม่
-          </a>
-          <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-success">
-            <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
-          </a>
+    console.warn("PDF.js direct render fallback:", err);
+    if (countBadge) countBadge.innerText = 'แสดงผลผ่าน Cloud CDN Preview';
+
+    if (cloudinaryImgPreview) {
+      scrollContainer.innerHTML = `
+        <div style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.4); max-width:100%;">
+          <img src="${cloudinaryImgPreview}" style="max-width:100%; height:auto; display:block;" alt="ตัวอย่างหน้าเอกสาร PDF" onerror="this.parentElement.innerHTML='<p style=\\'padding:20px; color:#ef4444;\\'>ไม่สามารถโหลดพรีวิวรูปภาพได้ กรุณากดปุ่มเปิดแท็บใหม่หรือดาวน์โหลดด้านบน</p>'">
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      scrollContainer.innerHTML = `
+        <div style="background:#ffffff; padding:24px; border-radius:12px; text-align:center; max-width:550px;">
+          <i class="fa-solid fa-file-pdf fa-3x" style="color:#ef4444; margin-bottom:12px;"></i>
+          <h4 style="font-weight:700; color:#0f172a; margin-bottom:6px;">เปิดดูเอกสาร PDF</h4>
+          <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">สามารถคลิกเปิดอ่านไฟล์ PDF เต็มหน้าจอ หรือดาวน์โหลดเก็บไว้ได้ทันที</p>
+          <div style="display:flex; justify-content:center; gap:10px;">
+            <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดอ่านในแท็บใหม่
+            </a>
+            <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-success">
+              <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
+            </a>
+          </div>
+        </div>
+      `;
+    }
   }
 }
 
