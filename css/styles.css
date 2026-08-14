@@ -3,8 +3,8 @@
    ========================================================================== */
 
 :root {
-  /* Font Family - Modern typography stack with Plus Jakarta Sans & Prompt/Sarabun */
-  --font-family: 'Plus Jakarta Sans', 'Prompt', 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Font Family - Official Thai Government Font: Sarabun (TH Sarabun New) */
+  --font-family: 'Sarabun', 'TH Sarabun New', 'TH SarabunPSK', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   
   /* Primary & Brand Colors */
   --primary: #2563eb;
@@ -89,6 +89,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: var(--font-family);
 }
 
 html {
@@ -97,14 +98,18 @@ html {
 }
 
 body {
-  font-family: var(--font-family);
+  font-family: var(--font-family) !important;
   background-color: var(--bg-main);
   color: var(--text-body);
-  font-size: 14px; /* Scaled down to match PR Care+ */
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+}
+
+input, button, select, textarea, table, th, td, h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family) !important;
 }
 
 /* Custom Sleek Scrollbar */
