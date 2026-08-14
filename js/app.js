@@ -2165,7 +2165,12 @@ function getCloudinaryPdfPageUrl(fileUrl, pageNum, scale = 1.0) {
   const width = Math.round(1200 * scale);
   const cleanUrl = fileUrl.replace(/^http:\/\//i, 'https://');
   const baseWithoutExt = cleanUrl.replace(/\.[a-zA-Z0-9]+$/, '');
-  return baseWithoutExt.replace('/upload/', `/upload/f_auto,q_auto,w_${width},pg_${pageNum}/`) + '.jpg';
+  
+  if (pageNum === 1) {
+    return baseWithoutExt.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`) + '.jpg';
+  } else {
+    return baseWithoutExt.replace('/upload/', `/upload/pg_${pageNum},f_jpg,w_${width}/`) + '.jpg';
+  }
 }
 
 function renderCloudinaryMultiPagePdf(fileUrl, fileTitle) {
@@ -2173,52 +2178,102 @@ function renderCloudinaryMultiPagePdf(fileUrl, fileTitle) {
   const countBadge = document.getElementById('pdf-page-count-badge');
   if (!scrollContainer) return;
 
-  totalPdfPagesLoaded = 0;
-  if (countBadge) countBadge.innerText = 'กำลังโหลดทุกหน้า...';
+  totalPdfPagesLoaded = 1;
+  if (countBadge) countBadge.innerText = 'กำลังเปิดอ่านหน้าเอกสาร...';
 
-  let pagesHtml = '';
-  // Pre-generate up to 25 page slots with sequential loading
-  for (let i = 1; i <= 25; i++) {
-    const pageUrl = getCloudinaryPdfPageUrl(fileUrl, i, currentPdfScale);
-    pagesHtml += `
-      <div class="pdf-page-card" id="pdf-page-card-${i}" style="width:100%; max-width:920px; background:#ffffff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.35); margin-bottom:20px; overflow:hidden; display:${i === 1 ? 'block' : 'none'}; border:1px solid rgba(255,255,255,0.1);">
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 16px; border-bottom:1px solid #e2e8f0; font-size:0.88rem; font-weight:700; color:#334155;">
-          <span><i class="fa-solid fa-file-lines" style="color:var(--primary);"></i> หน้าที่ ${i}</span>
-          <span style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;">เอกสารประกอบการเรียน / คำสั่งงาน</span>
-        </div>
-        <img src="${pageUrl}" style="width:100%; height:auto; display:block;" alt="เอกสารหน้าที่ ${i}" onload="onPdfPageImgLoaded(${i})" onerror="onPdfPageImgError(${i})">
+  // Render Page 1 immediately with verified working transformation
+  const page1Url = getCloudinaryPdfPageUrl(fileUrl, 1, currentPdfScale);
+  
+  scrollContainer.innerHTML = `
+    <div class="pdf-page-card" id="pdf-page-card-1" style="width:100%; max-width:920px; background:#ffffff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.35); margin-bottom:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.1);">
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 16px; border-bottom:1px solid #e2e8f0; font-size:0.88rem; font-weight:700; color:#334155;">
+        <span><i class="fa-solid fa-file-lines" style="color:var(--primary);"></i> หน้าที่ 1</span>
+        <span style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;">เอกสารคำสั่งงาน</span>
       </div>
-    `;
-  }
-  scrollContainer.innerHTML = pagesHtml;
+      <img src="${page1Url}" style="width:100%; height:auto; display:block;" alt="เอกสารหน้าที่ 1" onload="onPdfPageImgLoaded(this, 1)" onerror="onPdfPageImgError(1)">
+    </div>
+  `;
+
+  // Start probing subsequent pages 2, 3, 4... sequentially
+  probeNextCloudinaryPage(fileUrl, 2);
 }
 
-window.onPdfPageImgLoaded = function(pageNum) {
-  totalPdfPagesLoaded = Math.max(totalPdfPagesLoaded, pageNum);
-  const card = document.getElementById(`pdf-page-card-${pageNum}`);
-  if (card) card.style.display = 'block';
+function probeNextCloudinaryPage(fileUrl, pageNum) {
+  if (pageNum > 20) return;
+  const pageUrl = getCloudinaryPdfPageUrl(fileUrl, pageNum, currentPdfScale);
 
-  // Reveal next page card to trigger next image load
-  const nextCard = document.getElementById(`pdf-page-card-${pageNum + 1}`);
-  if (nextCard) nextCard.style.display = 'block';
+  const testImg = new Image();
+  testImg.onload = function() {
+    // Ensure image has valid real page dimensions (not 1x1 blank pixel)
+    if (testImg.naturalWidth > 150 && testImg.naturalHeight > 150) {
+      const scrollContainer = document.getElementById('pdf-pages-scroll-container');
+      if (scrollContainer && activePdfFileUrl === fileUrl) {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'pdf-page-card';
+        pageDiv.id = `pdf-page-card-${pageNum}`;
+        pageDiv.style.cssText = 'width:100%; max-width:920px; background:#ffffff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.35); margin-bottom:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.1);';
+        pageDiv.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 16px; border-bottom:1px solid #e2e8f0; font-size:0.88rem; font-weight:700; color:#334155;">
+            <span><i class="fa-solid fa-file-lines" style="color:var(--primary);"></i> หน้าที่ ${pageNum}</span>
+            <span style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;">เอกสารคำสั่งงาน</span>
+          </div>
+          <img src="${pageUrl}" style="width:100%; height:auto; display:block;" alt="เอกสารหน้าที่ ${pageNum}">
+        `;
+        scrollContainer.appendChild(pageDiv);
+        totalPdfPagesLoaded = pageNum;
+        const countBadge = document.getElementById('pdf-page-count-badge');
+        if (countBadge) countBadge.innerText = `เอกสารทั้งหมด ${pageNum} หน้า`;
 
+        // Probe next page
+        probeNextCloudinaryPage(fileUrl, pageNum + 1);
+      }
+    } else {
+      finishMultiPageScan();
+    }
+  };
+  testImg.onerror = function() {
+    finishMultiPageScan();
+  };
+  testImg.src = pageUrl;
+}
+
+function finishMultiPageScan() {
   const countBadge = document.getElementById('pdf-page-count-badge');
-  if (countBadge) countBadge.innerText = `เอกสารทั้งหมด ${totalPdfPagesLoaded} หน้า`;
+  if (countBadge) {
+    countBadge.innerText = totalPdfPagesLoaded > 1 
+      ? `เอกสารทั้งหมด ${totalPdfPagesLoaded} หน้า (ครบทุกหน้า)`
+      : `เอกสาร 1 หน้า (สมบูรณ์)`;
+  }
+}
+
+window.onPdfPageImgLoaded = function(imgEl, pageNum) {
+  if (pageNum === 1) {
+    totalPdfPagesLoaded = 1;
+    const countBadge = document.getElementById('pdf-page-count-badge');
+    if (countBadge) countBadge.innerText = `เอกสารหน้าที่ 1 (กำลังตรวจสอบหน้าถัดไป...)`;
+  }
 };
 
 window.onPdfPageImgError = function(pageNum) {
-  // Page number out of range -> remove this card and all subsequent cards
-  const card = document.getElementById(`pdf-page-card-${pageNum}`);
-  if (card) card.remove();
-
-  for (let i = pageNum + 1; i <= 25; i++) {
-    const subsequent = document.getElementById(`pdf-page-card-${i}`);
-    if (subsequent) subsequent.remove();
-  }
-
-  const countBadge = document.getElementById('pdf-page-count-badge');
-  if (countBadge && totalPdfPagesLoaded > 0) {
-    countBadge.innerText = `เอกสารทั้งหมด ${totalPdfPagesLoaded} หน้า (ครบทุกหน้า)`;
+  if (pageNum === 1) {
+    const scrollContainer = document.getElementById('pdf-pages-scroll-container');
+    if (scrollContainer) {
+      scrollContainer.innerHTML = `
+        <div style="background:#ffffff; padding:24px; border-radius:12px; text-align:center; max-width:550px;">
+          <i class="fa-solid fa-file-pdf fa-3x" style="color:#ef4444; margin-bottom:12px;"></i>
+          <h4 style="font-weight:700; color:#0f172a; margin-bottom:6px;">เปิดดูเอกสาร PDF</h4>
+          <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">สามารถคลิกเปิดอ่านไฟล์ PDF เต็มหน้าจอ หรือดาวน์โหลดเก็บไว้ได้ทันที</p>
+          <div style="display:flex; justify-content:center; gap:10px;">
+            <a href="${activePdfFileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดอ่านในแท็บใหม่
+            </a>
+            <a href="${activePdfFileUrl}" download="${activePdfFileTitle || 'document'}.pdf" class="btn btn-success">
+              <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
+            </a>
+          </div>
+        </div>
+      `;
+    }
   }
 };
 
