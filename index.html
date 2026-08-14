@@ -624,11 +624,19 @@
       </div>
       <form onsubmit="saveHomeworkForm(event)">
         <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">เลือกรายวิชา *</label>
-            <select id="hw-course-id" class="form-control" style="padding-left:14px;" required>
-              <!-- Options loaded dynamically -->
-            </select>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">เลือกรายวิชา *</label>
+              <select id="hw-course-id" class="form-control" style="padding-left:14px;" required onchange="updateHomeworkTargetClassOptions('hw-target-class', this.value)">
+                <!-- Options loaded dynamically -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ห้องเรียนเป้าหมาย (ผู้มีสิทธิ์เห็นงาน) *</label>
+              <select id="hw-target-class" class="form-control" style="padding-left:14px;" required>
+                <option value="all">-- ทุกห้องเรียนในวิชานี้ (ทั้งหมด) --</option>
+              </select>
+            </div>
           </div>
 
           <div class="form-group">
@@ -724,6 +732,13 @@
           <div class="form-group">
             <label class="form-label">หัวข้อการบ้าน / ชิ้นงาน *</label>
             <input type="text" id="edit-hw-title" class="form-control" style="padding-left:14px;" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ห้องเรียนเป้าหมาย (ผู้มีสิทธิ์เห็นงาน) *</label>
+            <select id="edit-hw-target-class" class="form-control" style="padding-left:14px;" required>
+              <option value="all">-- ทุกห้องเรียนในวิชานี้ (ทั้งหมด) --</option>
+            </select>
           </div>
 
           <div class="form-group">

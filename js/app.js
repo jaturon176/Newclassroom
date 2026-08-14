@@ -462,7 +462,16 @@ function saveAnnouncementForm(e) {
 
 function renderDashboardHomeworkSummary() {
   const container = document.getElementById('dashboard-homework-summary');
-  const hwKeys = Object.keys(homeworkData);
+  let hwKeys = Object.keys(homeworkData);
+
+  if (currentUser && currentUser.role === 'student') {
+    const studentClass = (currentUser.classLevel || '').trim();
+    hwKeys = hwKeys.filter(id => {
+      const hw = homeworkData[id];
+      const targetClass = (hw.targetClass || 'all').trim();
+      return targetClass === 'all' || targetClass === '' || studentClass === targetClass;
+    });
+  }
 
   if (hwKeys.length === 0) {
     container.innerHTML = `<p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีข้อมูลการบ้าน</p>`;
@@ -782,6 +791,38 @@ function populateTeacherDropdowns() {
   }
 }
 
+function updateHomeworkTargetClassOptions(selectId, courseId, selectedValue = 'all') {
+  const selectEl = document.getElementById(selectId);
+  if (!selectEl) return;
+
+  // Gather distinct classes from studentsData
+  const classLevels = new Set();
+  Object.values(studentsData).forEach(s => {
+    if (s.classLevel && s.classLevel.trim()) {
+      classLevels.add(s.classLevel.trim());
+    }
+  });
+
+  // Also include course level if available
+  const course = coursesData[courseId];
+  if (course && course.level) {
+    classLevels.add(course.level.trim());
+  }
+
+  // Sort classes
+  const sortedClasses = Array.from(classLevels).sort((a, b) => a.localeCompare(b, 'th'));
+
+  let options = `<option value="all">-- ทุกห้องเรียนในวิชานี้ (ทั้งหมด) --</option>`;
+  sortedClasses.forEach(c => {
+    options += `<option value="${c}">ห้อง ${c}</option>`;
+  });
+
+  selectEl.innerHTML = options;
+  if (selectedValue) {
+    selectEl.value = selectedValue;
+  }
+}
+
 function updateCourseDropdowns() {
   const hwCourseSelect = document.getElementById('hw-course-id');
   const quizCourseSelect = document.getElementById('quiz-course-id');
@@ -832,12 +873,17 @@ function openCreateHomeworkModal() {
   document.getElementById('hw-max-score').value = 10;
   document.getElementById('hw-due-date').value = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
   document.getElementById('hw-img-file').value = '';
+
+  const courseId = document.getElementById('hw-course-id') ? document.getElementById('hw-course-id').value : '';
+  updateHomeworkTargetClassOptions('hw-target-class', courseId, 'all');
+
   openModal('modal-create-homework');
 }
 
 async function saveHomeworkForm(e) {
   e.preventDefault();
   const courseId = document.getElementById('hw-course-id').value;
+  const targetClass = document.getElementById('hw-target-class') ? document.getElementById('hw-target-class').value : 'all';
   const title = document.getElementById('hw-title').value.trim();
   const desc = document.getElementById('hw-desc').value.trim();
   const maxScore = parseInt(document.getElementById('hw-max-score').value) || 10;
@@ -846,7 +892,7 @@ async function saveHomeworkForm(e) {
 
   const btnSave = document.getElementById('btn-save-hw');
   btnSave.disabled = true;
-  btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังอัปโหลดรูปภาพ...`;
+  btnSave.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังอัปโหลดไฟล์...`;
 
   let imageUrl = null;
   if (imgFile) {
@@ -855,6 +901,7 @@ async function saveHomeworkForm(e) {
 
   pushData('homework', {
     courseId,
+    targetClass,
     title,
     desc,
     maxScore,
@@ -886,7 +933,20 @@ function renderCoursesList() {
     
     // Find homeworks for this course
     const courseHws = Object.keys(homeworkData)
-      .filter(hwId => homeworkData[hwId].courseId === courseId)
+      .filter(hwId => {
+        const hw = homeworkData[hwId];
+        if (hw.courseId !== courseId) return false;
+
+        // Target classroom visibility filter for students
+        if (currentUser && currentUser.role === 'student') {
+          const studentClass = (currentUser.classLevel || '').trim();
+          const targetClass = (hw.targetClass || 'all').trim();
+          if (targetClass !== 'all' && targetClass !== '' && studentClass !== targetClass) {
+            return false; // Not intended for this student's classroom
+          }
+        }
+        return true;
+      })
       .map(hwId => ({ id: hwId, ...homeworkData[hwId] }));
 
     html += `
@@ -909,7 +969,7 @@ function renderCoursesList() {
     `;
 
     if (courseHws.length === 0) {
-      html += `<p class="text-muted" style="font-size:0.95rem; padding:10px 0;">ยังไม่มีการบ้านในวิชานี้</p>`;
+      html += `<p class="text-muted" style="font-size:0.95rem; padding:10px 0;">ยังไม่มีการบ้านในวิชานี้ (หรือไม่มีงานที่มอบหมายให้ห้องของคุณ)</p>`;
     } else {
       html += `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;">`;
       courseHws.forEach(hw => {
@@ -923,9 +983,14 @@ function renderCoursesList() {
         html += `
           <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
             <div>
-              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:6px;">
                 <h5 style="font-size:1.1rem; font-weight:700; color:#0f172a;">${hw.title}</h5>
-                <span class="badge badge-blue">เต็ม ${hw.maxScore} คะแนน</span>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <span class="badge ${hw.targetClass && hw.targetClass !== 'all' ? 'badge-yellow' : 'badge-purple'}" style="font-size:0.78rem;">
+                    <i class="fa-solid fa-users-rectangle"></i> ${hw.targetClass && hw.targetClass !== 'all' ? 'ห้อง ' + hw.targetClass : 'ทุกห้อง'}
+                  </span>
+                  <span class="badge badge-blue">เต็ม ${hw.maxScore} คะแนน</span>
+                </div>
               </div>
               <p style="font-size:0.92rem; color:var(--text-main); margin:8px 0;">${hw.desc || '-'}</p>
               
@@ -1030,6 +1095,8 @@ function openEditHomeworkModal(hwId) {
   document.getElementById('edit-hw-due-date').value = hw.dueDate || '';
   document.getElementById('edit-hw-file').value = '';
 
+  updateHomeworkTargetClassOptions('edit-hw-target-class', hw.courseId, hw.targetClass || 'all');
+
   const currentFileDiv = document.getElementById('edit-hw-file-current');
   if (hw.imageUrl) {
     const isPdf = hw.imageUrl.includes('.pdf') || hw.imageUrl.includes('data:application/pdf');
@@ -1049,6 +1116,7 @@ function openEditHomeworkModal(hwId) {
 async function saveEditHomeworkForm(e) {
   e.preventDefault();
   const hwId = document.getElementById('edit-hw-id').value;
+  const targetClass = document.getElementById('edit-hw-target-class') ? document.getElementById('edit-hw-target-class').value : 'all';
   const title = document.getElementById('edit-hw-title').value.trim();
   const desc = document.getElementById('edit-hw-desc').value.trim();
   const maxScore = parseInt(document.getElementById('edit-hw-max-score').value) || 10;
@@ -1067,6 +1135,7 @@ async function saveEditHomeworkForm(e) {
   }
 
   updateData(`homework/${hwId}`, {
+    targetClass,
     title,
     desc,
     maxScore,
