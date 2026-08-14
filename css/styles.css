@@ -1,5 +1,6 @@
 /* ==========================================================================
    Myclassroom - Modern Balanced Design System (PR Care+ Proportions)
+   Official Thai Government Font (Sarabun) + Vibrant Icon System
    ========================================================================== */
 
 :root {
@@ -38,8 +39,8 @@
   
   /* Sidebar & Header Surfaces (Inspired by PR Care+ Deep Blue) */
   --bg-sidebar: #172c68;
-  --bg-sidebar-hover: rgba(255, 255, 255, 0.08);
-  --bg-sidebar-active: rgba(255, 255, 255, 0.16);
+  --bg-sidebar-hover: rgba(255, 255, 255, 0.09);
+  --bg-sidebar-active: rgba(255, 255, 255, 0.18);
   --sidebar-text: #e2e8f0;
   --sidebar-text-muted: #94a3b8;
   --sidebar-active-text: #ffffff;
@@ -84,12 +85,11 @@
   --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Base Reset & Balanced Compact Scale */
+/* Base Reset */
 *, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: var(--font-family);
 }
 
 html {
@@ -108,7 +108,20 @@ body {
   min-height: 100vh;
 }
 
-input, button, select, textarea, table, th, td, h1, h2, h3, h4, h5, h6 {
+/* ==========================================================================
+   EXPLICIT FONT AWESOME ICON PROTECTION (Guarantees Sharp Icon Rendering)
+   ========================================================================== */
+i.fa-solid, i.fa-regular, i.fa-brands, i.fa, i.fas, i.far, i.fab,
+.fa, .fas, .far, .fal, .fad, .fab, .fa-solid, .fa-regular, .fa-brands,
+.fa::before, .fas::before, .far::before, .fa-solid::before, .fa-regular::before, .fa-brands::before {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "FontAwesome" !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-rendering: auto !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+input, button, select, textarea, optgroup {
   font-family: var(--font-family) !important;
 }
 
@@ -132,8 +145,8 @@ input, button, select, textarea, table, th, td, h1, h2, h3, h4, h5, h6 {
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-main);
   font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 p {
@@ -196,6 +209,11 @@ a {
   justify-content: center;
   font-size: 1.5rem;
   margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.brand-logo-icon i {
+  color: #ffffff !important;
 }
 
 .brand-title {
@@ -227,11 +245,17 @@ a {
   border-radius: var(--radius-sm);
   font-size: 0.84rem;
   font-weight: 500;
+  transition: var(--transition-fast);
+}
+
+.feature-pill:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateX(3px);
 }
 
 .feature-pill i {
   font-size: 1rem;
-  color: #93c5fd;
+  color: #60a5fa !important;
 }
 
 .brand-footer {
@@ -256,6 +280,13 @@ a {
   font-size: 1.45rem;
   font-weight: 800;
   color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-title i {
+  color: var(--primary) !important;
 }
 
 .form-subtitle {
@@ -298,6 +329,10 @@ a {
   box-shadow: var(--shadow-xs);
 }
 
+.role-tab.active i {
+  color: var(--primary) !important;
+}
+
 .form-group {
   margin-bottom: 14px;
 }
@@ -319,9 +354,10 @@ a {
 .input-icon {
   position: absolute;
   left: 13px;
-  color: var(--text-light);
+  color: #64748b !important;
   font-size: 0.95rem;
   pointer-events: none;
+  transition: var(--transition-fast);
 }
 
 .form-control {
@@ -349,7 +385,7 @@ a {
 
 .form-control:focus + .input-icon,
 .input-with-icon:focus-within .input-icon {
-  color: var(--primary);
+  color: var(--primary) !important;
 }
 
 .toggle-pwd-btn {
@@ -382,6 +418,10 @@ a {
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
+}
+
+.login-info-title i {
+  color: #2563eb !important;
 }
 
 .login-info-list {
@@ -424,8 +464,12 @@ a {
   gap: 5px;
 }
 
+.security-badge i {
+  color: #10b981 !important;
+}
+
 /* ==========================================================================
-   2. MAIN APPLICATION LAYOUT (Inspired by PR Care+ Proportions)
+   2. MAIN APPLICATION LAYOUT (Deep Blue Sidebar)
    ========================================================================== */
 .app-container {
   display: flex;
@@ -435,7 +479,7 @@ a {
 
 /* Sidebar Navigation - Deep Royal Navy Blue */
 .sidebar {
-  width: 230px; /* Reduced from 270px for tight elegant proportions */
+  width: 230px;
   background: var(--bg-sidebar);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
@@ -445,7 +489,7 @@ a {
   bottom: 0;
   left: 0;
   z-index: 100;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
   transition: var(--transition);
 }
 
@@ -461,14 +505,19 @@ a {
   width: 36px;
   height: 36px;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: #ffffff !important;
   font-size: 1.15rem;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
+}
+
+.sidebar-logo i {
+  color: #ffffff !important;
 }
 
 .sidebar-brand-name {
@@ -512,9 +561,16 @@ a {
   font-size: 0.95rem;
   width: 18px;
   text-align: center;
-  color: #93c5fd;
   transition: var(--transition-fast);
 }
+
+/* Individual Colorful Icons for Nav Items */
+#nav-dashboard i { color: #fbbf24 !important; } /* Amber Gold */
+#nav-students i { color: #38bdf8 !important; }  /* Sky Blue */
+#nav-courses i { color: #34d399 !important; }   /* Emerald Green */
+#nav-quizzes i { color: #c084fc !important; }   /* Violet Purple */
+#nav-reports i { color: #fb7185 !important; }   /* Rose Pink */
+#nav-users i { color: #fb923c !important; }     /* Vibrant Orange */
 
 .nav-item:hover {
   color: #ffffff;
@@ -527,16 +583,17 @@ a {
   color: #ffffff;
   font-weight: 700;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  border-left: 3px solid #38bdf8;
 }
 
 .nav-item.active i {
-  color: #facc15; /* Golden yellow accent on active icon like PR Care+ */
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
 /* Sidebar User Card */
 .sidebar-user {
-  margin: 10px 8px 12px;
-  padding: 9px 10px;
+  margin: 10px 8px 8px;
+  padding: 8px 10px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md);
@@ -597,7 +654,7 @@ a {
   width: 28px;
   height: 28px;
   background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
+  color: #f87171 !important;
   border: 1px solid rgba(239, 68, 68, 0.35);
   border-radius: var(--radius-xs);
   display: flex;
@@ -609,9 +666,16 @@ a {
   flex-shrink: 0;
 }
 
+.btn-logout i {
+  color: #f87171 !important;
+}
+
 .btn-logout:hover {
   background: #ef4444;
-  color: #ffffff;
+  color: #ffffff !important;
+}
+.btn-logout:hover i {
+  color: #ffffff !important;
 }
 
 .sidebar-footer-info {
@@ -629,7 +693,7 @@ a {
 /* Main Content Area */
 .main-wrapper {
   flex: 1;
-  margin-left: 230px; /* Matched to sidebar */
+  margin-left: 230px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -638,7 +702,7 @@ a {
 
 /* Top Header */
 .top-header {
-  height: 56px; /* Scaled down */
+  height: 56px;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -667,7 +731,7 @@ a {
 }
 
 .page-title {
-  font-size: 1.25rem; /* Balanced title */
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--text-main);
 }
@@ -710,7 +774,10 @@ a {
   border-radius: var(--radius-full);
   font-size: 0.78rem;
   font-weight: 700;
-  font-family: monospace;
+}
+
+.header-clock i {
+  color: #38bdf8 !important;
 }
 
 @keyframes livePulse {
@@ -721,7 +788,7 @@ a {
 
 /* Content Body Container */
 .content-body {
-  padding: 20px 24px 40px; /* Clean, tight padding */
+  padding: 20px 24px 40px;
   flex: 1;
 }
 
@@ -751,6 +818,7 @@ a {
   box-shadow: 0 6px 20px rgba(23, 44, 104, 0.25);
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .announcement-title {
@@ -763,7 +831,8 @@ a {
 }
 
 .announcement-title i {
-  color: #facc15;
+  color: #facc15 !important;
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.6));
 }
 
 .announcement-content {
@@ -801,6 +870,10 @@ a {
   border-bottom: 1px solid var(--border-light);
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.card-title i {
+  margin-right: 4px;
 }
 
 /* Stat KPI Cards Grid (Matching PR Care+ Style) */
@@ -843,21 +916,32 @@ a {
 }
 
 .stat-icon.blue {
-  background: var(--primary-light);
-  color: var(--primary);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #2563eb !important;
+  border: 1px solid #bfdbfe;
 }
+.stat-icon.blue i { color: #2563eb !important; }
+
 .stat-icon.green {
-  background: var(--success-light);
-  color: var(--success);
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #059669 !important;
+  border: 1px solid #a7f3d0;
 }
+.stat-icon.green i { color: #059669 !important; }
+
 .stat-icon.purple {
-  background: var(--purple-light);
-  color: var(--purple);
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  color: #7c3aed !important;
+  border: 1px solid #ddd6fe;
 }
+.stat-icon.purple i { color: #7c3aed !important; }
+
 .stat-icon.amber {
-  background: var(--warning-light);
-  color: var(--warning);
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  color: #d97706 !important;
+  border: 1px solid #fde68a;
 }
+.stat-icon.amber i { color: #d97706 !important; }
 
 .stat-info {
   display: flex;
@@ -865,7 +949,7 @@ a {
 }
 
 .stat-value {
-  font-size: 1.75rem; /* Compact stat numbers */
+  font-size: 1.75rem;
   font-weight: 800;
   color: var(--text-main);
   line-height: 1.1;
@@ -906,7 +990,7 @@ a {
   width: 28px;
   height: 28px;
   background: var(--primary-light);
-  color: var(--primary);
+  color: var(--primary) !important;
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
@@ -914,6 +998,10 @@ a {
   font-size: 0.75rem;
   flex-shrink: 0;
   margin-top: 1px;
+}
+
+.activity-icon i {
+  color: var(--primary) !important;
 }
 
 .activity-text {
@@ -1105,7 +1193,7 @@ a {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-light);
+  color: #94a3b8 !important;
   font-size: 0.85rem;
 }
 
@@ -1209,11 +1297,18 @@ a {
   color: var(--warning-dark);
 }
 
+.quiz-timer-box i {
+  color: #d97706 !important;
+}
+
 .quiz-timer-box.urgent {
   background: var(--danger-light);
   border-color: #fecaca;
   color: var(--danger-dark);
   animation: livePulse 1s infinite;
+}
+.quiz-timer-box.urgent i {
+  color: #dc2626 !important;
 }
 
 .quiz-question-card {
@@ -1340,6 +1435,10 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.modal-title i {
+  color: var(--primary) !important;
 }
 
 .btn-close-modal {
