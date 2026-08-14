@@ -468,8 +468,8 @@ function renderDashboardHomeworkSummary() {
     const studentClass = (currentUser.classLevel || '').trim();
     hwKeys = hwKeys.filter(id => {
       const hw = homeworkData[id];
-      const targetClass = (hw.targetClass || 'all').trim();
-      return targetClass === 'all' || targetClass === '' || studentClass === targetClass;
+      const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+      return targets.includes('all') || targets.length === 0 || targets.includes(studentClass);
     });
   }
 
@@ -791,9 +791,9 @@ function populateTeacherDropdowns() {
   }
 }
 
-function updateHomeworkTargetClassOptions(selectId, courseId, selectedValue = 'all') {
-  const selectEl = document.getElementById(selectId);
-  if (!selectEl) return;
+function renderTargetClassChips(containerId, courseId, selectedClasses = ['all']) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
 
   // Gather distinct classes from studentsData
   const classLevels = new Set();
@@ -812,15 +812,111 @@ function updateHomeworkTargetClassOptions(selectId, courseId, selectedValue = 'a
   // Sort classes
   const sortedClasses = Array.from(classLevels).sort((a, b) => a.localeCompare(b, 'th'));
 
-  let options = `<option value="all">-- ทุกห้องเรียนในวิชานี้ (ทั้งหมด) --</option>`;
-  sortedClasses.forEach(c => {
-    options += `<option value="${c}">ห้อง ${c}</option>`;
+  // Normalize selectedClasses
+  if (typeof selectedClasses === 'string') {
+    selectedClasses = selectedClasses.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (!Array.isArray(selectedClasses) || selectedClasses.length === 0) {
+    selectedClasses = ['all'];
+  }
+
+  const isAll = selectedClasses.includes('all');
+
+  let html = `
+    <label class="target-chip ${isAll ? 'active' : ''}" onclick="toggleTargetClassChip('${containerId}', 'all', this)">
+      <input type="checkbox" value="all" ${isAll ? 'checked' : ''} style="display:none;">
+      <i class="fa-solid fa-globe"></i> ทุกห้องเรียน (ทั้งหมด)
+    </label>
+  `;
+
+  sortedClasses.forEach(cls => {
+    const isChecked = !isAll && selectedClasses.includes(cls);
+    html += `
+      <label class="target-chip ${isChecked ? 'active' : ''}" onclick="toggleTargetClassChip('${containerId}', '${cls}', this)">
+        <input type="checkbox" value="${cls}" ${isChecked ? 'checked' : ''} style="display:none;">
+        <i class="fa-solid fa-graduation-cap"></i> ห้อง ${cls}
+      </label>
+    `;
   });
 
-  selectEl.innerHTML = options;
-  if (selectedValue) {
-    selectEl.value = selectedValue;
+  container.innerHTML = html;
+  updateTargetChipsSummary(containerId);
+}
+
+function toggleTargetClassChip(containerId, value, labelEl) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const chips = container.querySelectorAll('.target-chip');
+  const allChip = container.querySelector('.target-chip input[value="all"]')?.parentElement;
+
+  if (value === 'all') {
+    // If clicking "all", select "all" and uncheck all specific rooms
+    chips.forEach(chip => {
+      const input = chip.querySelector('input');
+      if (input.value === 'all') {
+        input.checked = true;
+        chip.classList.add('active');
+      } else {
+        input.checked = false;
+        chip.classList.remove('active');
+      }
+    });
+  } else {
+    // Specific room chip toggled
+    const input = labelEl.querySelector('input');
+    const newState = !input.checked;
+    input.checked = newState;
+    if (newState) {
+      labelEl.classList.add('active');
+      // Uncheck "all"
+      if (allChip) {
+        allChip.querySelector('input').checked = false;
+        allChip.classList.remove('active');
+      }
+    } else {
+      labelEl.classList.remove('active');
+    }
+
+    // If no room is checked, revert back to "all"
+    const anyChecked = Array.from(chips).some(chip => {
+      const inp = chip.querySelector('input');
+      return inp.value !== 'all' && inp.checked;
+    });
+
+    if (!anyChecked && allChip) {
+      allChip.querySelector('input').checked = true;
+      allChip.classList.add('active');
+    }
   }
+
+  updateTargetChipsSummary(containerId);
+}
+
+function updateTargetChipsSummary(containerId) {
+  const selected = getSelectedTargetClasses(containerId);
+  const summaryId = containerId === 'hw-target-chips-container' ? 'hw-target-summary' : 'edit-hw-target-summary';
+  const summaryEl = document.getElementById(summaryId);
+  if (!summaryEl) return;
+
+  if (selected.includes('all')) {
+    summaryEl.innerText = 'ทุกห้องเรียน';
+  } else {
+    summaryEl.innerText = `เลือกแล้ว (${selected.length} ห้อง): ${selected.join(', ')}`;
+  }
+}
+
+function getSelectedTargetClasses(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return ['all'];
+
+  const checkedInputs = Array.from(container.querySelectorAll('input:checked'));
+  const values = checkedInputs.map(inp => inp.value);
+
+  if (values.includes('all') || values.length === 0) {
+    return ['all'];
+  }
+  return values;
 }
 
 function updateCourseDropdowns() {
@@ -875,7 +971,7 @@ function openCreateHomeworkModal() {
   document.getElementById('hw-img-file').value = '';
 
   const courseId = document.getElementById('hw-course-id') ? document.getElementById('hw-course-id').value : '';
-  updateHomeworkTargetClassOptions('hw-target-class', courseId, 'all');
+  renderTargetClassChips('hw-target-chips-container', courseId, ['all']);
 
   openModal('modal-create-homework');
 }
@@ -883,7 +979,8 @@ function openCreateHomeworkModal() {
 async function saveHomeworkForm(e) {
   e.preventDefault();
   const courseId = document.getElementById('hw-course-id').value;
-  const targetClass = document.getElementById('hw-target-class') ? document.getElementById('hw-target-class').value : 'all';
+  const targetClasses = getSelectedTargetClasses('hw-target-chips-container');
+  const targetClass = targetClasses.join(', ');
   const title = document.getElementById('hw-title').value.trim();
   const desc = document.getElementById('hw-desc').value.trim();
   const maxScore = parseInt(document.getElementById('hw-max-score').value) || 10;
@@ -901,6 +998,7 @@ async function saveHomeworkForm(e) {
 
   pushData('homework', {
     courseId,
+    targetClasses,
     targetClass,
     title,
     desc,
@@ -940,8 +1038,8 @@ function renderCoursesList() {
         // Target classroom visibility filter for students
         if (currentUser && currentUser.role === 'student') {
           const studentClass = (currentUser.classLevel || '').trim();
-          const targetClass = (hw.targetClass || 'all').trim();
-          if (targetClass !== 'all' && targetClass !== '' && studentClass !== targetClass) {
+          const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+          if (!targets.includes('all') && targets.length > 0 && !targets.includes(studentClass)) {
             return false; // Not intended for this student's classroom
           }
         }
@@ -979,6 +1077,9 @@ function renderCoursesList() {
         
         const subCount = submissionsData[hw.id] ? Object.keys(submissionsData[hw.id]).length : 0;
         const isPdf = hw.imageUrl && (hw.imageUrl.includes('.pdf') || hw.imageUrl.includes('data:application/pdf'));
+        const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+        const isTargetAll = targets.includes('all') || targets.length === 0;
+        const targetLabel = isTargetAll ? 'ทุกห้อง' : 'ห้อง ' + targets.join(', ');
 
         html += `
           <div style="background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
@@ -986,8 +1087,8 @@ function renderCoursesList() {
               <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:6px;">
                 <h5 style="font-size:1.1rem; font-weight:700; color:#0f172a;">${hw.title}</h5>
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                  <span class="badge ${hw.targetClass && hw.targetClass !== 'all' ? 'badge-yellow' : 'badge-purple'}" style="font-size:0.78rem;">
-                    <i class="fa-solid fa-users-rectangle"></i> ${hw.targetClass && hw.targetClass !== 'all' ? 'ห้อง ' + hw.targetClass : 'ทุกห้อง'}
+                  <span class="badge ${isTargetAll ? 'badge-purple' : 'badge-yellow'}" style="font-size:0.78rem;">
+                    <i class="fa-solid fa-users-rectangle"></i> ${targetLabel}
                   </span>
                   <span class="badge badge-blue">เต็ม ${hw.maxScore} คะแนน</span>
                 </div>
@@ -1095,7 +1196,8 @@ function openEditHomeworkModal(hwId) {
   document.getElementById('edit-hw-due-date').value = hw.dueDate || '';
   document.getElementById('edit-hw-file').value = '';
 
-  updateHomeworkTargetClassOptions('edit-hw-target-class', hw.courseId, hw.targetClass || 'all');
+  const selectedTargets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+  renderTargetClassChips('edit-hw-target-chips-container', hw.courseId, selectedTargets);
 
   const currentFileDiv = document.getElementById('edit-hw-file-current');
   if (hw.imageUrl) {
@@ -1116,7 +1218,8 @@ function openEditHomeworkModal(hwId) {
 async function saveEditHomeworkForm(e) {
   e.preventDefault();
   const hwId = document.getElementById('edit-hw-id').value;
-  const targetClass = document.getElementById('edit-hw-target-class') ? document.getElementById('edit-hw-target-class').value : 'all';
+  const targetClasses = getSelectedTargetClasses('edit-hw-target-chips-container');
+  const targetClass = targetClasses.join(', ');
   const title = document.getElementById('edit-hw-title').value.trim();
   const desc = document.getElementById('edit-hw-desc').value.trim();
   const maxScore = parseInt(document.getElementById('edit-hw-max-score').value) || 10;
@@ -1135,6 +1238,7 @@ async function saveEditHomeworkForm(e) {
   }
 
   updateData(`homework/${hwId}`, {
+    targetClasses,
     targetClass,
     title,
     desc,

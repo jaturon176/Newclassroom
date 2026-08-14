@@ -624,18 +624,20 @@
       </div>
       <form onsubmit="saveHomeworkForm(event)">
         <div class="modal-body">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-            <div class="form-group">
-              <label class="form-label">เลือกรายวิชา *</label>
-              <select id="hw-course-id" class="form-control" style="padding-left:14px;" required onchange="updateHomeworkTargetClassOptions('hw-target-class', this.value)">
-                <!-- Options loaded dynamically -->
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">ห้องเรียนเป้าหมาย (ผู้มีสิทธิ์เห็นงาน) *</label>
-              <select id="hw-target-class" class="form-control" style="padding-left:14px;" required>
-                <option value="all">-- ทุกห้องเรียนในวิชานี้ (ทั้งหมด) --</option>
-              </select>
+          <div class="form-group">
+            <label class="form-label">เลือกรายวิชา *</label>
+            <select id="hw-course-id" class="form-control" style="padding-left:14px;" required onchange="renderTargetClassChips('hw-target-chips-container', this.value)">
+              <!-- Options loaded dynamically -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+              <span><i class="fa-solid fa-users-rectangle"></i> ห้องเรียนเป้าหมาย (เลือกได้มากกว่า 1 ห้อง) *</span>
+              <span style="font-size:0.82rem; font-weight:600; color:var(--primary);" id="hw-target-summary">ทุกห้องเรียน</span>
+            </label>
+            <div id="hw-target-chips-container" class="target-class-chips-container">
+              <!-- Rendered dynamically -->
             </div>
           </div>
 
@@ -735,10 +737,13 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">ห้องเรียนเป้าหมาย (ผู้มีสิทธิ์เห็นงาน) *</label>
-            <select id="edit-hw-target-class" class="form-control" style="padding-left:14px;" required>
-              <option value="all">-- ทุกห้องเรียนในวิชานี้ (ทั้งหมด) --</option>
-            </select>
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+              <span><i class="fa-solid fa-users-rectangle"></i> ห้องเรียนเป้าหมาย (เลือกได้มากกว่า 1 ห้อง) *</span>
+              <span style="font-size:0.82rem; font-weight:600; color:var(--primary);" id="edit-hw-target-summary">ทุกห้องเรียน</span>
+            </label>
+            <div id="edit-hw-target-chips-container" class="target-class-chips-container">
+              <!-- Rendered dynamically -->
+            </div>
           </div>
 
           <div class="form-group">
