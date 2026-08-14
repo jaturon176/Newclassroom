@@ -1562,7 +1562,18 @@ a {
 }
 
 /* ==========================================================================
-   10. PRINT STYLES
+   10. ROLE-BASED SECURITY DISPLAY RULES
+   ========================================================================== */
+body.role-student .teacher-only,
+body.role-student .teacher-only-btn,
+body.role-student #nav-students,
+body.role-student #nav-reports,
+body.role-student #nav-users {
+  display: none !important;
+}
+
+/* ==========================================================================
+   11. PRINT STYLES
    ========================================================================== */
 @media print {
   body {

@@ -304,6 +304,7 @@ function handleLogout() {
     if (confirmed) {
       currentUser = null;
       sessionStorage.removeItem('myclassroom_user');
+      document.body.classList.remove('role-student', 'role-teacher');
       document.getElementById('app-screen').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
       showPopupSuccess("ออกจากระบบเรียบร้อย", "ขอบคุณที่ใช้งานระบบ Myclassroom");
@@ -315,6 +316,10 @@ function showAppScreen() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'flex';
 
+  const isStudent = currentUser && currentUser.role === 'student';
+  document.body.classList.toggle('role-student', isStudent);
+  document.body.classList.toggle('role-teacher', !isStudent);
+
   // Set user profile in sidebar
   document.getElementById('sidebar-user-name').innerText = currentUser.name;
   document.getElementById('sidebar-user-avatar').innerText = currentUser.name.charAt(0);
@@ -325,7 +330,6 @@ function showAppScreen() {
   document.getElementById('sidebar-user-role').innerText = roleText;
 
   // Toggle role-specific controls
-  const isStudent = currentUser && currentUser.role === 'student';
   const teacherElements = document.querySelectorAll('.teacher-only');
   teacherElements.forEach(el => {
     if (isStudent) {
@@ -1260,10 +1264,12 @@ function renderCoursesList() {
             <h3 style="font-size:1.4rem; font-weight:700; color:#0f172a; margin-top:4px;">${course.name} (ระดับชั้น ${course.level})</h3>
             <div style="font-size:0.88rem; color:var(--text-muted);"><i class="fa-solid fa-chalkboard-user"></i> ครูผู้สอน: ${course.teacher}</div>
           </div>
-          <div class="teacher-only" style="display:flex; gap:8px;">
-            <button class="btn btn-sm btn-outline-primary" onclick="openEditCourseModal('${courseId}')"><i class="fa-solid fa-pen-to-square"></i> แก้ไขวิชา</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteCourse('${courseId}')"><i class="fa-solid fa-trash"></i> ลบวิชา</button>
-          </div>
+          ${(currentUser && currentUser.role !== 'student') ? `
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-outline-primary" onclick="openEditCourseModal('${courseId}')"><i class="fa-solid fa-pen-to-square"></i> แก้ไขวิชา</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCourse('${courseId}')"><i class="fa-solid fa-trash"></i> ลบวิชา</button>
+            </div>
+          ` : ''}
         </div>
 
         <h4 style="font-size:1.1rem; font-weight:700; color:#334155; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
@@ -1365,6 +1371,10 @@ function renderCoursesList() {
 }
 
 function deleteCourse(courseId) {
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์ลบรายวิชา");
+    return;
+  }
   showPopupConfirm("ยืนยันลบรายวิชา", "คุณต้องการลบรายวิชานี้และข้อมูลการบ้านทั้งหมดใช่หรือไม่?", "ลบรายวิชา", "warning").then((confirmed) => {
     if (confirmed) {
       deleteData(`courses/${courseId}`);
@@ -1375,6 +1385,10 @@ function deleteCourse(courseId) {
 }
 
 function openEditCourseModal(courseId) {
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์แก้ไขรายวิชา");
+    return;
+  }
   const course = coursesData[courseId];
   if (!course) return;
 
@@ -1392,6 +1406,10 @@ function openEditCourseModal(courseId) {
 
 function saveEditCourseForm(e) {
   e.preventDefault();
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์แก้ไขรายวิชา");
+    return;
+  }
   const courseId = document.getElementById('edit-course-id').value;
   const code = document.getElementById('edit-course-code').value.trim();
   const name = document.getElementById('edit-course-name').value.trim();
