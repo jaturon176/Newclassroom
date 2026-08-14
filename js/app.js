@@ -8,107 +8,6 @@ let currentUser = null;
 let activeLoginRole = 'teacher';
 let activeNavView = 'dashboard';
 
-// Popup Confirmation Callback Holder
-let customConfirmCallback = null;
-
-/**
- * Toast Notification Popup System
- */
-function showToast(title, message, type = 'info') {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  
-  let iconClass = 'fa-circle-info';
-  if (type === 'success') iconClass = 'fa-circle-check';
-  if (type === 'danger') iconClass = 'fa-circle-xmark';
-  if (type === 'warning') iconClass = 'fa-triangle-exclamation';
-
-  toast.innerHTML = `
-    <div class="toast-icon">
-      <i class="fa-solid ${iconClass}"></i>
-    </div>
-    <div class="toast-content">
-      <div class="toast-title">${title}</div>
-      <div class="toast-message">${message}</div>
-    </div>
-  `;
-
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.animation = 'toastFadeOut 0.35s forwards';
-    setTimeout(() => toast.remove(), 350);
-  }, 3500);
-}
-
-/**
- * Stylish Modal Alert & Confirmation System
- */
-function showCustomAlert(title, message, type = 'success') {
-  const titleEl = document.getElementById('alert-title-target');
-  const descEl = document.getElementById('alert-desc-target');
-  const iconBox = document.getElementById('alert-icon-box');
-  const iconTarget = document.getElementById('alert-icon-target');
-  const actionsEl = document.getElementById('alert-actions-target');
-
-  titleEl.innerText = title;
-  descEl.innerText = message;
-  
-  iconBox.className = `custom-alert-icon ${type}`;
-  
-  let iconClass = 'fa-circle-check';
-  if (type === 'danger') iconClass = 'fa-circle-xmark';
-  if (type === 'warning') iconClass = 'fa-triangle-exclamation';
-  if (type === 'question') iconClass = 'fa-circle-question';
-  
-  iconTarget.className = `fa-solid ${iconClass}`;
-
-  actionsEl.innerHTML = `<button type="button" class="btn btn-primary" onclick="closeCustomAlert()">ตกลง</button>`;
-
-  openModal('modal-custom-alert');
-}
-
-function showCustomConfirm(title, message, type = 'warning', onConfirm = null) {
-  const titleEl = document.getElementById('alert-title-target');
-  const descEl = document.getElementById('alert-desc-target');
-  const iconBox = document.getElementById('alert-icon-box');
-  const iconTarget = document.getElementById('alert-icon-target');
-  const actionsEl = document.getElementById('alert-actions-target');
-
-  titleEl.innerText = title;
-  descEl.innerText = message;
-  
-  iconBox.className = `custom-alert-icon ${type}`;
-  let iconClass = 'fa-circle-question';
-  if (type === 'warning') iconClass = 'fa-triangle-exclamation';
-  if (type === 'danger') iconClass = 'fa-trash-can';
-  
-  iconTarget.className = `fa-solid ${iconClass}`;
-
-  customConfirmCallback = onConfirm;
-
-  actionsEl.innerHTML = `
-    <button type="button" class="btn btn-secondary" onclick="closeCustomAlert()">ยกเลิก</button>
-    <button type="button" class="btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'}" onclick="executeCustomConfirm()">ยืนยัน</button>
-  `;
-
-  openModal('modal-custom-alert');
-}
-
-function executeCustomConfirm() {
-  closeCustomAlert();
-  if (typeof customConfirmCallback === 'function') {
-    customConfirmCallback();
-  }
-}
-
-function closeCustomAlert() {
-  closeModal('modal-custom-alert');
-}
-
 // Realtime Cache Stores
 let usersData = {};
 let studentsData = {};
@@ -278,116 +177,67 @@ function switchLoginRole(role) {
 
 function handleLogin(event) {
   event.preventDefault();
-  const rawUsername = document.getElementById('login-username').value.trim();
+  const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value.trim();
-  const username = rawUsername.toLowerCase();
 
   if (!username || !password) {
-    showCustomAlert("ข้อมูลไม่ครบถ้วน", "กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน", "warning");
+    alert("กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน");
     return;
   }
 
+  // Check in usersData
   let foundUser = null;
 
-  // 1. Direct Default Admin / Teacher Hardcoded Fallback (Guarantees admin login ALWAYS succeeds immediately!)
-  if (username === 'admin' && (password === 'admin123' || password === 'admin')) {
-    foundUser = {
-      username: 'admin',
-      name: 'ผู้ดูแลระบบ (Admin)',
-      password: 'admin123',
-      role: 'admin'
-    };
-  } else if (username === '0812345678' && password === '123456') {
-    foundUser = {
-      username: '0812345678',
-      name: 'คุณครูสมศักดิ์ รักเรียน',
-      password: '123456',
-      role: 'teacher'
-    };
-  }
-
-  // 2. Check in usersData store
-  if (!foundUser && usersData) {
-    Object.keys(usersData).forEach(uKey => {
-      const u = usersData[uKey];
-      if (!u) return;
-
-      const dbUsername = (u.username || uKey).toLowerCase();
-      const dbStudentId = (u.studentId || '').toLowerCase();
-
-      if (activeLoginRole === 'student') {
-        if (dbUsername === username || dbStudentId === username) {
-          if (u.password === password || password === dbStudentId || password === dbUsername) {
-            foundUser = u;
-          }
-        }
-      } else {
-        if (dbUsername === username) {
-          if (u.password === password || (dbUsername === 'admin' && (password === 'admin123' || password === 'admin'))) {
-            foundUser = u;
-          }
-        }
+  if (activeLoginRole === 'student') {
+    // For students: Username AND Password must equal Student ID
+    // Look up directly by username key or student ID matching
+    if (usersData[username]) {
+      const u = usersData[username];
+      if (u.role === 'student' && (u.password === password || u.studentId === username)) {
+        foundUser = u;
       }
-    });
-  }
+    }
 
-  // 3. Fallback for Students in studentsData
-  if (!foundUser && activeLoginRole === 'student' && studentsData) {
-    Object.keys(studentsData).forEach(sKey => {
-      const std = studentsData[sKey];
-      if (!std) return;
-
-      const stdId = (std.studentId || sKey).toLowerCase();
-      if (stdId === username && (password === stdId || password === std.studentId)) {
-        foundUser = {
-          username: std.studentId,
-          name: std.name,
-          role: 'student',
-          studentId: std.studentId,
-          classLevel: std.classLevel
-        };
-        // Auto-save student user account to Firebase DB
-        saveData(`users/${std.studentId}`, {
-          username: std.studentId,
-          password: std.studentId,
-          name: std.name,
-          role: 'student',
-          studentId: std.studentId,
-          classLevel: std.classLevel
-        });
+    // Fallback: check studentsData if not in usersData yet
+    if (!foundUser && studentsData[username]) {
+      const std = studentsData[username];
+      foundUser = {
+        username: std.studentId,
+        name: std.name,
+        role: 'student',
+        studentId: std.studentId,
+        classLevel: std.classLevel
+      };
+      // Save credentials for future logins
+      saveData(`users/${std.studentId}`, {
+        username: std.studentId,
+        password: std.studentId,
+        name: std.name,
+        role: 'student',
+        studentId: std.studentId,
+        classLevel: std.classLevel
+      });
+    }
+  } else {
+    // Teacher / Admin login
+    if (usersData[username]) {
+      const u = usersData[username];
+      if (u.password === password || (username === 'admin' && (password === 'admin123' || password === 'admin'))) {
+        foundUser = u;
       }
-    });
-  }
-
-  // 4. Auto student login fallback if user inputs same username & password as numeric Student ID
-  if (!foundUser && activeLoginRole === 'student' && rawUsername === password && /^\d+$/.test(rawUsername)) {
-    foundUser = {
-      username: rawUsername,
-      name: `นักเรียน (รหัส ${rawUsername})`,
-      role: 'student',
-      studentId: rawUsername,
-      classLevel: ''
-    };
-    saveData(`users/${rawUsername}`, foundUser);
-    saveData(`students/${rawUsername}`, {
-      studentId: rawUsername,
-      name: `นักเรียน (รหัส ${rawUsername})`,
-      classLevel: '',
-      advisor: ''
-    });
+    }
   }
 
   if (foundUser) {
     currentUser = foundUser;
     sessionStorage.setItem('myclassroom_user', JSON.stringify(currentUser));
     showAppScreen();
-    showToast(`ยินดีต้อนรับ ${currentUser.name}`, "เข้าสู่ระบบสำเร็จเรียบร้อยแล้ว", "success");
     logActivity(`ผู้ใช้งาน ${currentUser.name} เข้าสู่ระบบแล้ว`);
   } else {
     if (activeLoginRole === 'student') {
-      showCustomAlert("เข้าสู่ระบบไม่สำเร็จ", "ไม่พบข้อมูลนักเรียน หรือ รหัสประจำตัวไม่ถูกต้อง (ใช้อย่างเดียวกันทั้งชื่อผู้ใช้และรหัสผ่าน)", "danger");
+      alert("ไม่พบข้อมูลนักเรียน หรือ รหัสประจำตัวไม่ถูกต้อง (ใช้อย่างเดียวกันทั้งชื่อผู้ใช้และรหัสผ่าน)");
     } else {
-      showCustomAlert("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง", "danger");
+      alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
     }
   }
 }
@@ -405,13 +255,12 @@ function checkSavedSession() {
 }
 
 function handleLogout() {
-  showCustomConfirm("ยืนยันการออกจากระบบ", "คุณต้องการออกจากระบบห้องเรียนออนไลน์ Myclassroom ใช่หรือไม่?", "warning", () => {
+  if (confirm("คุณต้องการออกจากระบบใช่หรือไม่?")) {
     currentUser = null;
     sessionStorage.removeItem('myclassroom_user');
     document.getElementById('app-screen').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
-    showToast("ออกจากระบบแล้ว", "ขอบคุณที่ใช้งานระบบห้องเรียนออนไลน์", "info");
-  });
+  }
 }
 
 function showAppScreen() {
@@ -646,20 +495,7 @@ function renderStudentsTable() {
     
     // Filter conditions
     if (classFilter && std.classLevel !== classFilter) return;
-    
-    const advisorText = std.advisor || '';
-    if (search && !std.studentId.toLowerCase().includes(search) && 
-        !std.name.toLowerCase().includes(search) && 
-        !advisorText.toLowerCase().includes(search)) return;
-
-    // Render Multiple Advisors as Badges
-    const advisorsArr = advisorText ? advisorText.split(/,|\n/).map(a => a.trim()).filter(Boolean) : [];
-    let advisorHtml = '-';
-    if (advisorsArr.length > 0) {
-      advisorHtml = `<div class="advisors-container">` +
-        advisorsArr.map(adv => `<span class="advisor-badge"><i class="fa-solid fa-chalkboard-user"></i> ${adv}</span>`).join('') +
-        `</div>`;
-    }
+    if (search && !std.studentId.toLowerCase().includes(search) && !std.name.toLowerCase().includes(search)) return;
 
     const hasUserAccount = usersData[std.studentId] ? true : false;
     const accountBadge = hasUserAccount 
@@ -672,7 +508,7 @@ function renderStudentsTable() {
         <td><code style="font-weight:bold; color:var(--primary);">${std.studentId}</code></td>
         <td><strong>${std.name}</strong></td>
         <td><span class="badge badge-blue">${std.classLevel || '-'}</span></td>
-        <td>${advisorHtml}</td>
+        <td>${std.advisor || '-'}</td>
         <td>${accountBadge}</td>
         <td class="teacher-only" style="text-align:center;">
           <button class="btn btn-sm btn-danger" onclick="deleteStudent('${std.studentId}')" title="ลบข้อมูลนักเรียน">
@@ -741,20 +577,15 @@ function saveStudentForm(e) {
   });
 
   closeModal('modal-add-student');
-  showToast("บันทึกข้อมูลนักเรียนสำเร็จ", `เพิ่มนักเรียน ${name} (รหัส ${studentId}) แล้ว`, "success");
   logActivity(`เพิ่มนักเรียนใหม่: ${name} (รหัส ${studentId})`);
 }
 
 function deleteStudent(studentId) {
-  const std = studentsData[studentId];
-  const nameStr = std ? std.name : studentId;
-
-  showCustomConfirm("ยืนยันการลบนักเรียน", `คุณต้องการลบข้อมูลนักเรียน ${nameStr} (รหัส ${studentId}) ใช่หรือไม่?`, "danger", () => {
+  if (confirm(`คุณต้องการลบข้อมูลนักเรียนรหัส ${studentId} ใช่หรือไม่?`)) {
     deleteData(`students/${studentId}`);
     deleteData(`users/${studentId}`);
-    showToast("ลบข้อมูลสำเร็จ", `ลบข้อมูลนักเรียนรหัส ${studentId} เรียบร้อยแล้ว`, "danger");
     logActivity(`ลบข้อมูลนักเรียนรหัส ${studentId}`);
-  });
+  }
 }
 
 function openImportCsvModal() {
@@ -762,68 +593,30 @@ function openImportCsvModal() {
   openModal('modal-import-csv');
 }
 
-async function processCsvImport(e) {
+function processCsvImport(e) {
   e.preventDefault();
   const fileInput = document.getElementById('csv-file-input');
-  const files = Array.from(fileInput.files);
-  if (!files || files.length === 0) return;
+  const file = fileInput.files[0];
+  if (!file) return;
 
-  let totalImported = 0;
-
-  for (const file of files) {
-    try {
-      const csvText = await readFileAsText(file);
-      const importedCount = parseAndImportCsvData(csvText);
-      totalImported += importedCount;
-    } catch (err) {
-      console.error(`Error reading CSV file ${file.name}:`, err);
-    }
-  }
-
-  closeModal('modal-import-csv');
-  showCustomAlert("นำเข้าข้อมูลสำเร็จ!", `นำเข้ารายชื่อนักเรียนจาก ${files.length} ไฟล์ รวมทั้งสิ้น ${totalImported} รายการเรียบร้อยแล้ว`, "success");
-  showToast("นำเข้า CSV สำเร็จ", `เพิ่มข้อมูลนักเรียน ${totalImported} รายการ`, "success");
-  logActivity(`นำเข้าข้อมูลนักเรียนด้วย CSV ${files.length} ไฟล์ จำนวน ${totalImported} คน`);
-}
-
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (evt) => resolve(evt.target.result);
-    reader.onerror = (err) => reject(err);
-    reader.readAsText(file, 'UTF-8');
-  });
-}
-
-/**
- * Robust CSV Line Parser supporting quotes and multiple advisors
- */
-function parseCsvLine(line) {
-  const result = [];
-  let current = '';
-  let inQuotes = false;
-  
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim().replace(/^"(.*)"$/, '$1'));
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim().replace(/^"(.*)"$/, '$1'));
-  return result;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const text = evt.target.result;
+    parseAndImportCsvData(text);
+  };
+  reader.readAsText(file, 'UTF-8');
 }
 
 function parseAndImportCsvData(csvText) {
+  // Normalize line endings
   const lines = csvText.split(/\r\n|\n|\r/);
-  if (lines.length < 2) return 0;
+  if (lines.length < 2) {
+    alert("ไฟล์ CSV ไม่มีข้อมูลเพียงพอ");
+    return;
+  }
 
   // Parse Headers
-  const headers = parseCsvLine(lines[0]).map(h => h.trim().replace(/^[\uFEFF]/, ''));
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^[\uFEFF]/, ''));
   
   // Required Header Names: เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น, ครูที่ปรึกษา
   const idxNo = headers.findIndex(h => h.includes('เลขที่'));
@@ -833,8 +626,8 @@ function parseAndImportCsvData(csvText) {
   const idxAdvisor = headers.findIndex(h => h.includes('ครูที่ปรึกษา') || h.includes('ครู'));
 
   if (idxId === -1 || idxName === -1) {
-    showCustomAlert("รูปแบบไฟล์ CSV ไม่ถูกต้อง", "กรุณาตรวจสอบหัวคอลัมน์: เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น, ครูที่ปรึกษา", "danger");
-    return 0;
+    alert("รูปแบบคอลัมน์ CSV ไม่ถูกต้อง กรุณาตรวจสอบหัวคอลัมน์: เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น, ครูที่ปรึกษา");
+    return;
   }
 
   let importedCount = 0;
@@ -843,7 +636,7 @@ function parseAndImportCsvData(csvText) {
     const line = lines[i].trim();
     if (!line) continue;
 
-    const row = parseCsvLine(line);
+    const row = line.split(',').map(cell => cell.trim().replace(/^"(.*)"$/, '$1'));
     const studentId = row[idxId];
     const name = row[idxName];
 
@@ -875,7 +668,9 @@ function parseAndImportCsvData(csvText) {
     }
   }
 
-  return importedCount;
+  closeModal('modal-import-csv');
+  alert(`นำข้อมูลนักเรียนเข้าสู่ระบบสำเร็จจำนวน ${importedCount} รายการ!`);
+  logActivity(`นำเข้าข้อมูลนักเรียนด้วย CSV จำนวน ${importedCount} คน`);
 }
 
 
@@ -1067,11 +862,10 @@ function renderCoursesList() {
 }
 
 function deleteCourse(courseId) {
-  showCustomConfirm("ยืนยันการลบรายวิชา", "คุณต้องการลบรายวิชานี้และข้อมูลการบ้านทั้งหมดใช่หรือไม่?", "danger", () => {
+  if (confirm("คุณต้องการลบรายวิชานี้และข้อมูลการบ้านทั้งหมดใช่หรือไม่?")) {
     deleteData(`courses/${courseId}`);
-    showToast("ลบวิชาสำเร็จ", "ลบรายวิชาเรียบร้อยแล้ว", "danger");
     logActivity(`ลบรายวิชา`);
-  });
+  }
 }
 
 // Student Submit Homework
@@ -1120,8 +914,7 @@ async function handleStudentHomeworkSubmit(e) {
     btnSubmit.disabled = false;
     btnSubmit.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันการส่งงาน`;
     closeModal('modal-submit-homework');
-    showCustomAlert("ส่งงานสำเร็จ!", "ระบบทำการบันทึกและส่งการบ้านเรียบร้อยแล้ว", "success");
-    showToast("ส่งการบ้านแล้ว", "ส่งชิ้นงานเรียบร้อยแล้ว", "success");
+    alert("ส่งการบ้านเรียบร้อยแล้ว!");
     logActivity(`นักเรียน ${currentUser.name} ส่งการบ้านเรียบร้อยแล้ว`);
   });
 }
@@ -1186,7 +979,7 @@ function saveSubmissionGrade(hwId, studentId) {
   const commentVal = document.getElementById(`grade-comment-${hwId}-${studentId}`).value.trim();
 
   if (scoreVal === '') {
-    showCustomAlert("ข้อมูลไม่ครบถ้วน", "กรุณากรอกคะแนนก่อนบันทึก", "warning");
+    alert("กรุณากรอกคะแนนก่อนบันทึก");
     return;
   }
 
@@ -1197,9 +990,7 @@ function saveSubmissionGrade(hwId, studentId) {
     gradedAt: new Date().toLocaleString('th-TH'),
     gradedBy: currentUser.name
   }).then(() => {
-    showToast("บันทึกคะแนนแล้ว", `ให้คะแนน ${scoreNum} คะแนนเรียบร้อยแล้ว`, "success");
-  });
-}
+    alert("บันทึกคะแนนเรียบร้อยแล้ว");
   });
 }
 
@@ -1677,17 +1468,9 @@ function renderUsersTable() {
         <td>${roleBadge}</td>
         <td>${u.classLevel ? 'ระดับชั้น ' + u.classLevel : (u.studentId ? 'รหัส ' + u.studentId : '-')}</td>
         <td style="text-align:center;">
-          <div style="display:flex; gap:6px; justify-content:center;">
-            <button class="btn btn-sm btn-primary" onclick="openEditUserModal('${u.username}')" title="แก้ไขข้อมูลผู้ใช้">
-              <i class="fa-solid fa-pen-to-square"></i> แก้ไข
-            </button>
-            <button class="btn btn-sm btn-secondary" onclick="openChangePasswordModal('${u.username}')" title="เปลี่ยนรหัสผ่าน">
-              <i class="fa-solid fa-key"></i> รหัสผ่าน
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteUserAccount('${u.username}')" title="ลบบัญชีผู้ใช้">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
+          <button class="btn btn-sm btn-secondary" onclick="openChangePasswordModal('${u.username}')" title="เปลี่ยนรหัสผ่าน">
+            <i class="fa-solid fa-key"></i> เปลี่ยนรหัส
+          </button>
         </td>
       </tr>
     `;
@@ -1701,6 +1484,10 @@ function openAddUserModal() {
   document.getElementById('new-user-fullname').value = '';
   document.getElementById('new-user-password').value = '';
   openModal('modal-add-user');
+}
+
+function toggleUserFormFields() {
+  // Can add dynamic field behavior if needed
 }
 
 function saveUserForm(e) {
@@ -1718,62 +1505,7 @@ function saveUserForm(e) {
     createdAt: new Date().toISOString()
   }).then(() => {
     closeModal('modal-add-user');
-    showToast("สร้างบัญชีสำเร็จ", `เพิ่มผู้ใช้งาน ${name} เรียบร้อยแล้ว`, "success");
     logActivity(`เพิ่มผู้ใช้งานใหม่: ${name} (${role})`);
-  });
-}
-
-function openEditUserModal(username) {
-  const u = usersData[username];
-  if (!u) return;
-
-  document.getElementById('edit-user-key').value = username;
-  document.getElementById('edit-username').value = u.username;
-  document.getElementById('edit-user-fullname').value = u.name || '';
-  document.getElementById('edit-user-role').value = u.role || 'teacher';
-  document.getElementById('edit-user-class').value = u.classLevel || '';
-  openModal('modal-edit-user');
-}
-
-function saveEditUserForm(e) {
-  e.preventDefault();
-  const username = document.getElementById('edit-user-key').value;
-  const name = document.getElementById('edit-user-fullname').value.trim();
-  const role = document.getElementById('edit-user-role').value;
-  const classLevel = document.getElementById('edit-user-class').value.trim();
-
-  updateData(`users/${username}`, {
-    name,
-    role,
-    classLevel
-  }).then(() => {
-    // If student, also sync to studentsData if exists
-    if (studentsData[username]) {
-      updateData(`students/${username}`, {
-        name,
-        classLevel
-      });
-    }
-
-    closeModal('modal-edit-user');
-    showToast("อัปเดตข้อมูลสำเร็จ", `แก้ไขข้อมูลผู้ใช้ ${name} เรียบร้อยแล้ว`, "success");
-    logActivity(`แก้ไขข้อมูลผู้ใช้งาน: ${name}`);
-  });
-}
-
-function deleteUserAccount(username) {
-  if (username === 'admin' || (currentUser && currentUser.username === username)) {
-    showCustomAlert("ไม่สามารถลบได้", "ไม่สามารถลบบัญชีผู้ดูแลระบบหลัก หรือบัญชีที่กำลังใช้งานอยู่ได้", "danger");
-    return;
-  }
-
-  const u = usersData[username];
-  const nameStr = u ? u.name : username;
-
-  showCustomConfirm("ยืนยันการลบบัญชีผู้ใช้", `คุณต้องการลบบัญชีผู้ใช้ ${nameStr} (${username}) ใช่หรือไม่?`, "danger", () => {
-    deleteData(`users/${username}`);
-    showToast("ลบบัญชีสำเร็จ", `ลบบัญชีผู้ใช้ ${username} เรียบร้อยแล้ว`, "danger");
-    logActivity(`ลบบัญชีผู้ใช้งาน: ${username}`);
   });
 }
 
@@ -1796,7 +1528,7 @@ function saveChangePassword(e) {
     password: newPassword
   }).then(() => {
     closeModal('modal-change-password');
-    showToast("เปลี่ยนรหัสผ่านสำเร็จ", `เปลี่ยนรหัสผ่านสำหรับ ${username} เรียบร้อยแล้ว`, "success");
+    alert("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว");
     logActivity(`เปลี่ยนรหัสผ่านสำหรับผู้ใช้: ${username}`);
   });
 }

@@ -521,8 +521,8 @@
               <input type="text" id="std-class" class="form-control" style="padding-left:14px;" required placeholder="เช่น ม.1/1">
             </div>
             <div class="form-group">
-              <label class="form-label">ครูที่ปรึกษา (ระบุหลายคนได้ โดยใช้เครื่องหมาย , ) *</label>
-              <input type="text" id="std-advisor" class="form-control" style="padding-left:14px;" required placeholder="เช่น นายบรรจง ทองกระจาย ,นายวรชัญ์ แจ่มแจ้ง">
+              <label class="form-label">ครูที่ปรึกษา *</label>
+              <input type="text" id="std-advisor" class="form-control" style="padding-left:14px;" required placeholder="ชื่อครูที่ปรึกษา">
             </div>
           </div>
           
@@ -555,8 +555,8 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">เลือกไฟล์ CSV (สามารถเลือกได้หลายไฟล์พร้อมกัน) *</label>
-            <input type="file" id="csv-file-input" class="form-control" accept=".csv" multiple required style="padding-left:14px;">
+            <label class="form-label">เลือกไฟล์ CSV *</label>
+            <input type="file" id="csv-file-input" class="form-control" accept=".csv" required style="padding-left:14px;">
           </div>
         </div>
         <div class="modal-footer">
@@ -949,71 +949,6 @@
       <img id="lightbox-img-target" src="" class="lightbox-img" alt="ชิ้นงานรูปใหญ่">
     </div>
   </div>
-
-
-  <!-- Modal 14: Edit User Info Modal -->
-  <div class="modal-overlay" id="modal-edit-user">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h3 class="modal-title"><i class="fa-solid fa-user-pen"></i> แก้ไขข้อมูลผู้ใช้งาน</h3>
-        <button class="btn-close-modal" onclick="closeModal('modal-edit-user')"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form onsubmit="saveEditUserForm(event)">
-        <input type="hidden" id="edit-user-key">
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">ชื่อผู้ใช้งาน (Username)</label>
-            <input type="text" id="edit-username" class="form-control" style="padding-left:14px; background:#e2e8f0;" readonly>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">ชื่อ - สกุล *</label>
-            <input type="text" id="edit-user-fullname" class="form-control" style="padding-left:14px;" required placeholder="ชื่อ-นามสกุล">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">สิทธิ์ / บทบาท *</label>
-            <select id="edit-user-role" class="form-control" style="padding-left:14px;" required>
-              <option value="teacher">ครูผู้สอน / บุคลากร</option>
-              <option value="admin">ผู้ดูแลระบบ (Admin)</option>
-              <option value="student">นักเรียน (Student)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">ระดับชั้น / ข้อมูลเพิ่มเติม</label>
-            <input type="text" id="edit-user-class" class="form-control" style="padding-left:14px;" placeholder="เช่น ม.1/1">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-user')">ยกเลิก</button>
-          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> บันทึกการแก้ไข</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-
-  <!-- Modal 15: Stylish Custom Alert / Confirmation Popup Modal -->
-  <div class="modal-overlay" id="modal-custom-alert">
-    <div class="modal-container" style="max-width:440px;">
-      <div class="modal-body custom-alert-card">
-        <div class="custom-alert-icon" id="alert-icon-box">
-          <i class="fa-solid fa-circle-check" id="alert-icon-target"></i>
-        </div>
-        <h3 class="custom-alert-title" id="alert-title-target">แจ้งเตือน</h3>
-        <p class="custom-alert-desc" id="alert-desc-target">ข้อความแจ้งเตือน...</p>
-        
-        <div class="custom-alert-actions" id="alert-actions-target">
-          <button type="button" class="btn btn-primary" onclick="closeCustomAlert()">ตกลง</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- Toast Notification Container -->
-  <div id="toast-container" class="toast-container"></div>
 
 
   <!-- JS Scripts -->
