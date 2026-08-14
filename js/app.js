@@ -939,75 +939,46 @@ function populateGradeLevelDropdowns(selectId, selectedValue = '') {
   const selectEl = document.getElementById(selectId);
   if (!selectEl) return;
 
-  // 1. Extract existing grade levels from studentsData
+  // 1. Extract base grade levels from studentsData (e.g. 'ม.1/1' -> 'ม.1', 'ปวช.2/2' -> 'ปวช.2')
   const systemLevels = new Set();
   Object.values(studentsData).forEach(s => {
     if (s.classLevel && s.classLevel.trim()) {
       const fullClass = s.classLevel.trim();
-      const baseLevel = fullClass.split('/')[0].trim();
+      const baseLevel = fullClass.includes('/') ? fullClass.split('/')[0].trim() : fullClass;
       if (baseLevel) systemLevels.add(baseLevel);
-      systemLevels.add(fullClass);
     }
   });
 
   // 2. Extract existing levels from coursesData
   Object.values(coursesData).forEach(c => {
     if (c.level && c.level.trim()) {
-      systemLevels.add(c.level.trim());
+      const courseLvl = c.level.includes('/') ? c.level.split('/')[0].trim() : c.level.trim();
+      if (courseLvl) systemLevels.add(courseLvl);
     }
   });
 
-  // 3. Standard school / vocational levels in Thailand
-  const standardLevels = [
-    'ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6',
-    'ปวช.1', 'ปวช.2', 'ปวช.3',
-    'ปวส.1', 'ปวส.2',
-    'ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6'
-  ];
-
-  // Merge unique levels
-  const allLevels = new Set([...Array.from(systemLevels), ...standardLevels]);
+  // If selectedValue is present, ensure it's included
   if (selectedValue && selectedValue.trim()) {
-    allLevels.add(selectedValue.trim());
+    systemLevels.add(selectedValue.trim());
   }
 
-  const sortedLevels = Array.from(allLevels).sort((a, b) => a.localeCompare(b, 'th'));
+  // Fallback if system has no students or courses yet
+  if (systemLevels.size === 0) {
+    ['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6', 'ปวช.1', 'ปวช.2', 'ปวช.3'].forEach(l => systemLevels.add(l));
+  }
+
+  // Sort natural Thai order
+  const sortedLevels = Array.from(systemLevels).sort((a, b) => a.localeCompare(b, 'th'));
 
   let html = `<option value="">-- เลือกระดับชั้น --</option>`;
-
-  // Add system detected levels if any
-  const detectedList = Array.from(systemLevels).sort((a, b) => a.localeCompare(b, 'th'));
-  if (detectedList.length > 0) {
-    html += `<optgroup label="✨ ระดับชั้นที่มีในระบบ (นักเรียน/วิชา)">`;
-    detectedList.forEach(lvl => {
-      html += `<option value="${lvl}">${lvl}</option>`;
-    });
-    html += `</optgroup>`;
-  }
-
-  // Add all standard options
-  html += `<optgroup label="📚 ระดับชั้นมาตรฐานทั้งหมด">`;
   sortedLevels.forEach(lvl => {
-    if (!systemLevels.has(lvl)) {
-      html += `<option value="${lvl}">${lvl}</option>`;
-    }
+    html += `<option value="${lvl}">ระดับชั้น ${lvl}</option>`;
   });
-  html += `</optgroup>`;
-
-  html += `<optgroup label="⚙️ อื่นๆ">`;
-  html += `<option value="__custom__">+ กำหนดระดับชั้นอื่นเอง...</option>`;
-  html += `</optgroup>`;
+  html += `<option value="__custom__">+ กำหนดระดับชั้นอื่น (เพิ่มใหม่)...</option>`;
 
   selectEl.innerHTML = html;
 
   if (selectedValue) {
-    const exists = Array.from(selectEl.options).some(opt => opt.value === selectedValue);
-    if (!exists) {
-      const newOpt = document.createElement('option');
-      newOpt.value = selectedValue;
-      newOpt.text = selectedValue;
-      selectEl.appendChild(newOpt);
-    }
     selectEl.value = selectedValue;
   }
 
