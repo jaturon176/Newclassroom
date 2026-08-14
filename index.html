@@ -1090,26 +1090,27 @@
   </div>
 
 
-  <!-- Modal 13: File Preview (Image & PDF Viewer) Modal -->
+  <!-- Modal 13: Interactive PDF & File Preview Modal -->
   <div class="modal-overlay" id="modal-file-preview">
-    <div class="modal-container" style="max-width:920px; width:95vw; background:#ffffff; border-radius:24px; padding:24px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
-        <h3 class="modal-title" id="file-preview-title"><i class="fa-solid fa-eye"></i> ตัวอย่างไฟล์แนบ</h3>
-        <div style="display:flex; gap:10px;">
-          <a id="file-preview-download" href="#" target="_blank" class="btn btn-sm btn-primary"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแท็บใหม่ / ดาวน์โหลด</a>
+    <div class="modal-container" style="max-width:960px; width:95vw; background:#ffffff; border-radius:24px; padding:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px;">
+        <h3 class="modal-title" id="file-preview-title" style="margin:0;"><i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i> เอกสารแนบคำสั่งงาน</h3>
+        <div style="display:flex; gap:8px;">
+          <a id="file-preview-download" href="#" class="btn btn-sm btn-success" download="document.pdf"><i class="fa-solid fa-download"></i> ดาวน์โหลดเอกสาร</a>
+          <a id="file-preview-newtab" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแท็บใหม่</a>
           <button class="btn btn-sm btn-danger" onclick="closeModal('modal-file-preview')"><i class="fa-solid fa-xmark"></i> ปิด</button>
         </div>
       </div>
-      <div id="file-preview-body" style="text-align:center; min-height:450px; max-height:75vh; overflow-y:auto; display:flex; align-items:center; justify-content:center;">
-        <!-- Embedded Image or PDF Frame rendered here -->
+      <div id="file-preview-body" style="min-height:480px; max-height:78vh; overflow-y:auto; display:flex; align-items:center; justify-content:center; border-radius:14px; background:#f8fafc;">
+        <!-- Embedded PDF iframe rendered here -->
       </div>
     </div>
   </div>
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=4.0.0"></script>
-  <script src="js/cloudinary.js?v=4.0.0"></script>
-  <script src="js/app.js?v=4.0.0"></script>
+  <script src="js/firebase-config.js?v=5.0.0"></script>
+  <script src="js/cloudinary.js?v=5.0.0"></script>
+  <script src="js/app.js?v=5.0.0"></script>
 </body>
 </html>
