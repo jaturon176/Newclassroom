@@ -2157,12 +2157,78 @@ function closeModal(modalId) {
 
 let currentPdfScale = 1.25;
 let currentPdfDoc = null;
+let activePdfFileUrl = '';
+let activePdfFileTitle = '';
+let totalPdfPagesLoaded = 0;
+
+function getCloudinaryPdfPageUrl(fileUrl, pageNum, scale = 1.0) {
+  const width = Math.round(1200 * scale);
+  const cleanUrl = fileUrl.replace(/^http:\/\//i, 'https://');
+  const baseWithoutExt = cleanUrl.replace(/\.[a-zA-Z0-9]+$/, '');
+  return baseWithoutExt.replace('/upload/', `/upload/f_auto,q_auto,w_${width},pg_${pageNum}/`) + '.jpg';
+}
+
+function renderCloudinaryMultiPagePdf(fileUrl, fileTitle) {
+  const scrollContainer = document.getElementById('pdf-pages-scroll-container');
+  const countBadge = document.getElementById('pdf-page-count-badge');
+  if (!scrollContainer) return;
+
+  totalPdfPagesLoaded = 0;
+  if (countBadge) countBadge.innerText = 'กำลังโหลดทุกหน้า...';
+
+  let pagesHtml = '';
+  // Pre-generate up to 25 page slots with sequential loading
+  for (let i = 1; i <= 25; i++) {
+    const pageUrl = getCloudinaryPdfPageUrl(fileUrl, i, currentPdfScale);
+    pagesHtml += `
+      <div class="pdf-page-card" id="pdf-page-card-${i}" style="width:100%; max-width:920px; background:#ffffff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.35); margin-bottom:20px; overflow:hidden; display:${i === 1 ? 'block' : 'none'}; border:1px solid rgba(255,255,255,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 16px; border-bottom:1px solid #e2e8f0; font-size:0.88rem; font-weight:700; color:#334155;">
+          <span><i class="fa-solid fa-file-lines" style="color:var(--primary);"></i> หน้าที่ ${i}</span>
+          <span style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;">เอกสารประกอบการเรียน / คำสั่งงาน</span>
+        </div>
+        <img src="${pageUrl}" style="width:100%; height:auto; display:block;" alt="เอกสารหน้าที่ ${i}" onload="onPdfPageImgLoaded(${i})" onerror="onPdfPageImgError(${i})">
+      </div>
+    `;
+  }
+  scrollContainer.innerHTML = pagesHtml;
+}
+
+window.onPdfPageImgLoaded = function(pageNum) {
+  totalPdfPagesLoaded = Math.max(totalPdfPagesLoaded, pageNum);
+  const card = document.getElementById(`pdf-page-card-${pageNum}`);
+  if (card) card.style.display = 'block';
+
+  // Reveal next page card to trigger next image load
+  const nextCard = document.getElementById(`pdf-page-card-${pageNum + 1}`);
+  if (nextCard) nextCard.style.display = 'block';
+
+  const countBadge = document.getElementById('pdf-page-count-badge');
+  if (countBadge) countBadge.innerText = `เอกสารทั้งหมด ${totalPdfPagesLoaded} หน้า`;
+};
+
+window.onPdfPageImgError = function(pageNum) {
+  // Page number out of range -> remove this card and all subsequent cards
+  const card = document.getElementById(`pdf-page-card-${pageNum}`);
+  if (card) card.remove();
+
+  for (let i = pageNum + 1; i <= 25; i++) {
+    const subsequent = document.getElementById(`pdf-page-card-${i}`);
+    if (subsequent) subsequent.remove();
+  }
+
+  const countBadge = document.getElementById('pdf-page-count-badge');
+  if (countBadge && totalPdfPagesLoaded > 0) {
+    countBadge.innerText = `เอกสารทั้งหมด ${totalPdfPagesLoaded} หน้า (ครบทุกหน้า)`;
+  }
+};
 
 async function renderPdfDocument(fileUrl, fileTitle) {
-  // Enforce HTTPS
   fileUrl = fileUrl.replace(/^http:\/\//i, 'https://');
+  activePdfFileUrl = fileUrl;
+  activePdfFileTitle = fileTitle;
+  currentPdfDoc = null;
+
   const isCloudinary = fileUrl.includes('cloudinary.com');
-  const cloudinaryImgPreview = isCloudinary ? (fileUrl.replace(/\.[a-zA-Z0-9]+$/, '').replace('/upload/', '/upload/f_auto,q_auto,w_1200/') + '.jpg') : null;
 
   const container = document.getElementById('file-preview-body');
   container.innerHTML = `
@@ -2184,15 +2250,22 @@ async function renderPdfDocument(fileUrl, fileTitle) {
         </div>
       </div>
 
-      <div id="pdf-pages-scroll-container" style="width:100%; max-height:68vh; overflow-y:auto; background:#1e293b; padding:16px; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px; box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);">
+      <div id="pdf-pages-scroll-container" style="width:100%; max-height:70vh; overflow-y:auto; background:#1e293b; padding:16px; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px; box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);">
         <div id="pdf-loading-spinner" style="color:#ffffff; padding:40px; text-align:center;">
           <i class="fa-solid fa-spinner fa-spin fa-2x" style="color:#38bdf8;"></i>
-          <p style="margin-top:10px; font-size:0.95rem; color:#e2e8f0;">กำลังเปิดอ่านเอกสาร PDF...</p>
+          <p style="margin-top:10px; font-size:0.95rem; color:#e2e8f0;">กำลังเปิดอ่านหน้าเอกสาร PDF...</p>
         </div>
       </div>
     </div>
   `;
 
+  if (isCloudinary) {
+    // Cloudinary Multi-Page Sequential Renderer
+    renderCloudinaryMultiPagePdf(fileUrl, fileTitle);
+    return;
+  }
+
+  // Non-Cloudinary / Base64 -> PDF.js Engine
   const scrollContainer = document.getElementById('pdf-pages-scroll-container');
   const countBadge = document.getElementById('pdf-page-count-badge');
 
@@ -2248,37 +2321,26 @@ async function renderPdfDocument(fileUrl, fileTitle) {
       }).promise;
     }
   } catch (err) {
-    console.warn("PDF.js direct render fallback:", err);
-    if (countBadge) countBadge.innerText = 'แสดงผลผ่าน Cloud CDN Preview';
-
-    if (cloudinaryImgPreview) {
-      scrollContainer.innerHTML = `
-        <div style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.4); max-width:100%;">
-          <img src="${cloudinaryImgPreview}" style="max-width:100%; height:auto; display:block;" alt="ตัวอย่างหน้าเอกสาร PDF" onerror="this.parentElement.innerHTML='<p style=\\'padding:20px; color:#ef4444;\\'>ไม่สามารถโหลดพรีวิวรูปภาพได้ กรุณากดปุ่มเปิดแท็บใหม่หรือดาวน์โหลดด้านบน</p>'">
+    console.warn("PDF.js fallback for non-cloudinary:", err);
+    scrollContainer.innerHTML = `
+      <div style="background:#ffffff; padding:24px; border-radius:12px; text-align:center; max-width:550px;">
+        <i class="fa-solid fa-file-pdf fa-3x" style="color:#ef4444; margin-bottom:12px;"></i>
+        <h4 style="font-weight:700; color:#0f172a; margin-bottom:6px;">เปิดดูเอกสาร PDF</h4>
+        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">สามารถคลิกเปิดอ่านไฟล์ PDF เต็มหน้าจอ หรือดาวน์โหลดเก็บไว้ได้ทันที</p>
+        <div style="display:flex; justify-content:center; gap:10px;">
+          <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดอ่านในแท็บใหม่
+          </a>
+          <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-success">
+            <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
+          </a>
         </div>
-      `;
-    } else {
-      scrollContainer.innerHTML = `
-        <div style="background:#ffffff; padding:24px; border-radius:12px; text-align:center; max-width:550px;">
-          <i class="fa-solid fa-file-pdf fa-3x" style="color:#ef4444; margin-bottom:12px;"></i>
-          <h4 style="font-weight:700; color:#0f172a; margin-bottom:6px;">เปิดดูเอกสาร PDF</h4>
-          <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">สามารถคลิกเปิดอ่านไฟล์ PDF เต็มหน้าจอ หรือดาวน์โหลดเก็บไว้ได้ทันที</p>
-          <div style="display:flex; justify-content:center; gap:10px;">
-            <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดอ่านในแท็บใหม่
-            </a>
-            <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-success">
-              <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
-            </a>
-          </div>
-        </div>
-      `;
-    }
+      </div>
+    `;
   }
 }
 
 async function zoomPdf(delta) {
-  if (!currentPdfDoc) return;
   const newScale = Math.max(0.6, Math.min(2.5, currentPdfScale + delta));
   if (Math.abs(newScale - currentPdfScale) < 0.05) return;
   currentPdfScale = newScale;
@@ -2286,33 +2348,37 @@ async function zoomPdf(delta) {
   const zoomDisplay = document.getElementById('pdf-zoom-level');
   if (zoomDisplay) zoomDisplay.innerText = `${Math.round(currentPdfScale * 100)}%`;
 
-  const scrollContainer = document.getElementById('pdf-pages-scroll-container');
-  if (!scrollContainer) return;
+  if (currentPdfDoc) {
+    const scrollContainer = document.getElementById('pdf-pages-scroll-container');
+    if (!scrollContainer) return;
 
-  scrollContainer.innerHTML = '';
-  for (let pageNum = 1; pageNum <= currentPdfDoc.numPages; pageNum++) {
-    const page = await currentPdfDoc.getPage(pageNum);
-    const viewport = page.getViewport({ scale: currentPdfScale });
+    scrollContainer.innerHTML = '';
+    for (let pageNum = 1; pageNum <= currentPdfDoc.numPages; pageNum++) {
+      const page = await currentPdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: currentPdfScale });
 
-    const pageWrapper = document.createElement('div');
-    pageWrapper.className = 'pdf-page-wrapper';
-    pageWrapper.style.cssText = 'background:#ffffff; border-radius:4px; box-shadow:0 4px 14px rgba(0,0,0,0.35); margin-bottom:14px; overflow:hidden;';
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = 'pdf-page-wrapper';
+      pageWrapper.style.cssText = 'background:#ffffff; border-radius:4px; box-shadow:0 4px 14px rgba(0,0,0,0.35); margin-bottom:14px; overflow:hidden;';
 
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    canvas.style.display = 'block';
-    canvas.style.maxWidth = '100%';
-    canvas.style.height = 'auto';
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      canvas.style.display = 'block';
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = 'auto';
 
-    pageWrapper.appendChild(canvas);
-    scrollContainer.appendChild(pageWrapper);
+      pageWrapper.appendChild(canvas);
+      scrollContainer.appendChild(pageWrapper);
 
-    await page.render({
-      canvasContext: context,
-      viewport: viewport
-    }).promise;
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+    }
+  } else if (activePdfFileUrl && activePdfFileUrl.includes('cloudinary.com')) {
+    renderCloudinaryMultiPagePdf(activePdfFileUrl, activePdfFileTitle);
   }
 }
 
