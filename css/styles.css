@@ -380,15 +380,19 @@ a {
 
 .form-control {
   width: 100%;
-  padding: 12px 16px 12px 46px;
+  padding: 10px 14px;
   background: var(--bg-input);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
   font-family: var(--font-family);
-  font-size: 0.96rem;
+  font-size: 0.95rem;
   color: var(--text-main);
   transition: var(--transition);
   outline: none;
+}
+
+.input-with-icon .form-control {
+  padding-left: 44px;
 }
 
 .form-control:focus {
@@ -1205,12 +1209,12 @@ a {
 .target-class-chips-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 8px 10px;
   background: #f8fafc;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
-  min-height: 50px;
+  min-height: 44px;
   align-items: center;
 }
 
@@ -1218,9 +1222,9 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
   border: 1.5px solid #cbd5e1;
@@ -1234,6 +1238,7 @@ a {
   border-color: var(--primary);
   background: #eff6ff;
   color: var(--primary);
+  transform: translateY(-1px);
 }
 
 .target-chip.active {
@@ -1241,6 +1246,7 @@ a {
   color: #ffffff;
   border-color: var(--primary);
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  transform: translateY(-1px);
 }
 
 .target-chip input[type="checkbox"] {
@@ -1363,7 +1369,7 @@ a {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 16px;
   opacity: 0;
   pointer-events: none;
   transition: var(--transition);
@@ -1381,11 +1387,19 @@ a {
   border-radius: var(--radius-xl);
   box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.8);
   overflow: hidden;
-  max-height: 90vh;
+  max-height: calc(100vh - 36px);
   display: flex;
   flex-direction: column;
   transform: scale(0.95) translateY(10px);
   transition: var(--transition);
+}
+
+.modal-container form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .modal-overlay.active .modal-container {
@@ -1393,12 +1407,13 @@ a {
 }
 
 .modal-header {
-  padding: 20px 26px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -1436,19 +1451,25 @@ a {
 }
 
 .modal-body {
-  padding: 24px 26px;
+  padding: 20px 24px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+}
+
+.modal-body .form-group {
+  margin-bottom: 15px;
 }
 
 .modal-footer {
-  padding: 18px 26px;
+  padding: 14px 24px;
   border-top: 1px solid var(--border);
   background: #f8fafc;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 @keyframes modalFadeIn {

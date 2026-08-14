@@ -653,23 +653,23 @@
 
           <div class="form-group">
             <label class="form-label">รายละเอียดคำสั่งงาน</label>
-            <textarea id="hw-desc" class="form-control" style="padding-left:14px; height:90px;" placeholder="คำอธิบายรายละเอียดงานเพิ่มเติม..."></textarea>
+            <textarea id="hw-desc" class="form-control" style="height:70px; resize:vertical;" placeholder="คำอธิบายรายละเอียดงานเพิ่มเติม..."></textarea>
           </div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
             <div class="form-group">
               <label class="form-label">คะแนนเต็ม *</label>
-              <input type="number" id="hw-max-score" class="form-control" style="padding-left:14px;" required value="10" min="1">
+              <input type="number" id="hw-max-score" class="form-control" required value="10" min="1">
             </div>
             <div class="form-group">
               <label class="form-label">กำหนดส่ง *</label>
-              <input type="date" id="hw-due-date" class="form-control" style="padding-left:14px;" required>
+              <input type="date" id="hw-due-date" class="form-control" required>
             </div>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">แนบไฟล์รูปภาพ หรือ ไฟล์ PDF คำสั่งงาน (อัปโหลด Cloudinary CDN)</label>
-            <input type="file" id="hw-img-file" class="form-control" accept="image/*,application/pdf" style="padding-left:14px;">
+            <input type="file" id="hw-img-file" class="form-control" accept="image/*,application/pdf">
           </div>
         </div>
         <div class="modal-footer">
@@ -753,23 +753,23 @@
 
           <div class="form-group">
             <label class="form-label">รายละเอียดคำสั่งงาน</label>
-            <textarea id="edit-hw-desc" class="form-control" style="padding-left:14px; height:90px;"></textarea>
+            <textarea id="edit-hw-desc" class="form-control" style="height:70px; resize:vertical;"></textarea>
           </div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
             <div class="form-group">
               <label class="form-label">คะแนนเต็ม *</label>
-              <input type="number" id="edit-hw-max-score" class="form-control" style="padding-left:14px;" required min="1">
+              <input type="number" id="edit-hw-max-score" class="form-control" required min="1">
             </div>
             <div class="form-group">
               <label class="form-label">กำหนดส่ง *</label>
-              <input type="date" id="edit-hw-due-date" class="form-control" style="padding-left:14px;" required>
+              <input type="date" id="edit-hw-due-date" class="form-control" required>
             </div>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">แนบไฟล์รูปภาพ หรือ ไฟล์ PDF คำสั่งงาน (อัปโหลด Cloudinary CDN)</label>
-            <input type="file" id="edit-hw-file" class="form-control" accept="image/*,application/pdf" style="padding-left:14px;">
+            <input type="file" id="edit-hw-file" class="form-control" accept="image/*,application/pdf">
             <div id="edit-hw-file-current" style="margin-top:8px;"></div>
           </div>
         </div>
