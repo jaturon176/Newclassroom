@@ -96,8 +96,34 @@ document.addEventListener('DOMContentLoaded', () => {
   addQuizQuestionItem();
 });
 
+let activeNavView = 'dashboard';
+let renderScheduledTimer = null;
+
+function requestRender(targetView = null) {
+  if (renderScheduledTimer) cancelAnimationFrame(renderScheduledTimer);
+  renderScheduledTimer = requestAnimationFrame(() => {
+    updateDashboardStats();
+    const currentView = targetView || activeNavView;
+    if (currentView === 'dashboard') {
+      renderDashboardHomeworkSummary();
+      renderDashboardQuizSummary();
+      renderAnnouncements();
+    } else if (currentView === 'students') {
+      renderStudentsTable();
+    } else if (currentView === 'courses') {
+      renderCoursesList();
+    } else if (currentView === 'quizzes') {
+      renderQuizzesList();
+    } else if (currentView === 'reports') {
+      renderScoreReports();
+    } else if (currentView === 'users') {
+      renderUsersTable();
+    }
+  });
+}
+
 /* -------------------------------------------------------------
-   1. REALTIME SYNCHRONIZATION & SEEDING
+   1. REALTIME SYNCHRONIZATION & SEEDING (High-Performance Batched)
 ------------------------------------------------------------- */
 function initRealtimeSync() {
   if (typeof listenToData !== 'function') return;
@@ -105,65 +131,47 @@ function initRealtimeSync() {
   // Listen to Users
   listenToData('users', (data) => {
     usersData = data || {};
-    renderUsersTable();
     populateTeacherDropdowns();
     checkInitialSeedNeeded();
+    requestRender();
   });
 
   // Listen to Students Roster
   listenToData('students', (data) => {
     studentsData = data || {};
-    renderStudentsTable();
     updateClassFilterDropdowns();
-    updateDashboardStats();
-    renderScoreReports();
+    requestRender();
   });
 
   // Listen to Courses
   listenToData('courses', (data) => {
     coursesData = data || {};
-    renderCoursesList();
     updateCourseDropdowns();
-    updateDashboardStats();
-    renderScoreReports();
+    requestRender();
   });
 
-  // Listen to Homework (Primary Firebase node + Local Client Cache)
+  // Listen to Homework
   listenToData('homework', (data) => {
     homeworkData = data || {};
-    try {
-      localStorage.setItem('ag_homework', JSON.stringify(homeworkData));
-    } catch (e) {
-      console.warn("Failed saving ag_homework to localStorage:", e);
-    }
-    renderCoursesList();
-    updateDashboardStats();
-    renderScoreReports();
-    renderDashboardHomeworkSummary();
+    requestRender();
   });
 
   // Listen to Homework Submissions
   listenToData('homework_submissions', (data) => {
     submissionsData = data || {};
-    renderCoursesList();
-    renderScoreReports();
-    renderDashboardHomeworkSummary();
+    requestRender();
   });
 
   // Listen to Quizzes
   listenToData('quizzes', (data) => {
     quizzesData = data || {};
-    renderQuizzesList();
-    updateDashboardStats();
-    renderScoreReports();
-    renderDashboardQuizSummary();
+    requestRender();
   });
 
   // Listen to Quiz Results
   listenToData('quiz_results', (data) => {
     quizResultsData = data || {};
-    renderQuizzesList();
-    renderScoreReports();
+    requestRender();
   });
 
   // Listen to Announcements
@@ -604,6 +612,14 @@ function logActivity(text) {
 /* -------------------------------------------------------------
    5. STUDENT ROSTER & CSV IMPORT
 ------------------------------------------------------------- */
+let studentSearchDebounce = null;
+function onStudentSearchInput() {
+  if (studentSearchDebounce) clearTimeout(studentSearchDebounce);
+  studentSearchDebounce = setTimeout(() => {
+    renderStudentsTable();
+  }, 100);
+}
+
 function renderStudentsTable() {
   const tbody = document.getElementById('students-table-body');
   const search = document.getElementById('student-search-input').value.toLowerCase().trim();
