@@ -1538,7 +1538,99 @@ function deleteHomework(hwId) {
   });
 }
 
-// Student Submit Homework
+// Student Submit Homework - Live Preview & Upload Handling
+let currentSelectedStudentFile = null;
+
+function handleStudentFileSelection(input) {
+  const file = input.files ? input.files[0] : null;
+  const promptEl = document.getElementById('submit-dropzone-prompt');
+  const previewContainer = document.getElementById('submit-preview-container');
+  const statusBadge = document.getElementById('submit-file-status-badge');
+  const dropzone = document.getElementById('submit-dropzone');
+
+  if (!file) {
+    clearStudentFileSelection();
+    return;
+  }
+
+  currentSelectedStudentFile = file;
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  const fileSizeMb = (file.size / (1024 * 1024)).toFixed(2);
+  const fileSizeText = file.size > 1024 * 1024 ? `${fileSizeMb} MB` : `${Math.round(file.size / 1024)} KB`;
+
+  if (dropzone) dropzone.classList.add('has-file');
+  if (promptEl) promptEl.style.display = 'none';
+  if (statusBadge) {
+    statusBadge.className = isPdf ? 'badge badge-red' : 'badge badge-green';
+    statusBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${isPdf ? 'เอกสาร PDF' : 'ไฟล์รูปภาพ'} (${fileSizeText})`;
+  }
+
+  if (isPdf) {
+    // PDF File Selected Card
+    previewContainer.style.display = 'block';
+    previewContainer.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; background:#fff1f2; border:1px solid #fecdd3; padding:14px 18px; border-radius:14px; gap:12px;">
+        <div style="display:flex; align-items:center; gap:14px; overflow:hidden;">
+          <div style="width:46px; height:46px; border-radius:12px; background:#ef4444; color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0; box-shadow:0 4px 10px rgba(239,68,68,0.25);">
+            <i class="fa-solid fa-file-pdf"></i>
+          </div>
+          <div style="overflow:hidden;">
+            <div style="font-weight:700; color:#0f172a; font-size:0.95rem; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${file.name}</div>
+            <div style="font-size:0.8rem; color:#e11d48; margin-top:2px;">เอกสาร PDF พร้อมส่ง • ${fileSizeText}</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearStudentFileSelection(event)" style="border-radius:8px; flex-shrink:0;">
+          <i class="fa-solid fa-trash-can"></i> เปลี่ยนไฟล์
+        </button>
+      </div>
+    `;
+  } else {
+    // Image Selected -> Read as Data URL & Show Instant Live Image Preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewContainer.style.display = 'block';
+      previewContainer.innerHTML = `
+        <div class="preview-image-card">
+          <div style="width:100%; display:flex; justify-content:space-between; align-items:center; padding:4px 6px;">
+            <div style="font-size:0.88rem; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%;">
+              <i class="fa-solid fa-image" style="color:var(--primary);"></i> ${file.name}
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearStudentFileSelection(event)" style="border-radius:8px; padding:4px 10px; font-size:0.8rem;">
+              <i class="fa-solid fa-trash-can"></i> เปลี่ยนรูป
+            </button>
+          </div>
+          <img src="${e.target.result}" class="preview-image-thumb" alt="ตัวอย่างรูปภาพที่เลือก">
+          <span class="badge badge-green" style="font-size:0.78rem; font-weight:600;"><i class="fa-solid fa-check"></i> พร้อมอัปโหลดชิ้นงาน (${fileSizeText})</span>
+        </div>
+      `;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function clearStudentFileSelection(e) {
+  if (e) e.stopPropagation();
+  const fileInput = document.getElementById('submit-img-file');
+  if (fileInput) fileInput.value = '';
+  currentSelectedStudentFile = null;
+
+  const promptEl = document.getElementById('submit-dropzone-prompt');
+  const previewContainer = document.getElementById('submit-preview-container');
+  const statusBadge = document.getElementById('submit-file-status-badge');
+  const dropzone = document.getElementById('submit-dropzone');
+
+  if (dropzone) dropzone.classList.remove('has-file');
+  if (promptEl) promptEl.style.display = 'flex';
+  if (previewContainer) {
+    previewContainer.style.display = 'none';
+    previewContainer.innerHTML = '';
+  }
+  if (statusBadge) {
+    statusBadge.className = 'badge badge-purple';
+    statusBadge.innerText = 'ยังไม่ได้เลือกไฟล์';
+  }
+}
+
 function openSubmitHomeworkModal(hwId) {
   const hw = homeworkData[hwId];
   if (!hw) return;
@@ -1559,7 +1651,7 @@ function openSubmitHomeworkModal(hwId) {
   let mediaHtml = '';
   if (embedUrl) {
     mediaHtml += `
-      <div style="margin:10px 0; border-radius:10px; overflow:hidden; border:1px solid var(--border); background:#000;">
+      <div style="margin:12px 0; border-radius:12px; overflow:hidden; border:1px solid var(--border); background:#000; box-shadow:var(--shadow-sm);">
         <div style="position:relative; padding-bottom:56.25%; height:0;">
           <iframe src="${embedUrl}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         </div>
@@ -1568,9 +1660,9 @@ function openSubmitHomeworkModal(hwId) {
   }
   if (fileUrl) {
     mediaHtml += `
-      <div style="margin:8px 0;">
-        <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; border-radius:8px;">
-          <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> 
+      <div style="margin:10px 0;">
+        <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:6px 14px; border-radius:10px;">
+          <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'}; font-size:1.1rem;"></i> 
           <span>📄 ดูเอกสารคำสั่งงาน (${fileName})</span>
         </button>
       </div>
@@ -1579,15 +1671,21 @@ function openSubmitHomeworkModal(hwId) {
 
   document.getElementById('submit-hw-id').value = hwId;
   document.getElementById('submit-hw-details').innerHTML = `
-    <h4 style="font-weight:700; color:#0f172a; font-size:1.15rem;">${hw.title}</h4>
-    <p style="font-size:0.92rem; color:var(--text-main); margin-top:4px;">${hw.desc || ''}</p>
-    ${mediaHtml}
-    <div style="font-size:0.85rem; color:var(--primary); margin-top:8px; font-weight:600;">
-      <i class="fa-solid fa-award"></i> คะแนนเต็ม: ${hw.maxScore} คะแนน | <i class="fa-solid fa-calendar"></i> กำหนดส่ง: ${hw.dueDate}
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+      <h4 style="font-weight:800; color:#0f172a; font-size:1.2rem; margin:0;">${hw.title}</h4>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <span class="badge badge-blue"><i class="fa-solid fa-award"></i> เต็ม ${hw.maxScore} คะแนน</span>
+        <span class="badge badge-yellow"><i class="fa-solid fa-calendar"></i> กำหนดส่ง ${hw.dueDate}</span>
+      </div>
     </div>
+    <div style="font-size:0.92rem; color:#334155; line-height:1.5; background:#ffffff; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0;">
+      ${hw.desc || 'ไม่มีคำอธิบายเพิ่มเติม'}
+    </div>
+    ${mediaHtml}
   `;
+
   document.getElementById('submit-text-answer').value = '';
-  document.getElementById('submit-img-file').value = '';
+  clearStudentFileSelection();
   openModal('modal-submit-homework');
 }
 
@@ -1619,7 +1717,7 @@ async function handleStudentHomeworkSubmit(e) {
     status: 'submitted'
   }).then(() => {
     btnSubmit.disabled = false;
-    btnSubmit.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันการส่งงาน`;
+    btnSubmit.innerHTML = `<i class="fa-solid fa-paper-plane"></i> ยืนยันการส่งงาน`;
     closeModal('modal-submit-homework');
     showPopupSuccess("ส่งการบ้านเรียบร้อย!", "ส่งการบ้านและแนบไฟล์ชิ้นงานเข้าสู่ระบบเรียบร้อยแล้ว");
     logActivity(`นักเรียน ${currentUser.name} ส่งการบ้านเรียบร้อยแล้ว`);
