@@ -95,6 +95,7 @@ function initRealtimeSync() {
   listenToData('users', (data) => {
     usersData = data || {};
     renderUsersTable();
+    populateTeacherDropdowns();
     checkInitialSeedNeeded();
   });
 
@@ -610,7 +611,7 @@ function openAddStudentModal() {
   document.getElementById('std-id').value = '';
   document.getElementById('std-name').value = '';
   document.getElementById('std-class').value = '';
-  document.getElementById('std-advisor').value = '';
+  populateTeacherDropdowns();
   openModal('modal-add-student');
 }
 
@@ -746,6 +747,41 @@ function parseAndImportCsvData(csvText) {
 /* -------------------------------------------------------------
    6. COURSES & HOMEWORK MANAGEMENT
 ------------------------------------------------------------- */
+function populateTeacherDropdowns() {
+  const courseTeacherSelect = document.getElementById('course-teacher');
+  const stdAdvisorSelect = document.getElementById('std-advisor');
+
+  // Collect teachers and admins from usersData
+  const teachers = [];
+  Object.values(usersData).forEach(u => {
+    if (u.name && (u.role === 'teacher' || u.role === 'admin')) {
+      teachers.push(u.name);
+    }
+  });
+
+  // Unique teacher names
+  const uniqueTeachers = Array.from(new Set(teachers));
+
+  let optionsCourse = `<option value="">-- เลือกครูผู้สอน --</option>`;
+  let optionsAdvisor = `<option value="">-- เลือกครูที่ปรึกษา --</option>`;
+
+  uniqueTeachers.forEach(tName => {
+    optionsCourse += `<option value="${tName}">${tName}</option>`;
+    optionsAdvisor += `<option value="${tName}">${tName}</option>`;
+  });
+
+  if (courseTeacherSelect) {
+    courseTeacherSelect.innerHTML = optionsCourse;
+    if (currentUser && currentUser.name && uniqueTeachers.includes(currentUser.name)) {
+      courseTeacherSelect.value = currentUser.name;
+    }
+  }
+
+  if (stdAdvisorSelect) {
+    stdAdvisorSelect.innerHTML = optionsAdvisor;
+  }
+}
+
 function updateCourseDropdowns() {
   const hwCourseSelect = document.getElementById('hw-course-id');
   const quizCourseSelect = document.getElementById('quiz-course-id');
@@ -766,7 +802,7 @@ function openAddCourseModal() {
   document.getElementById('course-code').value = '';
   document.getElementById('course-name').value = '';
   document.getElementById('course-level').value = '';
-  document.getElementById('course-teacher').value = currentUser.name || '';
+  populateTeacherDropdowns();
   openModal('modal-add-course');
 }
 
