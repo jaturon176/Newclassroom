@@ -2155,6 +2155,152 @@ function closeModal(modalId) {
   if (el) el.classList.remove('active');
 }
 
+let currentPdfScale = 1.25;
+let currentPdfDoc = null;
+
+async function renderPdfDocument(fileUrl, fileTitle) {
+  const container = document.getElementById('file-preview-body');
+  container.innerHTML = `
+    <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:10px; border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="zoomPdf(-0.2)"><i class="fa-solid fa-magnifying-glass-minus"></i> ย่อ</button>
+          <span id="pdf-zoom-level" style="font-weight:700; font-size:0.85rem; color:var(--text-main); min-width:44px; text-align:center;">125%</span>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="zoomPdf(0.2)"><i class="fa-solid fa-magnifying-glass-plus"></i> ขยาย</button>
+          <span class="badge badge-purple" id="pdf-page-count-badge" style="font-size:0.8rem; padding:4px 8px;">กำลังโหลด...</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแท็บใหม่
+          </a>
+          <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-sm btn-success">
+            <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
+          </a>
+        </div>
+      </div>
+
+      <div id="pdf-pages-scroll-container" style="width:100%; max-height:68vh; overflow-y:auto; background:#1e293b; padding:16px; border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:16px; box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);">
+        <div id="pdf-loading-spinner" style="color:#ffffff; padding:40px; text-align:center;">
+          <i class="fa-solid fa-spinner fa-spin fa-2x" style="color:#38bdf8;"></i>
+          <p style="margin-top:10px; font-size:0.95rem; color:#e2e8f0;">กำลังเปิดอ่านเอกสาร PDF...</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const scrollContainer = document.getElementById('pdf-pages-scroll-container');
+  const countBadge = document.getElementById('pdf-page-count-badge');
+
+  try {
+    if (typeof pdfjsLib === 'undefined') {
+      throw new Error("PDF.js not loaded");
+    }
+
+    let loadingTask;
+    if (fileUrl.startsWith('data:application/pdf') || fileUrl.startsWith('data:;base64')) {
+      const base64Data = fileUrl.includes(',') ? fileUrl.split(',')[1] : fileUrl;
+      const rawData = atob(base64Data);
+      const uint8Array = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) {
+        uint8Array[i] = rawData.charCodeAt(i);
+      }
+      loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+    } else {
+      loadingTask = pdfjsLib.getDocument({
+        url: fileUrl,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+        cMapPacked: true
+      });
+    }
+
+    const pdfDoc = await loadingTask.promise;
+    currentPdfDoc = pdfDoc;
+    scrollContainer.innerHTML = '';
+    countBadge.innerText = `เอกสารทั้งหมด ${pdfDoc.numPages} หน้า`;
+
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: currentPdfScale });
+
+      const pageWrapper = document.createElement('div');
+      pageWrapper.className = 'pdf-page-wrapper';
+      pageWrapper.style.cssText = 'background:#ffffff; border-radius:4px; box-shadow:0 4px 14px rgba(0,0,0,0.35); margin-bottom:14px; overflow:hidden;';
+
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      canvas.style.display = 'block';
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = 'auto';
+
+      pageWrapper.appendChild(canvas);
+      scrollContainer.appendChild(pageWrapper);
+
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+    }
+  } catch (err) {
+    console.warn("PDF.js render error or CORS block, loading fallback iframe:", err);
+    scrollContainer.innerHTML = `
+      <div style="background:#ffffff; padding:24px; border-radius:12px; text-align:center; max-width:550px;">
+        <i class="fa-solid fa-file-pdf fa-3x" style="color:#ef4444; margin-bottom:12px;"></i>
+        <h4 style="font-weight:700; color:#0f172a; margin-bottom:6px;">เปิดดูเอกสาร PDF</h4>
+        <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">สามารถคลิกเปิดอ่านไฟล์ PDF เต็มหน้าจอ หรือดาวน์โหลดเก็บไว้ได้ทันที</p>
+        <div style="display:flex; justify-content:center; gap:10px;">
+          <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดอ่านในแท็บใหม่
+          </a>
+          <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-success">
+            <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
+          </a>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function zoomPdf(delta) {
+  if (!currentPdfDoc) return;
+  const newScale = Math.max(0.6, Math.min(2.5, currentPdfScale + delta));
+  if (Math.abs(newScale - currentPdfScale) < 0.05) return;
+  currentPdfScale = newScale;
+  
+  const zoomDisplay = document.getElementById('pdf-zoom-level');
+  if (zoomDisplay) zoomDisplay.innerText = `${Math.round(currentPdfScale * 100)}%`;
+
+  const scrollContainer = document.getElementById('pdf-pages-scroll-container');
+  if (!scrollContainer) return;
+
+  scrollContainer.innerHTML = '';
+  for (let pageNum = 1; pageNum <= currentPdfDoc.numPages; pageNum++) {
+    const page = await currentPdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: currentPdfScale });
+
+    const pageWrapper = document.createElement('div');
+    pageWrapper.className = 'pdf-page-wrapper';
+    pageWrapper.style.cssText = 'background:#ffffff; border-radius:4px; box-shadow:0 4px 14px rgba(0,0,0,0.35); margin-bottom:14px; overflow:hidden;';
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    canvas.style.display = 'block';
+    canvas.style.maxWidth = '100%';
+    canvas.style.height = 'auto';
+
+    pageWrapper.appendChild(canvas);
+    scrollContainer.appendChild(pageWrapper);
+
+    await page.render({
+      canvasContext: context,
+      viewport: viewport
+    }).promise;
+  }
+}
+
 function openFilePreviewModal(fileUrl, fileTitle = 'ตัวอย่างไฟล์แนบ') {
   if (!fileUrl) return;
 
@@ -2170,46 +2316,8 @@ function openFilePreviewModal(fileUrl, fileTitle = 'ตัวอย่างไ�
   const container = document.getElementById('file-preview-body');
 
   if (isPdf) {
-    if (fileUrl.startsWith('data:application/pdf')) {
-      // Base64 Data URL
-      container.innerHTML = `
-        <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid var(--border);">
-            <span style="font-size:0.85rem; color:var(--text-muted);"><i class="fa-solid fa-circle-info"></i> กำลังแสดงเอกสาร PDF (Base64 Mode)</span>
-            <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-download"></i> ดาวน์โหลด PDF</a>
-          </div>
-          <object data="${fileUrl}" type="application/pdf" style="width:100%; height:72vh; border:1px solid var(--border); border-radius:12px;">
-            <iframe src="${fileUrl}" style="width:100%; height:72vh; border:none; border-radius:12px;">
-              <p>เบราว์เซอร์ไม่รองรับการแสดงตัวอย่าง PDF <a href="${fileUrl}" download="${fileTitle}.pdf">คลิกที่นี่เพื่อดาวน์โหลด</a></p>
-            </iframe>
-          </object>
-        </div>
-      `;
-    } else {
-      // Remote HTTP/HTTPS URL (Cloudinary CDN or Web PDF)
-      const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-      
-      container.innerHTML = `
-        <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
-            <div style="display:flex; gap:6px;">
-              <button type="button" class="btn btn-sm btn-primary" onclick="setPdfPreviewViewer('${googleViewerUrl}', this)" id="btn-viewer-google">
-                <i class="fa-solid fa-file-lines"></i> Google Docs Viewer (แนะนำ)
-              </button>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="setPdfPreviewViewer('${fileUrl}', this)" id="btn-viewer-direct">
-                <i class="fa-solid fa-desktop"></i> Direct Viewer
-              </button>
-            </div>
-            <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแท็บใหม่ / ดาวน์โหลด PDF
-            </a>
-          </div>
-          <div id="pdf-viewer-frame-container" style="width:100%; height:72vh; background:#1e293b; border-radius:12px; overflow:hidden; border:1px solid var(--border); position:relative;">
-            <iframe id="pdf-preview-iframe" src="${googleViewerUrl}" style="width:100%; height:100%; border:none;" frameborder="0" allowfullscreen></iframe>
-          </div>
-        </div>
-      `;
-    }
+    currentPdfScale = 1.25;
+    renderPdfDocument(fileUrl, fileTitle);
   } else {
     // Image Preview
     container.innerHTML = `
@@ -2218,22 +2326,6 @@ function openFilePreviewModal(fileUrl, fileTitle = 'ตัวอย่างไ�
   }
 
   openModal('modal-file-preview');
-}
-
-function setPdfPreviewViewer(targetUrl, btnEl) {
-  const iframe = document.getElementById('pdf-preview-iframe');
-  if (iframe) {
-    iframe.src = targetUrl;
-  }
-  if (btnEl) {
-    const parent = btnEl.parentElement;
-    parent.querySelectorAll('.btn').forEach(b => {
-      b.classList.remove('btn-primary');
-      b.classList.add('btn-secondary');
-    });
-    btnEl.classList.remove('btn-secondary');
-    btnEl.classList.add('btn-primary');
-  }
 }
 
 function openLightbox(imageUrl) {
