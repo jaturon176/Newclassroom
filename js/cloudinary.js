@@ -1,5 +1,5 @@
 /**
- * Cloudinary CDN Image Upload Engine with Base64 Data URL Fallback
+ * Cloudinary CDN File & PDF Upload Engine with Base64 Data URL Fallback
  * Cloud Name: ku9okwip
  * Upload Preset: room107
  */
@@ -7,13 +7,13 @@
 const CLOUDINARY_CONFIG = {
   cloudName: 'ku9okwip',
   uploadPreset: 'room107',
-  uploadUrl: 'https://api.cloudinary.com/v1_1/ku9okwip/image/upload'
+  uploadUrl: 'https://api.cloudinary.com/v1_1/ku9okwip/auto/upload'
 };
 
 /**
- * Upload an image file to Cloudinary or convert to Base64 Data URL fallback
- * @param {File} file - Image file from file input
- * @returns {Promise<string>} Image URL or Base64 String
+ * Upload an image or PDF file to Cloudinary or convert to Base64 Data URL fallback
+ * @param {File} file - File from input
+ * @returns {Promise<string>} File URL or Base64 String
  */
 async function uploadImageFile(file) {
   if (!file) return null;
@@ -31,7 +31,15 @@ async function uploadImageFile(file) {
     if (response.ok) {
       const data = await response.json();
       console.log('Cloudinary upload success:', data.secure_url);
-      return data.secure_url;
+      
+      let finalUrl = data.secure_url;
+      // If it's a PDF and URL doesn't have .pdf extension, ensure extension
+      if ((file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) && !finalUrl.toLowerCase().endsWith('.pdf')) {
+        if (data.format === 'pdf') {
+          finalUrl = `${finalUrl}.pdf`;
+        }
+      }
+      return finalUrl;
     } else {
       console.warn('Cloudinary upload returned non-200 status, converting to Base64 fallback...', response.statusText);
       return await convertFileToBase64(file);

@@ -2158,24 +2158,82 @@ function closeModal(modalId) {
 function openFilePreviewModal(fileUrl, fileTitle = 'ตัวอย่างไฟล์แนบ') {
   if (!fileUrl) return;
 
-  document.getElementById('file-preview-title').innerHTML = `<i class="fa-solid fa-eye"></i> ${fileTitle}`;
+  const isPdf = fileUrl.includes('.pdf') || fileUrl.includes('data:application/pdf') || fileUrl.toLowerCase().includes('format=pdf');
+  document.getElementById('file-preview-title').innerHTML = `<i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> ${fileTitle}`;
+  
   const downloadBtn = document.getElementById('file-preview-download');
-  if (downloadBtn) downloadBtn.href = fileUrl;
+  if (downloadBtn) {
+    downloadBtn.href = fileUrl;
+    downloadBtn.setAttribute('download', fileTitle || 'file');
+  }
 
   const container = document.getElementById('file-preview-body');
-  const isPdf = fileUrl.includes('.pdf') || fileUrl.includes('data:application/pdf');
 
   if (isPdf) {
-    container.innerHTML = `
-      <iframe src="${fileUrl}" style="width:100%; height:70vh; border:1px solid var(--border); border-radius:14px;" frameborder="0"></iframe>
-    `;
+    if (fileUrl.startsWith('data:application/pdf')) {
+      // Base64 Data URL
+      container.innerHTML = `
+        <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid var(--border);">
+            <span style="font-size:0.85rem; color:var(--text-muted);"><i class="fa-solid fa-circle-info"></i> กำลังแสดงเอกสาร PDF (Base64 Mode)</span>
+            <a href="${fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-download"></i> ดาวน์โหลด PDF</a>
+          </div>
+          <object data="${fileUrl}" type="application/pdf" style="width:100%; height:72vh; border:1px solid var(--border); border-radius:12px;">
+            <iframe src="${fileUrl}" style="width:100%; height:72vh; border:none; border-radius:12px;">
+              <p>เบราว์เซอร์ไม่รองรับการแสดงตัวอย่าง PDF <a href="${fileUrl}" download="${fileTitle}.pdf">คลิกที่นี่เพื่อดาวน์โหลด</a></p>
+            </iframe>
+          </object>
+        </div>
+      `;
+    } else {
+      // Remote HTTP/HTTPS URL (Cloudinary CDN or Web PDF)
+      const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+      
+      container.innerHTML = `
+        <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-sm btn-primary" onclick="setPdfPreviewViewer('${googleViewerUrl}', this)" id="btn-viewer-google">
+                <i class="fa-solid fa-file-lines"></i> Google Docs Viewer (แนะนำ)
+              </button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="setPdfPreviewViewer('${fileUrl}', this)" id="btn-viewer-direct">
+                <i class="fa-solid fa-desktop"></i> Direct Viewer
+              </button>
+            </div>
+            <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแท็บใหม่ / ดาวน์โหลด PDF
+            </a>
+          </div>
+          <div id="pdf-viewer-frame-container" style="width:100%; height:72vh; background:#1e293b; border-radius:12px; overflow:hidden; border:1px solid var(--border); position:relative;">
+            <iframe id="pdf-preview-iframe" src="${googleViewerUrl}" style="width:100%; height:100%; border:none;" frameborder="0" allowfullscreen></iframe>
+          </div>
+        </div>
+      `;
+    }
   } else {
+    // Image Preview
     container.innerHTML = `
-      <img src="${fileUrl}" style="max-width:100%; max-height:70vh; object-fit:contain; border-radius:14px; box-shadow:var(--shadow-md);" alt="ตัวอย่างรูปภาพ">
+      <img src="${fileUrl}" style="max-width:100%; max-height:72vh; object-fit:contain; border-radius:14px; box-shadow:var(--shadow-md);" alt="ตัวอย่างรูปภาพ">
     `;
   }
 
   openModal('modal-file-preview');
+}
+
+function setPdfPreviewViewer(targetUrl, btnEl) {
+  const iframe = document.getElementById('pdf-preview-iframe');
+  if (iframe) {
+    iframe.src = targetUrl;
+  }
+  if (btnEl) {
+    const parent = btnEl.parentElement;
+    parent.querySelectorAll('.btn').forEach(b => {
+      b.classList.remove('btn-primary');
+      b.classList.add('btn-secondary');
+    });
+    btnEl.classList.remove('btn-secondary');
+    btnEl.classList.add('btn-primary');
+  }
 }
 
 function openLightbox(imageUrl) {
