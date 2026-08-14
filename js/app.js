@@ -96,34 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
   addQuizQuestionItem();
 });
 
-let activeNavView = 'dashboard';
-let renderScheduledTimer = null;
-
-function requestRender(targetView = null) {
-  if (renderScheduledTimer) cancelAnimationFrame(renderScheduledTimer);
-  renderScheduledTimer = requestAnimationFrame(() => {
-    updateDashboardStats();
-    const currentView = targetView || activeNavView;
-    if (currentView === 'dashboard') {
-      renderDashboardHomeworkSummary();
-      renderDashboardQuizSummary();
-      renderAnnouncements();
-    } else if (currentView === 'students') {
-      renderStudentsTable();
-    } else if (currentView === 'courses') {
-      renderCoursesList();
-    } else if (currentView === 'quizzes') {
-      renderQuizzesList();
-    } else if (currentView === 'reports') {
-      renderScoreReports();
-    } else if (currentView === 'users') {
-      renderUsersTable();
-    }
-  });
-}
-
 /* -------------------------------------------------------------
-   1. REALTIME SYNCHRONIZATION & SEEDING (High-Performance Batched)
+   1. REALTIME SYNCHRONIZATION & SEEDING
 ------------------------------------------------------------- */
 function initRealtimeSync() {
   if (typeof listenToData !== 'function') return;
@@ -131,47 +105,65 @@ function initRealtimeSync() {
   // Listen to Users
   listenToData('users', (data) => {
     usersData = data || {};
+    renderUsersTable();
     populateTeacherDropdowns();
     checkInitialSeedNeeded();
-    requestRender();
   });
 
   // Listen to Students Roster
   listenToData('students', (data) => {
     studentsData = data || {};
+    renderStudentsTable();
     updateClassFilterDropdowns();
-    requestRender();
+    updateDashboardStats();
+    renderScoreReports();
   });
 
   // Listen to Courses
   listenToData('courses', (data) => {
     coursesData = data || {};
+    renderCoursesList();
     updateCourseDropdowns();
-    requestRender();
+    updateDashboardStats();
+    renderScoreReports();
   });
 
-  // Listen to Homework
+  // Listen to Homework (Primary Firebase node + Local Client Cache)
   listenToData('homework', (data) => {
     homeworkData = data || {};
-    requestRender();
+    try {
+      localStorage.setItem('ag_homework', JSON.stringify(homeworkData));
+    } catch (e) {
+      console.warn("Failed saving ag_homework to localStorage:", e);
+    }
+    renderCoursesList();
+    updateDashboardStats();
+    renderScoreReports();
+    renderDashboardHomeworkSummary();
   });
 
   // Listen to Homework Submissions
   listenToData('homework_submissions', (data) => {
     submissionsData = data || {};
-    requestRender();
+    renderCoursesList();
+    renderScoreReports();
+    renderDashboardHomeworkSummary();
   });
 
   // Listen to Quizzes
   listenToData('quizzes', (data) => {
     quizzesData = data || {};
-    requestRender();
+    renderQuizzesList();
+    updateDashboardStats();
+    renderScoreReports();
+    renderDashboardQuizSummary();
   });
 
   // Listen to Quiz Results
   listenToData('quiz_results', (data) => {
     quizResultsData = data || {};
-    requestRender();
+    renderQuizzesList();
+    renderScoreReports();
   });
 
   // Listen to Announcements
@@ -226,24 +218,16 @@ function switchLoginRole(role) {
   activeLoginRole = role;
 }
 
-async function handleLogin(event) {
+function handleLogin(event) {
   event.preventDefault();
-  const usernameInput = document.getElementById('login-username').value.trim();
-  const passwordInput = document.getElementById('login-password').value.trim();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
 
-  if (!usernameInput || !passwordInput) {
+  if (!username || !password) {
     showPopupWarning("กรุณากรอกข้อมูล", "กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน");
     return;
   }
 
-  const btnLogin = document.getElementById('btn-login-submit');
-  if (btnLogin) {
-    btnLogin.disabled = true;
-    btnLogin.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังเข้าสู่ระบบ...`;
-  }
-
-  const username = usernameInput;
-  const password = passwordInput;
   let foundUser = null;
 
   // 1. Embedded hardcoded Admin credentials check (for instant guaranteed login)
@@ -257,89 +241,40 @@ async function handleLogin(event) {
     saveData('users/admin', foundUser);
   }
 
-  // 2. Direct key match in memory usersData
-  if (!foundUser && usersData) {
-    if (usersData[username]) {
-      const u = usersData[username];
-      if (u.password === password || (u.role === 'student' && (u.studentId === password || password === username))) {
-        foundUser = u;
-      }
+  // 2. Direct key match in usersData (Teacher, Admin, or Student)
+  if (!foundUser && usersData[username]) {
+    const u = usersData[username];
+    if (u.password === password || (u.role === 'student' && (u.studentId === password || password === username))) {
+      foundUser = u;
     }
   }
 
-  // 3. Search by username or studentId across all usersData in memory
-  if (!foundUser && usersData) {
+  // 3. Search by username or studentId across all usersData
+  if (!foundUser) {
     const matchedKey = Object.keys(usersData).find(k => {
       const u = usersData[k];
-      if (!u) return false;
-      const matchUsername = (u.username && u.username.toLowerCase() === username.toLowerCase()) ||
-                            (u.studentId && u.studentId.toLowerCase() === username.toLowerCase()) ||
-                            (k.toLowerCase() === username.toLowerCase());
-      const matchPassword = (u.password === password) ||
-                            (u.role === 'student' && (password === u.studentId || password === username));
-      return matchUsername && matchPassword;
+      return (u.username === username || u.studentId === username || k === username) && 
+             (u.password === password || (u.role === 'student' && password === username));
     });
     if (matchedKey) {
       foundUser = usersData[matchedKey];
     }
   }
 
-  // 4. Check in studentsData (Auto Student ID Login with leading-zero flexibility)
-  if (!foundUser && studentsData) {
-    const rawNoZero = username.replace(/^0+/, '');
-    const std = studentsData[username] || 
-                studentsData[rawNoZero] ||
-                Object.values(studentsData).find(s => s.studentId === username || (rawNoZero && s.studentId === rawNoZero)) ||
-                Object.values(studentsData).find(s => s.studentId && s.studentId.padStart(5, '0') === username);
-    if (std && (password === std.studentId || password === username || (rawNoZero && password === rawNoZero))) {
+  // 4. Check in studentsData (Auto Student ID Login)
+  if (!foundUser) {
+    const std = studentsData[username] || Object.values(studentsData).find(s => s.studentId === username);
+    if (std && (password === std.studentId || password === username)) {
       foundUser = {
         username: std.studentId,
         password: std.studentId,
         name: std.name,
         role: 'student',
         studentId: std.studentId,
-        classLevel: std.classLevel || ''
+        classLevel: std.classLevel
       };
       saveData(`users/${std.studentId}`, foundUser);
     }
-  }
-
-  // 5. Direct Firebase Live Query Fallback (If memory sync was slow or connection delayed)
-  if (!foundUser && typeof db !== 'undefined' && db) {
-    try {
-      const userSnap = await db.ref(`users/${username}`).once('value');
-      if (userSnap.exists()) {
-        const u = userSnap.val();
-        if (u.password === password || (u.role === 'student' && (u.studentId === password || password === username))) {
-          foundUser = u;
-        }
-      }
-
-      if (!foundUser) {
-        const stdSnap = await db.ref(`students/${username}`).once('value');
-        if (stdSnap.exists()) {
-          const std = stdSnap.val();
-          if (password === std.studentId || password === username) {
-            foundUser = {
-              username: std.studentId,
-              password: std.studentId,
-              name: std.name,
-              role: 'student',
-              studentId: std.studentId,
-              classLevel: std.classLevel || ''
-            };
-            saveData(`users/${std.studentId}`, foundUser);
-          }
-        }
-      }
-    } catch (dbErr) {
-      console.warn("Direct Firebase login lookup error:", dbErr);
-    }
-  }
-
-  if (btnLogin) {
-    btnLogin.disabled = false;
-    btnLogin.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ (Sign In)`;
   }
 
   if (foundUser) {
@@ -348,7 +283,7 @@ async function handleLogin(event) {
     showAppScreen();
     logActivity(`ผู้ใช้งาน ${currentUser.name} เข้าสู่ระบบแล้ว`);
   } else {
-    showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง\n• แอดมิน: admin / admin56\n• นักเรียน: ใช้รหัสประจำตัวทั้งชื่อผู้ใช้และรหัสผ่าน");
+    showPopupError("เข้าสู่ระบบไม่สำเร็จ", "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง (สำหรับนักเรียนให้ใช้รหัสประจำตัวเป็นทั้งชื่อผู้ใช้และรหัสผ่าน)");
   }
 }
 
@@ -669,14 +604,6 @@ function logActivity(text) {
 /* -------------------------------------------------------------
    5. STUDENT ROSTER & CSV IMPORT
 ------------------------------------------------------------- */
-let studentSearchDebounce = null;
-function onStudentSearchInput() {
-  if (studentSearchDebounce) clearTimeout(studentSearchDebounce);
-  studentSearchDebounce = setTimeout(() => {
-    renderStudentsTable();
-  }, 100);
-}
-
 function renderStudentsTable() {
   const tbody = document.getElementById('students-table-body');
   const search = document.getElementById('student-search-input').value.toLowerCase().trim();
@@ -1294,32 +1221,6 @@ async function saveHomeworkForm(e) {
   });
 }
 
-function openHomeworkAttachment(hwId) {
-  const hw = homeworkData[hwId];
-  if (!hw) return;
-  let fileUrl = null;
-  let fileName = hw.title || 'เอกสารคำสั่งงาน';
-  if (hw.pdfs && Array.isArray(hw.pdfs) && hw.pdfs.length > 0 && hw.pdfs[0].url) {
-    fileUrl = hw.pdfs[0].url;
-    if (hw.pdfs[0].name) fileName = hw.pdfs[0].name;
-  } else if (hw.imageUrl) {
-    fileUrl = hw.imageUrl;
-  }
-  if (fileUrl) {
-    showPDFPreviewModal(fileUrl, fileName);
-  }
-}
-
-function openSubmissionAttachment(hwId, studentId) {
-  const sub = (submissionsData[hwId] && submissionsData[hwId][studentId]) ? submissionsData[hwId][studentId] : null;
-  if (!sub) return;
-  const fileUrl = sub.fileUrl || sub.submittedImageUrl || sub.imageUrl;
-  const fileName = sub.fileName || sub.studentName || 'ไฟล์งานที่ส่ง';
-  if (fileUrl) {
-    showPDFPreviewModal(fileUrl, fileName);
-  }
-}
-
 function renderCoursesList() {
   const container = document.getElementById('courses-list-container');
   const courseKeys = Object.keys(coursesData);
@@ -1421,7 +1322,7 @@ function renderCoursesList() {
               
               ${fileUrl ? `
                 <div style="margin:10px 0;">
-                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="openHomeworkAttachment('${hw.id}')" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:6px 14px; border-radius:8px;">
+                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:6px 14px; border-radius:8px;">
                     <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'}; font-size:1.1rem;"></i> 
                     <span>📄 เอกสารแนบ ${isPdf ? 'PDF' : 'รูปภาพ'} (${fileName})</span>
                   </button>
@@ -1650,7 +1551,7 @@ function openSubmitHomeworkModal(hwId) {
   if (fileUrl) {
     mediaHtml += `
       <div style="margin:8px 0;">
-        <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="openHomeworkAttachment('${hwId}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; border-radius:8px;">
+        <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; border-radius:8px;">
           <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> 
           <span>📄 ดูเอกสารคำสั่งงาน (${fileName})</span>
         </button>
@@ -1736,9 +1637,9 @@ function openGradeSubmissionsModal(hwId) {
           <td style="font-size:0.85rem;">${sub.submittedAt}</td>
           <td>
             <div>${sub.textAnswer || '-'}</div>
-            ${(sub.imageUrl || sub.fileUrl) ? `
-              <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:4px;" onclick="openSubmissionAttachment('${hwId}', '${studentId}')">
-                <i class="${((sub.imageUrl || sub.fileUrl).includes('.pdf') || (sub.imageUrl || sub.fileUrl).includes('data:application/pdf')) ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูไฟล์แนบชิ้นงาน
+            ${sub.imageUrl ? `
+              <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:4px;" onclick="showPDFPreviewModal('${sub.imageUrl.replace(/'/g, "\\'")}', '${sub.studentName.replace(/'/g, "\\'")}')">
+                <i class="${(sub.imageUrl.includes('.pdf') || sub.imageUrl.includes('data:application/pdf')) ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูไฟล์แนบชิ้นงาน
               </button>
             ` : ''}
           </td>

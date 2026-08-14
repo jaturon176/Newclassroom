@@ -106,27 +106,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
-  overflow-x: hidden;
-}
-
-/* GPU Rendering & Performance Optimizations */
-.main-wrapper, .dashboard-layout, .stats-grid, .card, .table-responsive {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
-.card {
-  contain: paint;
-}
-
-.table-responsive {
-  contain: paint;
-  will-change: scroll-position;
-}
-
-.modal-container {
-  will-change: transform, opacity;
 }
 
 /* ==========================================================================
