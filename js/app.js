@@ -1156,7 +1156,11 @@ function toggleTargetClassChip(containerId, value, labelEl) {
 
 function updateTargetChipsSummary(containerId) {
   const selected = getSelectedTargetClasses(containerId);
-  const summaryId = containerId === 'hw-target-chips-container' ? 'hw-target-summary' : 'edit-hw-target-summary';
+  let summaryId = 'hw-target-summary';
+  if (containerId === 'hw-target-chips-container') summaryId = 'hw-target-summary';
+  else if (containerId === 'edit-hw-target-chips-container') summaryId = 'edit-hw-target-summary';
+  else if (containerId === 'quiz-target-chips-container') summaryId = 'quiz-target-summary';
+
   const summaryEl = document.getElementById(summaryId);
   if (!summaryEl) return;
 
@@ -1165,6 +1169,10 @@ function updateTargetChipsSummary(containerId) {
   } else {
     summaryEl.innerText = `เลือกแล้ว (${selected.length} ห้อง): ${selected.join(', ')}`;
   }
+}
+
+function onQuizCourseChange(courseId) {
+  renderTargetClassChips('quiz-target-chips-container', courseId, ['all']);
 }
 
 function getSelectedTargetClasses(containerId) {
@@ -2178,6 +2186,11 @@ function openCreateQuizModal() {
   document.getElementById('quiz-title').value = '';
   document.getElementById('quiz-duration').value = 15;
   document.getElementById('quiz-pass-score').value = 50;
+
+  const courseSelect = document.getElementById('quiz-course-id');
+  const courseId = courseSelect ? courseSelect.value : '';
+  renderTargetClassChips('quiz-target-chips-container', courseId, ['all']);
+
   renderQuizQuestionsBuilder();
   openModal('modal-create-quiz');
 }
@@ -2185,6 +2198,8 @@ function openCreateQuizModal() {
 function saveQuizForm(e) {
   e.preventDefault();
   const courseId = document.getElementById('quiz-course-id').value;
+  const targetClasses = getSelectedTargetClasses('quiz-target-chips-container');
+  const targetClass = targetClasses.join(', ');
   const title = document.getElementById('quiz-title').value.trim();
   const type = document.getElementById('quiz-type').value;
   const duration = parseInt(document.getElementById('quiz-duration').value) || 15;
@@ -2220,6 +2235,8 @@ function saveQuizForm(e) {
 
   pushData('quizzes', {
     courseId,
+    targetClasses,
+    targetClass,
     title,
     type,
     duration,
@@ -2243,11 +2260,24 @@ function renderQuizzesList() {
     return;
   }
 
-  let html = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">`;
+  let html = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(310px, 1fr)); gap:20px;">`;
   quizKeys.forEach(quizId => {
     const q = quizzesData[quizId];
+    
+    // Student target classroom check
+    if (currentUser && currentUser.role === 'student') {
+      const studentClass = (currentUser.classLevel || '').trim().replace(/^"|"$/g, '');
+      const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
+      if (!targets.includes('all') && targets.length > 0 && !targets.includes(studentClass)) {
+        return;
+      }
+    }
+
     const course = coursesData[q.courseId] || { name: 'วิชาทั่วไป' };
     const qCount = q.questions ? q.questions.length : 0;
+    const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
+    const isTargetAll = targets.includes('all') || targets.length === 0;
+    const targetLabel = isTargetAll ? 'ทุกห้องเรียน' : 'ห้อง ' + targets.join(', ');
 
     // Student Quiz attempt check (quiz_results/{quizId}/{studentId})
     const studentResult = (quizResultsData[quizId] && currentUser.studentId) 
@@ -2255,37 +2285,42 @@ function renderQuizzesList() {
       : null;
 
     html += `
-      <div style="background:#ffffff; border:1px solid var(--border); border-radius:16px; padding:20px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; justify-content:space-between;">
+      <div style="background:#ffffff; border:1.5px solid #e2e8f0; border-radius:18px; padding:20px; box-shadow:0 4px 14px rgba(15,23,42,0.05); display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s, box-shadow 0.2s;">
         <div>
-          <span class="badge badge-purple">${course.name}</span>
-          <h4 style="font-size:1.25rem; font-weight:700; color:#0f172a; margin-top:6px;">${q.title}</h4>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;">
+            <span class="badge badge-purple" style="font-size:0.84rem; font-weight:700; padding:4px 10px; border-radius:8px;">${course.name}</span>
+            <span class="badge ${isTargetAll ? 'badge-purple' : 'badge-yellow'}" style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:8px;">
+              <i class="${isTargetAll ? 'fa-solid fa-globe' : 'fa-solid fa-chalkboard'}"></i> ${targetLabel}
+            </span>
+          </div>
+          <h4 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:12px 0 8px; line-height:1.35;">${q.title}</h4>
           
-          <div style="display:flex; gap:12px; margin:12px 0; font-size:0.9rem; color:var(--text-muted);">
-            <span><i class="fa-solid fa-list-ol"></i> ${qCount} ข้อ</span>
-            <span><i class="fa-solid fa-clock"></i> ${q.duration} นาที</span>
-            <span><i class="fa-solid fa-bullseye"></i> ผ่านเกณฑ์ ${q.passScore}%</span>
+          <div style="display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; font-size:0.86rem; color:#64748b; font-weight:600;">
+            <span style="background:#f8fafc; padding:3px 8px; border-radius:6px; border:1px solid #e2e8f0;"><i class="fa-solid fa-list-ol" style="color:var(--primary);"></i> ${qCount} ข้อ</span>
+            <span style="background:#f8fafc; padding:3px 8px; border-radius:6px; border:1px solid #e2e8f0;"><i class="fa-solid fa-clock" style="color:#eab308;"></i> ${q.duration} นาที</span>
+            <span style="background:#f8fafc; padding:3px 8px; border-radius:6px; border:1px solid #e2e8f0;"><i class="fa-solid fa-bullseye" style="color:#10b981;"></i> ผ่านเกณฑ์ ${q.passScore}%</span>
           </div>
         </div>
 
-        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           ${currentUser.role === 'student' ? `
             ${studentResult ? `
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="badge ${studentResult.passed ? 'badge-green' : 'badge-red'}">
+              <div style="display:flex; align-items:center; gap:8px; width:100%; justify-content:space-between;">
+                <span class="badge ${studentResult.passed ? 'badge-green' : 'badge-red'}" style="font-size:0.84rem; padding:5px 12px; font-weight:700;">
                   ${studentResult.score}/${studentResult.totalScore} คะแนน (${studentResult.percentage}%)
                 </span>
-                <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')">
-                  เฉลย
+                <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')" style="border-radius:8px; font-weight:600;">
+                  <i class="fa-solid fa-eye"></i> ดูเฉลย
                 </button>
               </div>
             ` : `
-              <button class="btn btn-sm btn-primary" onclick="startQuizRunner('${quizId}')">
+              <button class="btn btn-primary" onclick="startQuizRunner('${quizId}')" style="width:100%; border-radius:10px; font-weight:700; padding:9px 14px; background:linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow:0 3px 8px rgba(37,99,235,0.25);">
                 <i class="fa-solid fa-play"></i> เริ่มทำข้อสอบ
               </button>
             `}
           ` : `
-            <span class="badge badge-blue">ทำแล้ว ${quizResultsData[quizId] ? Object.keys(quizResultsData[quizId]).length : 0} คน</span>
-            <button class="btn btn-sm btn-danger" onclick="deleteQuiz('${quizId}')"><i class="fa-solid fa-trash"></i> ลบ</button>
+            <span class="badge badge-blue" style="font-size:0.82rem; font-weight:700; padding:5px 10px; border-radius:8px;"><i class="fa-solid fa-user-check"></i> ทำแล้ว ${quizResultsData[quizId] ? Object.keys(quizResultsData[quizId]).length : 0} คน</span>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteQuiz('${quizId}')" style="border-radius:8px; padding:5px 10px;" title="ลบแบบทดสอบ"><i class="fa-solid fa-trash-can"></i> ลบ</button>
           `}
         </div>
       </div>
