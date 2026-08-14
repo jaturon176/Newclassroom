@@ -1981,3 +1981,20 @@ function openFilePreviewModal(fileUrl, fileTitle = 'ตัวอย่างไ�
 function openLightbox(imageUrl) {
   openFilePreviewModal(imageUrl, 'รูปภาพชิ้นงาน');
 }
+
+/* -------------------------------------------------------------
+   11. LIVE DIGITAL CLOCK (Header Clock)
+------------------------------------------------------------- */
+function updateLiveClock() {
+  const clockEl = document.getElementById('live-clock-time');
+  if (!clockEl) return;
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  clockEl.innerText = `${hours}:${minutes}:${seconds}`;
+}
+
+setInterval(updateLiveClock, 1000);
+updateLiveClock();
+
