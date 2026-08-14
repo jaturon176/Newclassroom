@@ -1,10 +1,10 @@
 /**
  * Firebase Realtime Database Configuration & Helper Utilities
- * Database URL: https://classroom-app-4bd14-default-rtdb.asia-southeast1.firebasedatabase.app/
+ * Database URL: https://newclassroom-9fe3f-default-rtdb.asia-southeast1.firebasedatabase.app/
  */
 
 const FIREBASE_CONFIG = {
-  databaseURL: "https://classroom-app-4bd14-default-rtdb.asia-southeast1.firebasedatabase.app/"
+  databaseURL: "https://newclassroom-9fe3f-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
 let db = null;
