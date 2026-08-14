@@ -15,7 +15,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=5.8.0">
+  <link rel="stylesheet" href="css/styles.css?v=6.0.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -1019,56 +1019,184 @@
   </div>
 
 
-  <!-- Modal 8: Quiz Runner Modal (Making Quiz with Live Timer) -->
-  <div class="modal-overlay" id="modal-take-quiz">
+  <!-- Modal 7.1: Edit Quiz Builder Modal -->
+  <div class="modal-overlay" id="modal-edit-quiz">
     <div class="modal-container" style="max-width:800px;">
-      <div class="quiz-timer-bar">
-        <div>
-          <span style="font-size:1.1rem; font-weight:700;" id="runner-quiz-title">แบบทดสอบ</span>
-          <span style="font-size:0.85rem; opacity:0.8; display:block;" id="runner-course-name">วิชา...</span>
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-pen-to-square"></i> แก้ไขแบบทดสอบ / ข้อสอบ</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-edit-quiz')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveEditQuizForm(event)">
+        <input type="hidden" id="edit-quiz-id">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">เลือกรายวิชา *</label>
+            <select id="edit-quiz-course-id" class="form-control" style="padding-left:14px;" required onchange="onEditQuizCourseChange(this.value)">
+              <!-- Options loaded dynamically -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+              <span><i class="fa-solid fa-users-rectangle" style="color:var(--primary);"></i> ห้องเรียนเป้าหมาย (เลือกได้มากกว่า 1 ห้อง) *</span>
+              <span style="font-size:0.82rem; font-weight:700; color:var(--primary);" id="edit-quiz-target-summary">ทุกห้องเรียน</span>
+            </label>
+            <div id="edit-quiz-target-chips-container" class="target-class-chips-container">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ชื่อแบบทดสอบ *</label>
+            <input type="text" id="edit-quiz-title" class="form-control" style="padding-left:14px;" required placeholder="เช่น แบบทดสอบหลังเรียน บทที่ 1">
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">ชนิดตัวเลือก *</label>
+              <select id="edit-quiz-type" class="form-control" style="padding-left:14px;" onchange="renderEditQuizQuestionsBuilder()">
+                <option value="4">4 ตัวเลือก (ก-ง)</option>
+                <option value="5">5 ตัวเลือก (ก-จ)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">เวลาทำสอบ (นาที) *</label>
+              <input type="number" id="edit-quiz-duration" class="form-control" style="padding-left:14px;" required value="15" min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">คะแนนผ่าน (%) *</label>
+              <input type="number" id="edit-quiz-pass-score" class="form-control" style="padding-left:14px;" required value="50" min="1" max="100">
+            </div>
+          </div>
+
+          <!-- Dynamic Questions Builder -->
+          <hr style="margin:20px 0; border-color:var(--border);">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <h4 style="font-weight:700;"><i class="fa-solid fa-question-circle"></i> รายการคำถามข้อสอบ</h4>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addEditQuizQuestionItem()">
+              <i class="fa-solid fa-plus"></i> เพิ่มข้อสอบ
+            </button>
+          </div>
+
+          <div id="edit-quiz-questions-builder-container">
+            <!-- Question item boxes rendered here -->
+          </div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <i class="fa-solid fa-stopwatch" style="font-size:1.4rem; color:#38bdf8;"></i>
-          <span class="timer-countdown" id="quiz-countdown-display">15:00</span>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-quiz')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> บันทึกการแก้ไขข้อสอบ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 8: Quiz Runner Modal (Official Academic Exam Environment) -->
+  <div class="modal-overlay" id="modal-take-quiz">
+    <div class="modal-container modal-exam-container">
+      
+      <!-- Academic Examination Header -->
+      <div class="exam-header-bar">
+        <div class="exam-header-left">
+          <div class="exam-badge-icon">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <div>
+            <div class="exam-meta-pills">
+              <span class="badge badge-exam-course" id="runner-course-name">รายวิชา...</span>
+              <span class="badge badge-exam-academic" id="runner-exam-type"><i class="fa-solid fa-file-lines"></i> แบบทดสอบวัดผลการเรียนรู้</span>
+            </div>
+            <h3 class="exam-title-text" id="runner-quiz-title">แบบทดสอบ</h3>
+            <div class="exam-student-info" id="runner-student-info">
+              <!-- Rendered candidate info -->
+            </div>
+          </div>
+        </div>
+
+        <div class="exam-header-right">
+          <!-- Digital Timer Card -->
+          <div class="exam-timer-card" id="exam-timer-card">
+            <div class="exam-timer-label"><i class="fa-regular fa-clock"></i> เวลาที่เหลือ</div>
+            <div class="exam-timer-digits">
+              <span id="quiz-countdown-display">15:00</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="modal-body" id="quiz-runner-body">
-        <!-- Rendered active questions -->
+      <!-- Exam Progress Bar -->
+      <div class="exam-progress-bar-container">
+        <div class="exam-progress-info">
+          <span><i class="fa-solid fa-list-check" style="color:var(--primary);"></i> ความคืบหน้าการตอบ: <strong id="exam-answered-count" style="color:#2563eb;">0</strong> / <span id="exam-total-count">0</span> ข้อ</span>
+          <span id="exam-progress-percent" style="font-weight:700; color:var(--primary);">0%</span>
+        </div>
+        <div class="exam-progress-track">
+          <div class="exam-progress-fill" id="exam-progress-fill" style="width: 0%;"></div>
+        </div>
       </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="confirmCancelQuiz()">ยกเลิกการทำสอบ</button>
-        <button type="button" class="btn btn-success" onclick="submitQuizAnswers(true)">
-          <i class="fa-solid fa-paper-plane"></i> ส่งข้อสอบ
+      <!-- Questions List Body -->
+      <div class="modal-body exam-body" id="quiz-runner-body">
+        <!-- Rendered official exam question cards -->
+      </div>
+
+      <!-- Examination Footer Controls -->
+      <div class="exam-footer-bar">
+        <button type="button" class="btn btn-exam-cancel" onclick="confirmCancelQuiz()">
+          <i class="fa-solid fa-arrow-left"></i> ยกเลิกการทำสอบ
+        </button>
+        <button type="button" class="btn btn-exam-submit" onclick="submitQuizAnswers(true)">
+          <i class="fa-solid fa-paper-plane"></i> ส่งกระดาษคำตอบ
         </button>
       </div>
     </div>
   </div>
 
 
-  <!-- Modal 9: Quiz Result & Detailed Explanations Modal -->
+  <!-- Modal 9: Quiz Result & Detailed Explanations Modal (Official Score Report) -->
   <div class="modal-overlay" id="modal-quiz-result">
-    <div class="modal-container" style="max-width:750px;">
-      <div class="modal-header">
-        <h3 class="modal-title"><i class="fa-solid fa-trophy"></i> ผลการทำแบบทดสอบและเฉลย</h3>
-        <button class="btn-close-modal" onclick="closeModal('modal-quiz-result')"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-container modal-exam-container" style="max-width:820px;">
+      <div class="modal-header" style="background:#0f172a; color:#ffffff; border-bottom:3px solid #2563eb; padding:18px 24px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg, #2563eb, #3b82f6); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.3rem;">
+            <i class="fa-solid fa-square-poll-vertical"></i>
+          </div>
+          <div>
+            <h3 class="modal-title" style="color:#ffffff; margin:0; font-size:1.25rem;"><i class="fa-solid fa-award" style="color:#f59e0b !important;"></i> สรุปผลการสอบและรายงานเฉลย</h3>
+            <span style="font-size:0.82rem; color:#94a3b8;">ระบบตรวจประเมินผลการเรียนรู้อัตโนมัติ (Online Examination Result)</span>
+          </div>
+        </div>
+        <button class="btn-close-modal" style="background:rgba(255,255,255,0.1); color:#fff; border:none;" onclick="closeModal('modal-quiz-result')"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="modal-body">
-        <!-- Result Summary Card -->
-        <div style="text-align:center; padding:20px; background:linear-gradient(135deg, #eff6ff, #dbeafe); border-radius:16px; margin-bottom:20px;">
-          <div style="font-size:1.1rem; color:#1e40af; font-weight:600;">คะแนนที่ได้</div>
-          <div style="font-size:3rem; font-weight:800; color:#2563eb;" id="res-score-display">0 / 0</div>
-          <div id="res-status-badge" style="margin-top:6px;"></div>
+
+      <div class="modal-body exam-body" style="padding:22px 24px;">
+        <!-- Result Hero Banner -->
+        <div class="exam-result-hero">
+          <div class="exam-result-hero-left">
+            <div style="font-size:0.9rem; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.5px;">คะแนนสอบที่ได้ (Score)</div>
+            <div class="exam-result-score-big" id="res-score-display">0 / 0</div>
+            <div id="res-status-badge" style="margin-top:6px;"></div>
+          </div>
+          <div class="exam-result-hero-right" id="res-stats-summary">
+            <!-- Rendered percentage, correct count, pass requirement -->
+          </div>
         </div>
 
-        <h4 style="margin-bottom:12px; font-weight:700;"><i class="fa-solid fa-book-open-reader"></i> เฉลยและคำอธิบาย</h4>
-        <div id="quiz-explanation-list">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 12px;">
+          <h4 style="margin:0; font-weight:800; font-size:1.1rem; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-book-open-reader" style="color:var(--primary);"></i> เฉลยคำตอบและคำอธิบายข้อสอบ
+          </h4>
+        </div>
+
+        <div id="quiz-explanation-list" style="display:flex; flex-direction:column; gap:14px;">
           <!-- Answer key items rendered here -->
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" onclick="closeModal('modal-quiz-result')">ปิดหน้าต่าง</button>
+
+      <div class="exam-footer-bar" style="justify-content:flex-end;">
+        <button type="button" class="btn btn-primary" onclick="closeModal('modal-quiz-result')" style="border-radius:10px; font-weight:700; padding:9px 24px;">
+          <i class="fa-solid fa-circle-check"></i> เสร็จสิ้นและปิดหน้าต่าง
+        </button>
       </div>
     </div>
   </div>
@@ -1187,8 +1315,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=5.8.0"></script>
-  <script src="js/cloudinary.js?v=5.8.0"></script>
-  <script src="js/app.js?v=5.8.0"></script>
+  <script src="js/firebase-config.js?v=6.0.0"></script>
+  <script src="js/cloudinary.js?v=6.0.0"></script>
+  <script src="js/app.js?v=6.0.0"></script>
 </body>
 </html>
