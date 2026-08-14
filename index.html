@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Myclassroom - ระบบห้องเรียนออนไลน์</title>
+  
+  <!-- FontAwesome Icons & Google Font Sarabun -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css?v=1.0.0">
+
+  <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+  <!-- ==========================================
+       1. LOGIN SCREEN (Inspired by PR Care+ design)
+  =========================================== -->
+  <div id="login-screen" class="login-wrapper">
+    <div class="login-card-container">
+      
+      <!-- Left Branding Panel -->
+      <div class="login-branding">
+        <div class="brand-header">
+          <div class="brand-logo-icon">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <h1 class="brand-title">Myclassroom</h1>
+          <p class="brand-subtitle">ระบบห้องเรียนออนไลน์และจัดการการเรียนรู้</p>
+        </div>
+
+        <div class="brand-features">
+          <div class="feature-pill">
+            <i class="fa-solid fa-bolt"></i>
+            <span>ข้อมูล Realtime Sync สด 100% ข้ามทุกอุปกรณ์</span>
+          </div>
+          <div class="feature-pill">
+            <i class="fa-solid fa-file-csv"></i>
+            <span>นำเข้ารายชื่อนักเรียนด้วยไฟล์ CSV ได้สะดวก</span>
+          </div>
+          <div class="feature-pill">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>จัดเก็บไฟล์รูปงานผ่าน Cloudinary CDN ความละเอียดสูง</span>
+          </div>
+          <div class="feature-pill">
+            <i class="fa-solid fa-stopwatch"></i>
+            <span>ระบบทำแบบทดสอบแบบ 4 และ 5 ตัวเลือก จับเวลาพร้อมเฉลย</span>
+          </div>
+        </div>
+
+        <div class="brand-footer">
+          <span>© 2026 Myclassroom System</span>
+          <span class="ver-tag">v2.5 Realtime</span>
+        </div>
+      </div>
+
+      <!-- Right Form Panel -->
+      <div class="login-form-side">
+        <div class="login-header">
+          <div class="login-avatar">
+            <i class="fa-solid fa-user-lock"></i>
+          </div>
+          <h2 class="login-title">เข้าสู่ระบบ</h2>
+          <p class="login-desc">กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเข้าใช้งานระบบ Myclassroom</p>
+        </div>
+
+        <!-- Role Select Tabs -->
+        <div class="role-tabs">
+          <button type="button" class="role-tab-btn active" id="tab-teacher" onclick="switchLoginRole('teacher')">
+            <i class="fa-solid fa-chalkboard-user"></i> ครู / บุคลากร
+          </button>
+          <button type="button" class="role-tab-btn" id="tab-student" onclick="switchLoginRole('student')">
+            <i class="fa-solid fa-user-graduate"></i> นักเรียน
+          </button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" id="username-label">ชื่อผู้ใช้งาน (Username)</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-user input-icon"></i>
+              <input type="text" id="login-username" class="form-control" placeholder="เบอร์โทรศัพท์ (ครู) / รหัสประจำตัว (นักเรียน)" required autocomplete="username">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">รหัสผ่าน (Password)</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-lock input-icon"></i>
+              <input type="password" id="login-password" class="form-control" placeholder="รหัสผ่าน" required autocomplete="current-password">
+              <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('login-password', this)">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Helpful Info Callout Box -->
+          <div class="login-info-box" id="login-info-box">
+            <div class="login-info-title">
+              <i class="fa-solid fa-circle-info"></i> รูปแบบการเข้าใช้งาน:
+            </div>
+            <ul class="login-info-list">
+              <li id="info-teacher-desc"><strong>ครู / บุคลากร:</strong> ใช้ ชื่อผู้ใช้ และ รหัสผ่าน ที่กำหนดไว้</li>
+              <li id="info-student-desc" style="display:none;"><strong>นักเรียน:</strong> ใช้ <u>รหัสประจำตัวนักเรียน</u> เป็นทั้งชื่อผู้ใช้และรหัสผ่าน</li>
+            </ul>
+          </div>
+
+          <button type="submit" class="btn-primary-large" id="btn-login-submit">
+            <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ (Sign In)
+          </button>
+        </form>
+
+        <div class="security-badge">
+          <i class="fa-solid fa-shield-halved"></i> 256-Bit Encrypted Realtime Cloud Security System (Firebase DB)
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==========================================
+       2. MAIN APP DASHBOARD SCREEN
+  =========================================== -->
+  <div id="app-screen" class="app-container" style="display: none;">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+          <div class="sidebar-brand-name">Myclassroom</div>
+          <div class="sidebar-brand-sub">ระบบห้องเรียนออนไลน์</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-item active" onclick="switchNav('dashboard')" id="nav-dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>แดชบอร์ด</span>
+        </a>
+        <a class="nav-item" onclick="switchNav('students')" id="nav-students">
+          <i class="fa-solid fa-users"></i>
+          <span>รายชื่อนักเรียน</span>
+        </a>
+        <a class="nav-item" onclick="switchNav('courses')" id="nav-courses">
+          <i class="fa-solid fa-book-open"></i>
+          <span>รายวิชาและการบ้าน</span>
+        </a>
+        <a class="nav-item" onclick="switchNav('quizzes')" id="nav-quizzes">
+          <i class="fa-solid fa-list-check"></i>
+          <span>แบบทดสอบ</span>
+        </a>
+        <a class="nav-item" onclick="switchNav('reports')" id="nav-reports">
+          <i class="fa-solid fa-square-poll-vertical"></i>
+          <span>รายงานคะแนน</span>
+        </a>
+        <a class="nav-item" onclick="switchNav('users')" id="nav-users">
+          <i class="fa-solid fa-user-gear"></i>
+          <span>จัดการผู้ใช้</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-user">
+        <div class="user-info">
+          <div class="user-avatar" id="sidebar-user-avatar">C</div>
+          <div class="user-details">
+            <span class="user-name" id="sidebar-user-name">คุณครูผู้สอน</span>
+            <span class="user-role-badge" id="sidebar-user-role">ครูผู้สอน</span>
+          </div>
+        </div>
+        <button class="btn-logout" onclick="handleLogout()" title="ออกจากระบบ">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <main class="main-wrapper">
+      
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-title-container">
+          <button class="mobile-toggle" onclick="toggleSidebar()">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <h1 class="page-title" id="page-title">แดชบอร์ดภาพรวมระบบ</h1>
+        </div>
+
+        <div class="header-right">
+          <div class="live-indicator" title="ข้อมูลอัปเดตสดจาก Google Firebase Realtime DB">
+            <div class="live-dot"></div>
+            <span>Realtime Live (0.1s)</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Views Body -->
+      <div class="content-body">
+
+        <!-- VIEW 1: DASHBOARD -->
+        <section id="view-dashboard" class="app-view active">
+          <!-- Banner Announcement -->
+          <div class="announcement-box">
+            <div class="announcement-title">
+              <i class="fa-solid fa-bullhorn"></i>
+              <span id="announcement-heading">ประกาศจากห้องเรียน</span>
+              <button class="btn btn-sm btn-secondary teacher-only" onclick="openAnnouncementModal()" style="margin-left: auto; font-size:0.85rem;">
+                <i class="fa-solid fa-pen-to-square"></i> แก้ไขประกาศ
+              </button>
+            </div>
+            <div class="announcement-content" id="announcement-body">
+              ยินดีต้อนรับสู่ระบบห้องเรียนออนไลน์ Myclassroom สามารถเข้าทำแบบทดสอบ ส่งการบ้าน และตรวจเช็คคะแนนได้สดเรียลไทม์
+            </div>
+          </div>
+
+          <!-- Stat Cards Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue">
+                <i class="fa-solid fa-user-graduate"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-students-count">0</span>
+                <span class="stat-label">นักเรียนในระบบ (คน)</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon green">
+                <i class="fa-solid fa-book-bookmark"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-courses-count">0</span>
+                <span class="stat-label">รายวิชาทั้งหมด</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon purple">
+                <i class="fa-solid fa-file-pen"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-homework-count">0</span>
+                <span class="stat-label">การบ้านที่สั่งแล้ว</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon amber">
+                <i class="fa-solid fa-stopwatch"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-quizzes-count">0</span>
+                <span class="stat-label">แบบทดสอบที่สร้าง</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dashboard Layout Grid -->
+          <div class="dashboard-layout">
+            <!-- Left: Quick Overview Cards -->
+            <div>
+              <div class="card">
+                <div class="card-title">
+                  <span><i class="fa-solid fa-paper-plane" style="color:var(--primary)"></i> การบ้านและการส่งงานล่าสุด</span>
+                  <button class="btn btn-sm btn-outline-primary" onclick="switchNav('courses')">ดูทั้งหมด</button>
+                </div>
+                <div id="dashboard-homework-summary">
+                  <p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีข้อมูลการบ้าน</p>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-title">
+                  <span><i class="fa-solid fa-brain" style="color:var(--warning)"></i> แบบทดสอบที่เปิดทำ</span>
+                  <button class="btn btn-sm btn-outline-primary" onclick="switchNav('quizzes')">ดูทั้งหมด</button>
+                </div>
+                <div id="dashboard-quiz-summary">
+                  <p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีแบบทดสอบ</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Activity Feed -->
+            <div>
+              <div class="card">
+                <div class="card-title">
+                  <span><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent)"></i> กิจกรรมล่าสุดในระบบ</span>
+                </div>
+                <div class="activity-list" id="activity-feed">
+                  <div class="activity-item">
+                    <div class="activity-icon"><i class="fa-solid fa-check"></i></div>
+                    <div>
+                      <div class="activity-text">ระบบเริ่มต้นพร้อมใช้งาน</div>
+                      <div class="activity-time">เมื่อสักครู่</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- VIEW 2: STUDENTS ROSTER -->
+        <section id="view-students" class="app-view" style="display: none;">
+          <div class="card">
+            <div class="card-title">
+              <span><i class="fa-solid fa-users"></i> รายชื่อนักเรียนในระบบ</span>
+              <div class="teacher-only" style="display:flex; gap:10px;">
+                <button class="btn btn-success" onclick="openImportCsvModal()">
+                  <i class="fa-solid fa-file-csv"></i> นำเข้าด้วย CSV
+                </button>
+                <button class="btn btn-primary" onclick="openAddStudentModal()">
+                  <i class="fa-solid fa-user-plus"></i> เพิ่มนักเรียน
+                </button>
+              </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div style="display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:200px;" class="input-with-icon">
+                <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                <input type="text" id="student-search-input" class="form-control" placeholder="ค้นหา รหัสประจำตัว หรือ ชื่อ-สกุล..." oninput="renderStudentsTable()">
+              </div>
+              <div style="width:180px;">
+                <select id="student-class-filter" class="form-control" onchange="renderStudentsTable()" style="padding-left:14px;">
+                  <option value="">-- ทุกระดับชั้น --</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Students Table -->
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 70px;">เลขที่</th>
+                    <th>รหัสประจำตัว</th>
+                    <th>ชื่อ - สกุล</th>
+                    <th>ระดับชั้น</th>
+                    <th>ครูที่ปรึกษา</th>
+                    <th>สถานะบัญชี Login</th>
+                    <th class="teacher-only" style="width: 100px; text-align:center;">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="students-table-body">
+                  <tr>
+                    <td colspan="7" style="text-align:center; padding:30px;" class="text-muted">กำลังโหลดข้อมูล...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- VIEW 3: COURSES & HOMEWORK -->
+        <section id="view-courses" class="app-view" style="display: none;">
+          <div class="card">
+            <div class="card-title">
+              <span><i class="fa-solid fa-book-open"></i> รายวิชาและการบ้าน</span>
+              <div class="teacher-only" style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="openAddCourseModal()">
+                  <i class="fa-solid fa-folder-plus"></i> สร้างรายวิชา
+                </button>
+                <button class="btn btn-success" onclick="openCreateHomeworkModal()">
+                  <i class="fa-solid fa-plus-circle"></i> สั่งการบ้านใหม่
+                </button>
+              </div>
+            </div>
+
+            <!-- Course Cards & Homework Grid -->
+            <div id="courses-list-container">
+              <p class="text-muted" style="text-align:center; padding:30px;">ยังไม่มีรายวิชาในระบบ</p>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- VIEW 4: QUIZZES -->
+        <section id="view-quizzes" class="app-view" style="display: none;">
+          <div class="card">
+            <div class="card-title">
+              <span><i class="fa-solid fa-list-check"></i> คลังแบบทดสอบและข้อสอบ</span>
+              <button class="btn btn-primary teacher-only" onclick="openCreateQuizModal()">
+                <i class="fa-solid fa-square-plus"></i> สร้างแบบทดสอบใหม่
+              </button>
+            </div>
+
+            <div id="quizzes-list-container">
+              <p class="text-muted" style="text-align:center; padding:30px;">ยังไม่มีแบบทดสอบในระบบ</p>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- VIEW 5: SCORE REPORTS -->
+        <section id="view-reports" class="app-view" style="display: none;">
+          <div class="card">
+            <div class="card-title">
+              <span><i class="fa-solid fa-square-poll-vertical"></i> สรุปรายงานคะแนนเก็บและคะแนนสอบ</span>
+              <button class="btn btn-secondary no-print" onclick="window.print()">
+                <i class="fa-solid fa-print"></i> พิมพ์รายงาน / PDF
+              </button>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="no-print" style="display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap;">
+              <div style="width:200px;">
+                <select id="report-class-filter" class="form-control" onchange="renderScoreReports()" style="padding-left:14px;">
+                  <option value="">-- ทุกระดับชั้น --</option>
+                </select>
+              </div>
+              <div style="width:220px;">
+                <select id="report-course-filter" class="form-control" onchange="renderScoreReports()" style="padding-left:14px;">
+                  <option value="">-- ทุกรายวิชา --</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Score Table -->
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>เลขที่</th>
+                    <th>รหัสประจำตัว</th>
+                    <th>ชื่อ - สกุล</th>
+                    <th>ระดับชั้น</th>
+                    <th>คะแนนการบ้าน</th>
+                    <th>คะแนนแบบทดสอบ</th>
+                    <th>รวมคะแนนเก็บ</th>
+                    <th>เกรดประเมิน</th>
+                  </tr>
+                </thead>
+                <tbody id="reports-table-body">
+                  <tr>
+                    <td colspan="8" style="text-align:center; padding:30px;" class="text-muted">กำลังโหลดรายงาน...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- VIEW 6: USER MANAGEMENT -->
+        <section id="view-users" class="app-view" style="display: none;">
+          <div class="card">
+            <div class="card-title">
+              <span><i class="fa-solid fa-user-gear"></i> จัดการผู้ใช้งานในระบบ</span>
+              <button class="btn btn-primary" onclick="openAddUserModal()">
+                <i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้งาน
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>ชื่อผู้ใช้งาน (Username)</th>
+                    <th>ชื่อ - สกุล</th>
+                    <th>สิทธิ์ / บทบาท</th>
+                    <th>รหัสประจำตัว / ข้อมูล</th>
+                    <th style="width: 140px; text-align:center;">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <tr>
+                    <td colspan="5" style="text-align:center; padding:30px;" class="text-muted">กำลังโหลดข้อมูลผู้ใช้...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+
+  <!-- ==========================================
+       MODALS SYSTEM
+  =========================================== -->
+
+  <!-- Modal 1: Add Student Modal -->
+  <div class="modal-overlay" id="modal-add-student">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-user-plus"></i> เพิ่มข้อมูลนักเรียน</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-add-student')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveStudentForm(event)">
+        <div class="modal-body">
+          <div style="display:grid; grid-template-columns:1fr 2fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">เลขที่ *</label>
+              <input type="number" id="std-no" class="form-control" style="padding-left:14px;" required min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">รหัสประจำตัว *</label>
+              <input type="text" id="std-id" class="form-control" style="padding-left:14px;" required placeholder="เช่น 66001">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ชื่อ - สกุล *</label>
+            <input type="text" id="std-name" class="form-control" style="padding-left:14px;" required placeholder="ด.ช./ด.ญ./นาย/นางสาว...">
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">ระดับชั้น *</label>
+              <input type="text" id="std-class" class="form-control" style="padding-left:14px;" required placeholder="เช่น ม.1/1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ครูที่ปรึกษา *</label>
+              <input type="text" id="std-advisor" class="form-control" style="padding-left:14px;" required placeholder="ชื่อครูที่ปรึกษา">
+            </div>
+          </div>
+          
+          <div class="login-info-box" style="margin-top:10px; margin-bottom:0;">
+            <i class="fa-solid fa-key"></i> ระบบจะสร้างสิทธิ์เข้าใช้งานให้นักเรียนอัตโนมัติ โดยใช้ <strong>รหัสประจำตัว</strong> เป็นทั้งชื่อผู้ใช้และรหัสผ่าน
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-student')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> บันทึกข้อมูล</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 2: Import CSV Modal -->
+  <div class="modal-overlay" id="modal-import-csv">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-file-csv"></i> นำเข้ารายชื่อนักเรียนด้วย CSV</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-import-csv')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="processCsvImport(event)">
+        <div class="modal-body">
+          <div class="login-info-box">
+            <div class="login-info-title"><i class="fa-solid fa-circle-info"></i> รูปแบบไฟล์ CSV ที่รองรับ:</div>
+            <p>ต้องมีหัวคอลัมน์ (Header) ดังนี้ตรงทุกประการ:</p>
+            <code style="background:#ffffff; padding:4px 8px; border-radius:6px; display:block; margin-top:6px; font-weight:bold; color:#1e40af;">เลขที่, รหัสประจำตัว, ชื่อ-สกุล, ระดับชั้น, ครูที่ปรึกษา</code>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">เลือกไฟล์ CSV *</label>
+            <input type="file" id="csv-file-input" class="form-control" accept=".csv" required style="padding-left:14px;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-import-csv')">ยกเลิก</button>
+          <button type="submit" class="btn btn-success"><i class="fa-solid fa-upload"></i> เริ่มนำเข้าข้อมูล</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 3: Add Course Modal -->
+  <div class="modal-overlay" id="modal-add-course">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-folder-plus"></i> สร้างรายวิชาใหม่</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-add-course')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveCourseForm(event)">
+        <div class="modal-body">
+          <div style="display:grid; grid-template-columns:1fr 2fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">รหัสวิชา *</label>
+              <input type="text" id="course-code" class="form-control" style="padding-left:14px;" required placeholder="เช่น ว21101">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ชื่อรายวิชา *</label>
+              <input type="text" id="course-name" class="form-control" style="padding-left:14px;" required placeholder="เช่น วิทยาการคำนวณ 1">
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">ระดับชั้น *</label>
+              <input type="text" id="course-level" class="form-control" style="padding-left:14px;" required placeholder="เช่น ม.1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ครูผู้สอน *</label>
+              <input type="text" id="course-teacher" class="form-control" style="padding-left:14px;" required placeholder="ชื่อครูผู้สอน">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-course')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> สร้างรายวิชา</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 4: Create Homework Modal -->
+  <div class="modal-overlay" id="modal-create-homework">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-plus-circle"></i> มอบหมายการบ้านใหม่</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-create-homework')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveHomeworkForm(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">เลือกรายวิชา *</label>
+            <select id="hw-course-id" class="form-control" style="padding-left:14px;" required>
+              <!-- Options loaded dynamically -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">หัวข้อการบ้าน / ชิ้นงาน *</label>
+            <input type="text" id="hw-title" class="form-control" style="padding-left:14px;" required placeholder="เช่น ใบงานที่ 1 เรื่องขั้นตอนการแก้ปัญหา">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">รายละเอียดคำสั่งงาน</label>
+            <textarea id="hw-desc" class="form-control" style="padding-left:14px; height:90px;" placeholder="คำอธิบายรายละเอียดงานเพิ่มเติม..."></textarea>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">คะแนนเต็ม *</label>
+              <input type="number" id="hw-max-score" class="form-control" style="padding-left:14px;" required value="10" min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">กำหนดส่ง *</label>
+              <input type="date" id="hw-due-date" class="form-control" style="padding-left:14px;" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">รูปภาพแนบคำสั่งงาน (อัปโหลดเข้า Cloudinary)</label>
+            <input type="file" id="hw-img-file" class="form-control" accept="image/*" style="padding-left:14px;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-homework')">ยกเลิก</button>
+          <button type="submit" class="btn btn-success" id="btn-save-hw">
+            <i class="fa-solid fa-paper-plane"></i> ประกาศการบ้าน
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 5: Student Submit Homework Modal -->
+  <div class="modal-overlay" id="modal-submit-homework">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-file-arrow-up"></i> ส่งการบ้าน</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-submit-homework')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="handleStudentHomeworkSubmit(event)">
+        <input type="hidden" id="submit-hw-id">
+        <div class="modal-body">
+          <div id="submit-hw-details" style="margin-bottom:16px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid var(--border);">
+            <!-- HW title & instruction rendered here -->
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ข้อความคำตอบ / หมายเหตุ</label>
+            <textarea id="submit-text-answer" class="form-control" style="padding-left:14px; height:80px;" placeholder="พิมพ์ข้อความคำตอบ หรือรายละเอียดชิ้นงาน..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ถ่ายรูป / แนบรูปภาพชิ้นงาน (Cloudinary CDN)</label>
+            <input type="file" id="submit-img-file" class="form-control" accept="image/*" style="padding-left:14px;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-submit-homework')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary" id="btn-do-submit-hw">
+            <i class="fa-solid fa-cloud-arrow-up"></i> ยืนยันการส่งงาน
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 6: Teacher Grade Homework Submissions Modal -->
+  <div class="modal-overlay" id="modal-grade-submissions">
+    <div class="modal-container" style="max-width:850px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-list-check"></i> ตรวจชิ้นงานและการบ้านนักเรียน</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-grade-submissions')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <h4 id="grade-hw-title" style="margin-bottom:12px; color:var(--primary);">ชื่อการบ้าน</h4>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>นักเรียน</th>
+                <th>วันที่ส่ง</th>
+                <th>คำตอบ / รูปชิ้นงาน</th>
+                <th style="width:140px;">คะแนน</th>
+                <th>คอมเมนต์</th>
+                <th>บันทึก</th>
+              </tr>
+            </thead>
+            <tbody id="grade-submissions-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-grade-submissions')">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 7: Create Quiz Builder Modal -->
+  <div class="modal-overlay" id="modal-create-quiz">
+    <div class="modal-container" style="max-width:800px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-square-plus"></i> สร้างแบบทดสอบ / ข้อสอบ</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-create-quiz')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveQuizForm(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">เลือกรายวิชา *</label>
+            <select id="quiz-course-id" class="form-control" style="padding-left:14px;" required>
+              <!-- Options loaded dynamically -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ชื่อแบบทดสอบ *</label>
+            <input type="text" id="quiz-title" class="form-control" style="padding-left:14px;" required placeholder="เช่น แบบทดสอบหลังเรียน บทที่ 1">
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
+            <div class="form-group">
+              <label class="form-label">ชนิดตัวเลือก *</label>
+              <select id="quiz-type" class="form-control" style="padding-left:14px;" onchange="renderQuizQuestionsBuilder()">
+                <option value="4">4 ตัวเลือก (ก-ง)</option>
+                <option value="5">5 ตัวเลือก (ก-จ)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">เวลาทำสอบ (นาที) *</label>
+              <input type="number" id="quiz-duration" class="form-control" style="padding-left:14px;" required value="15" min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">คะแนนผ่าน (%) *</label>
+              <input type="number" id="quiz-pass-score" class="form-control" style="padding-left:14px;" required value="50" min="1" max="100">
+            </div>
+          </div>
+
+          <!-- Dynamic Questions Builder -->
+          <hr style="margin:20px 0; border-color:var(--border);">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <h4 style="font-weight:700;"><i class="fa-solid fa-question-circle"></i> รายการคำถามข้อสอบ</h4>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addQuizQuestionItem()">
+              <i class="fa-solid fa-plus"></i> เพิ่มข้อสอบ
+            </button>
+          </div>
+
+          <div id="quiz-questions-builder-container">
+            <!-- Question item boxes rendered here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-quiz')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> บันทึกข้อสอบ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 8: Quiz Runner Modal (Making Quiz with Live Timer) -->
+  <div class="modal-overlay" id="modal-take-quiz">
+    <div class="modal-container" style="max-width:800px;">
+      <div class="quiz-timer-bar">
+        <div>
+          <span style="font-size:1.1rem; font-weight:700;" id="runner-quiz-title">แบบทดสอบ</span>
+          <span style="font-size:0.85rem; opacity:0.8; display:block;" id="runner-course-name">วิชา...</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-stopwatch" style="font-size:1.4rem; color:#38bdf8;"></i>
+          <span class="timer-countdown" id="quiz-countdown-display">15:00</span>
+        </div>
+      </div>
+
+      <div class="modal-body" id="quiz-runner-body">
+        <!-- Rendered active questions -->
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="confirmCancelQuiz()">ยกเลิกการทำสอบ</button>
+        <button type="button" class="btn btn-success" onclick="submitQuizAnswers(true)">
+          <i class="fa-solid fa-paper-plane"></i> ส่งข้อสอบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 9: Quiz Result & Detailed Explanations Modal -->
+  <div class="modal-overlay" id="modal-quiz-result">
+    <div class="modal-container" style="max-width:750px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-trophy"></i> ผลการทำแบบทดสอบและเฉลย</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-quiz-result')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- Result Summary Card -->
+        <div style="text-align:center; padding:20px; background:linear-gradient(135deg, #eff6ff, #dbeafe); border-radius:16px; margin-bottom:20px;">
+          <div style="font-size:1.1rem; color:#1e40af; font-weight:600;">คะแนนที่ได้</div>
+          <div style="font-size:3rem; font-weight:800; color:#2563eb;" id="res-score-display">0 / 0</div>
+          <div id="res-status-badge" style="margin-top:6px;"></div>
+        </div>
+
+        <h4 style="margin-bottom:12px; font-weight:700;"><i class="fa-solid fa-book-open-reader"></i> เฉลยและคำอธิบาย</h4>
+        <div id="quiz-explanation-list">
+          <!-- Answer key items rendered here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="closeModal('modal-quiz-result')">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Modal 10: Announcement Modal -->
+  <div class="modal-overlay" id="modal-announcement">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-bullhorn"></i> ประกาศข่าวสารห้องเรียน</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-announcement')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveAnnouncementForm(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">หัวข้อประกาศ *</label>
+            <input type="text" id="announce-title" class="form-control" style="padding-left:14px;" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">เนื้อหาประกาศ *</label>
+            <textarea id="announce-body" class="form-control" style="padding-left:14px; height:100px;" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-announcement')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> บันทึกประกาศ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 11: Add User Modal -->
+  <div class="modal-overlay" id="modal-add-user">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้งานในระบบ</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-add-user')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveUserForm(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">สิทธิ์ / บทบาท *</label>
+            <select id="new-user-role" class="form-control" style="padding-left:14px;" required onchange="toggleUserFormFields()">
+              <option value="teacher">ครูผู้สอน / บุคลากร</option>
+              <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+              <option value="student">นักเรียน (Student)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ชื่อผู้ใช้งาน (Username) *</label>
+            <input type="text" id="new-username" class="form-control" style="padding-left:14px;" required placeholder="เบอร์โทร หรือ รหัสประจำตัว">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">ชื่อ - สกุล *</label>
+            <input type="text" id="new-user-fullname" class="form-control" style="padding-left:14px;" required placeholder="ชื่อ-นามสกุล">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">รหัสผ่าน (Password) *</label>
+            <input type="password" id="new-user-password" class="form-control" style="padding-left:14px;" required placeholder="ตั้งรหัสผ่าน">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-user')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> สร้างบัญชี</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 12: Change Password Modal -->
+  <div class="modal-overlay" id="modal-change-password">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-key"></i> เปลี่ยนรหัสผ่านผู้ใช้งาน</h3>
+        <button class="btn-close-modal" onclick="closeModal('modal-change-password')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="saveChangePassword(event)">
+        <input type="hidden" id="change-pwd-username">
+        <div class="modal-body">
+          <p style="margin-bottom:14px; font-weight:600;" id="change-pwd-target-info">ผู้ใช้งาน: ...</p>
+          <div class="form-group">
+            <label class="form-label">รหัสผ่านใหม่ *</label>
+            <input type="password" id="target-new-password" class="form-control" style="padding-left:14px;" required placeholder="กรอกรหัสผ่านใหม่">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-change-password')">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> บันทึกรหัสผ่านใหม่</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 13: Image Lightbox Preview Modal -->
+  <div class="modal-overlay" id="modal-lightbox">
+    <div class="modal-container" style="max-width:90vw; background:transparent; box-shadow:none;">
+      <div style="text-align:right; margin-bottom:10px;">
+        <button class="btn btn-sm btn-danger" onclick="closeModal('modal-lightbox')"><i class="fa-solid fa-xmark"></i> ปิดรูปภาพ</button>
+      </div>
+      <img id="lightbox-img-target" src="" class="lightbox-img" alt="ชิ้นงานรูปใหญ่">
+    </div>
+  </div>
+
+
+  <!-- JS Scripts -->
+  <script src="js/firebase-config.js?v=1.0.0"></script>
+  <script src="js/cloudinary.js?v=1.0.0"></script>
+  <script src="js/app.js?v=1.0.0"></script>
+</body>
+</html>
