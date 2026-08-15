@@ -1061,19 +1061,20 @@ a {
 
 .app-view {
   display: none;
-  animation: fadeIn 0.25s ease-in-out;
+  animation: fadeIn 0.2s ease-in-out;
+  contain: layout style;
 }
 .app-view.active {
   display: block;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 /* ==========================================================================
-   3. CARDS & HERO BANNER (Modern High-Tech Cyber Styling)
+   3. CARDS & HERO BANNER (Modern High-Tech Cyber Styling - GPU Optimized)
    ========================================================================== */
 /* Hero Banner Announcement */
 .announcement-box {
@@ -1086,6 +1087,8 @@ a {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(56, 189, 248, 0.35);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .banner-shimmer-sweep {
@@ -1095,8 +1098,9 @@ a {
   width: 60%;
   height: 100%;
   background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.22) 50%, transparent 100%);
-  transform: skewX(-25deg);
+  transform: skewX(-25deg) translateZ(0);
   pointer-events: none;
+  will-change: left;
   animation: bannerShimmerSweep 5.5s ease-in-out infinite;
 }
 
@@ -1246,11 +1250,13 @@ a {
   align-items: center;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
 }
 
 .card-stat-shimmer:hover {
-  transform: translateY(-4px);
+  transform: translateY(-4px) translateZ(0);
   box-shadow: 0 14px 28px -4px rgba(15, 23, 42, 0.12), 0 0 20px rgba(56, 189, 248, 0.15);
   border-color: var(--card-accent, #38bdf8);
 }
@@ -1262,8 +1268,9 @@ a {
   width: 50%;
   height: 100%;
   background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.65) 50%, transparent 100%);
-  transform: skewX(-25deg);
+  transform: skewX(-25deg) translateZ(0);
   pointer-events: none;
+  will-change: left;
   animation: statShimmerSweep 4.5s ease-in-out infinite;
   animation-delay: var(--shimmer-delay, 0s);
 }

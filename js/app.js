@@ -76,12 +76,15 @@ function showPopupConfirm(title, text = '', confirmText = 'ยืนยัน', 
 }
 
 /* -------------------------------------------------------------
-   0. 3D CYBER MATRIX & PROGRAMMING DATA FLOW CANVAS ENGINE
+   0. 3D CYBER MATRIX & PROGRAMMING DATA FLOW CANVAS ENGINE (HIGH PERFORMANCE)
 ------------------------------------------------------------- */
+let cyberCanvasAnimId = null;
+let isCyberCanvasActive = false;
+
 function initCyberDataFlowCanvas() {
   const canvas = document.getElementById('cyber-matrix-canvas');
   if (!canvas) return;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: true });
   if (!ctx) return;
 
   function resizeCanvas() {
@@ -89,18 +92,23 @@ function initCyberDataFlowCanvas() {
     canvas.height = window.innerHeight;
   }
   resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
 
-  // Mouse cursor attraction
-  const mouse = { x: null, y: null, maxDist: 170 };
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resizeCanvas, 150);
+  }, { passive: true });
+
+  // Mouse cursor attraction with passive listener
+  const mouse = { x: null, y: null, maxDist: 150 };
   window.addEventListener('mousemove', (e) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
-  });
+  }, { passive: true });
   window.addEventListener('mouseleave', () => {
     mouse.x = null;
     mouse.y = null;
-  });
+  }, { passive: true });
 
   // Cyber Neon Colors Palette
   const neonColors = [
@@ -111,18 +119,19 @@ function initCyberDataFlowCanvas() {
     { r: 232, g: 121, b: 249 }   // Neon Violet
   ];
 
-  // 1. Cyber Network Nodes
-  const nodeCount = Math.min(Math.floor((window.innerWidth * window.innerHeight) / 14000), 80);
+  // 1. Cyber Network Nodes (Optimized count for 60fps)
+  const isMobile = window.innerWidth < 768;
+  const nodeCount = isMobile ? 24 : Math.min(Math.floor((window.innerWidth * window.innerHeight) / 22000), 50);
   const nodes = [];
 
   for (let i = 0; i < nodeCount; i++) {
-    const col = neonColors[Math.floor(Math.random() * neonColors.length)];
+    const col = neonColors[i % neonColors.length];
     nodes.push({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.75,
-      vy: (Math.random() - 0.5) * 0.75,
-      radius: Math.random() * 2.2 + 1.2,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: (Math.random() - 0.5) * 0.6,
+      radius: Math.random() * 1.8 + 1.2,
       color: col,
       pulse: Math.random() * Math.PI,
       pulseSpeed: Math.random() * 0.03 + 0.015
@@ -131,7 +140,7 @@ function initCyberDataFlowCanvas() {
 
   // 2. Fiber-Optic Data Packet Pulses
   const packets = [];
-  const maxPackets = 25;
+  const maxPackets = isMobile ? 8 : 16;
 
   function spawnPacket(n1, n2) {
     if (packets.length >= maxPackets) return;
@@ -141,7 +150,7 @@ function initCyberDataFlowCanvas() {
       x2: n2.x,
       y2: n2.y,
       progress: 0,
-      speed: Math.random() * 0.02 + 0.012,
+      speed: Math.random() * 0.02 + 0.015,
       color: n1.color
     });
   }
@@ -156,7 +165,7 @@ function initCyberDataFlowCanvas() {
     "if (student.quizScore >= passScore) { status = 'PASSED'; }",
     "import { realtimeDB, auth } from '@firebase/app';",
     "01010100 01100101 01100011 01101000 01101110",
-    "git commit -m 'Release classroom v6.7' && git push",
+    "git commit -m 'Release classroom v3.2' && git push",
     "SELECT student_id, name, score FROM exam_matrix;",
     "const token = await generateSecureAuthToken();",
     "while (connection.status === 'CONNECTED') { stream(); }",
@@ -166,42 +175,44 @@ function initCyberDataFlowCanvas() {
     "function gradeEvaluation(score, total) { return (score/total)*100; }",
     "{ status: 200, latency: '12ms', sync: 'LIVE' }",
     "addEventListener('DOMContentLoaded', () => initApp());",
-    "01110011 01110101 01100011 01100011 01100101 01110011 01110011",
     "<div class=\"live-education-platform\">",
     "return new Promise((resolve) => resolve({ connected: true }));"
   ];
 
   const floatingCodes = [];
-  const codeCount = Math.min(Math.floor(window.innerWidth / 70), 24);
+  const codeCount = isMobile ? 8 : Math.min(Math.floor(window.innerWidth / 110), 16);
 
   for (let i = 0; i < codeCount; i++) {
     floatingCodes.push({
-      text: codeSnippets[Math.floor(Math.random() * codeSnippets.length)],
+      text: codeSnippets[i % codeSnippets.length],
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      vy: -(Math.random() * 0.5 + 0.3),
-      alpha: Math.random() * 0.4 + 0.45,
-      size: Math.floor(Math.random() * 3) + 12,
-      color: neonColors[Math.floor(Math.random() * neonColors.length)]
+      vy: -(Math.random() * 0.4 + 0.3),
+      alpha: Math.random() * 0.35 + 0.45,
+      size: Math.floor(Math.random() * 2) + 12,
+      color: neonColors[i % neonColors.length]
     });
   }
 
   function render() {
+    if (!isCyberCanvasActive) return;
+
     const width = canvas.width;
     const height = canvas.height;
 
-    // Check if login screen is active
+    // Check if login screen is active; if not, suspend loop to save 100% CPU
     const loginScreen = document.getElementById('login-screen');
     if (loginScreen && loginScreen.style.display === 'none') {
-      requestAnimationFrame(render);
+      isCyberCanvasActive = false;
       return;
     }
 
     ctx.clearRect(0, 0, width, height);
 
-    // --- A. Draw & Update Floating Code Streams ---
+    // --- A. Draw & Update Floating Code Streams (Optimized without heavy shadowBlur) ---
     ctx.textBaseline = 'middle';
-    floatingCodes.forEach((fc) => {
+    for (let i = 0; i < floatingCodes.length; i++) {
+      const fc = floatingCodes[i];
       fc.y += fc.vy;
       if (fc.y < -30) {
         fc.y = height + 30;
@@ -211,14 +222,11 @@ function initCyberDataFlowCanvas() {
 
       ctx.font = `600 ${fc.size}px 'Consolas', 'Fira Code', monospace`;
       ctx.fillStyle = `rgba(${fc.color.r}, ${fc.color.g}, ${fc.color.b}, ${fc.alpha})`;
-      ctx.shadowColor = `rgba(${fc.color.r}, ${fc.color.g}, ${fc.color.b}, 0.75)`;
-      ctx.shadowBlur = 8;
       ctx.fillText(fc.text, fc.x, fc.y);
-      ctx.shadowBlur = 0;
-    });
+    }
 
     // --- B. Update & Draw Connected Cyber Network ---
-    const connectionDist = 135;
+    const connectionDist = 120;
 
     for (let i = 0; i < nodes.length; i++) {
       const n1 = nodes[i];
@@ -238,14 +246,13 @@ function initCyberDataFlowCanvas() {
         const dy = mouse.y - n1.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < mouse.maxDist) {
-          const force = (1 - dist / mouse.maxDist) * 0.025;
+          const force = (1 - dist / mouse.maxDist) * 0.02;
           n1.x += dx * force;
           n1.y += dy * force;
 
-          // Connection to mouse
-          const mAlpha = (1 - dist / mouse.maxDist) * 0.45;
+          const mAlpha = (1 - dist / mouse.maxDist) * 0.4;
           ctx.strokeStyle = `rgba(56, 189, 248, ${mAlpha})`;
-          ctx.lineWidth = 1.2;
+          ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(n1.x, n1.y);
           ctx.lineTo(mouse.x, mouse.y);
@@ -253,7 +260,7 @@ function initCyberDataFlowCanvas() {
         }
       }
 
-      // Connect with other nodes
+      // Connect with nearby nodes
       for (let j = i + 1; j < nodes.length; j++) {
         const n2 = nodes[j];
         const dx = n1.x - n2.x;
@@ -261,30 +268,27 @@ function initCyberDataFlowCanvas() {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < connectionDist) {
-          const alpha = (1 - dist / connectionDist) * 0.32;
+          const alpha = (1 - dist / connectionDist) * 0.28;
           ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
-          ctx.lineWidth = 0.9;
+          ctx.lineWidth = 0.8;
           ctx.beginPath();
           ctx.moveTo(n1.x, n1.y);
           ctx.lineTo(n2.x, n2.y);
           ctx.stroke();
 
           // Occasionally spawn a data packet
-          if (Math.random() < 0.002) {
+          if (Math.random() < 0.0015) {
             spawnPacket(n1, n2);
           }
         }
       }
 
-      // Draw node circle with glowing aura
-      const currentRadius = n1.radius + Math.sin(n1.pulse) * 0.6;
+      // Draw node circle
+      const currentRadius = n1.radius + Math.sin(n1.pulse) * 0.5;
       ctx.fillStyle = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.9)`;
-      ctx.shadowColor = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.95)`;
-      ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.arc(n1.x, n1.y, Math.max(currentRadius, 1), 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
     }
 
     // --- C. Update & Draw Fiber-Optic Data Packets ---
@@ -301,23 +305,36 @@ function initCyberDataFlowCanvas() {
       const currY = p.y1 + (p.y2 - p.y1) * p.progress;
 
       ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, 1)`;
-      ctx.shadowBlur = 12;
       ctx.beginPath();
-      ctx.arc(currX, currY, 2.4, 0, Math.PI * 2);
+      ctx.arc(currX, currY, 2.2, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
     }
 
-    requestAnimationFrame(render);
+    cyberCanvasAnimId = requestAnimationFrame(render);
   }
 
-  render();
+  window.startCyberCanvas = function() {
+    if (isCyberCanvasActive) return;
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen && loginScreen.style.display === 'none') return;
+    isCyberCanvasActive = true;
+    cyberCanvasAnimId = requestAnimationFrame(render);
+  };
+
+  window.stopCyberCanvas = function() {
+    isCyberCanvasActive = false;
+    if (cyberCanvasAnimId) {
+      cancelAnimationFrame(cyberCanvasAnimId);
+      cyberCanvasAnimId = null;
+    }
+  };
+
+  window.startCyberCanvas();
 }
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("Myclassroom application starting...");
+  console.log("Krunoii Classroom application starting...");
   
   // Recover local client cache (ag_homework) for instant offline startup
   try {
@@ -338,35 +355,56 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* -------------------------------------------------------------
-   1. REALTIME SYNCHRONIZATION & SEEDING
+   1. REALTIME SYNCHRONIZATION & SEEDING (DEBOUNCED & BATCHED)
 ------------------------------------------------------------- */
+let renderDebounceTimers = {};
+function scheduleViewRender(viewName, delay = 50) {
+  if (renderDebounceTimers[viewName]) {
+    clearTimeout(renderDebounceTimers[viewName]);
+  }
+  renderDebounceTimers[viewName] = setTimeout(() => {
+    if (viewName === 'dashboard' || activeNavView === 'dashboard') {
+      updateDashboardStats();
+      renderDashboardHomeworkSummary();
+      renderDashboardQuizSummary();
+    }
+    if (activeNavView === viewName) {
+      if (viewName === 'students') renderStudentsTable();
+      if (viewName === 'courses') renderCoursesList();
+      if (viewName === 'quizzes') renderQuizzesList();
+      if (viewName === 'reports') renderScoreReports();
+      if (viewName === 'users') renderUsersTable();
+    }
+  }, delay);
+}
+
 function initRealtimeSync() {
   if (typeof listenToData !== 'function') return;
 
   // Listen to Users
   listenToData('users', (data) => {
     usersData = data || {};
-    renderUsersTable();
     populateTeacherDropdowns();
     checkInitialSeedNeeded();
+    scheduleViewRender('users');
   });
 
   // Listen to Students Roster
   listenToData('students', (data) => {
     studentsData = data || {};
     updateClassFilterDropdowns();
-    renderStudentsTable();
-    updateDashboardStats();
-    renderScoreReports();
+    scheduleViewRender('students');
+    scheduleViewRender('dashboard');
+    scheduleViewRender('reports');
   });
 
   // Listen to Courses
   listenToData('courses', (data) => {
     coursesData = data || {};
-    renderCoursesList();
     updateCourseDropdowns();
-    updateDashboardStats();
-    renderScoreReports();
+    scheduleViewRender('courses');
+    scheduleViewRender('dashboard');
+    scheduleViewRender('reports');
   });
 
   // Listen to Homework (Primary Firebase node + Local Client Cache)
@@ -374,37 +412,33 @@ function initRealtimeSync() {
     homeworkData = data || {};
     try {
       localStorage.setItem('ag_homework', JSON.stringify(homeworkData));
-    } catch (e) {
-      console.warn("Failed saving ag_homework to localStorage:", e);
-    }
-    renderCoursesList();
-    updateDashboardStats();
-    renderScoreReports();
-    renderDashboardHomeworkSummary();
+    } catch (e) {}
+    scheduleViewRender('courses');
+    scheduleViewRender('dashboard');
+    scheduleViewRender('reports');
   });
 
   // Listen to Homework Submissions
   listenToData('homework_submissions', (data) => {
     submissionsData = data || {};
-    renderCoursesList();
-    renderScoreReports();
-    renderDashboardHomeworkSummary();
+    scheduleViewRender('courses');
+    scheduleViewRender('dashboard');
+    scheduleViewRender('reports');
   });
 
   // Listen to Quizzes
   listenToData('quizzes', (data) => {
     quizzesData = data || {};
-    renderQuizzesList();
-    updateDashboardStats();
-    renderScoreReports();
-    renderDashboardQuizSummary();
+    scheduleViewRender('quizzes');
+    scheduleViewRender('dashboard');
+    scheduleViewRender('reports');
   });
 
   // Listen to Quiz Results
   listenToData('quiz_results', (data) => {
     quizResultsData = data || {};
-    renderQuizzesList();
-    renderScoreReports();
+    scheduleViewRender('quizzes');
+    scheduleViewRender('reports');
   });
 
   // Listen to Announcements
@@ -439,7 +473,7 @@ function checkInitialSeedNeeded() {
     
     // Seed sample Announcement
     const initialAnnounce = {
-      title: "ยินดีต้อนรับสู่ระบบห้องเรียนออนไลน์ Myclassroom",
+      title: "ยินดีต้อนรับสู่ระบบห้องเรียนออนไลน์ Krunoii Classroom",
       content: "ขอให้นักเรียนทุกคนเข้าตรวจสอบรายวิชา การบ้าน และแบบทดสอบล่าสุดผ่านหน้าแดชบอร์ด ข้อมูลทุกอย่างจะอัปเดตสดแบบ Real-Time",
       updatedAt: new Date().toISOString()
     };
@@ -541,19 +575,27 @@ function checkSavedSession() {
 }
 
 function handleLogout() {
-  showPopupConfirm("ยืนยันออกจากระบบ", "คุณต้องการออกจากระบบ Myclassroom ใช่หรือไม่?", "ออกจากระบบ", "warning").then((confirmed) => {
+  showPopupConfirm("ยืนยันออกจากระบบ", "คุณต้องการออกจากระบบ Krunoii Classroom ใช่หรือไม่?", "ออกจากระบบ", "warning").then((confirmed) => {
     if (confirmed) {
       currentUser = null;
       sessionStorage.removeItem('myclassroom_user');
       document.body.classList.remove('role-student', 'role-teacher');
       document.getElementById('app-screen').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
-      showPopupSuccess("ออกจากระบบเรียบร้อย", "ขอบคุณที่ใช้งานระบบ Myclassroom");
+      if (typeof window.startCyberCanvas === 'function') {
+        window.startCyberCanvas();
+      }
+      showPopupSuccess("ออกจากระบบเรียบร้อย", "ขอบคุณที่ใช้งานระบบ Krunoii Classroom");
     }
   });
 }
 
 function showAppScreen() {
+  // Stop login canvas loop to save 100% CPU/GPU while using the app
+  if (typeof window.stopCyberCanvas === 'function') {
+    window.stopCyberCanvas();
+  }
+
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'flex';
 
@@ -3299,8 +3341,9 @@ function resetStudentQuizAttempt(quizId, studentId, studentName) {
 ------------------------------------------------------------- */
 function renderScoreReports() {
   const tbody = document.getElementById('reports-table-body');
-  const classFilter = document.getElementById('report-class-filter').value;
-  const courseFilter = document.getElementById('report-course-filter').value;
+  if (!tbody) return;
+  const classFilter = document.getElementById('report-class-filter')?.value;
+  const courseFilter = document.getElementById('report-course-filter')?.value;
 
   const stdKeys = Object.keys(studentsData);
   if (stdKeys.length === 0) {
@@ -3308,44 +3351,45 @@ function renderScoreReports() {
     return;
   }
 
+  // Pre-filter active homework & quizzes once for all students
+  const activeHws = Object.keys(homeworkData)
+    .filter(hwId => !courseFilter || homeworkData[hwId].courseId === courseFilter)
+    .map(hwId => ({ id: hwId, maxScore: homeworkData[hwId].maxScore || 10 }));
+  const totalHwPossible = activeHws.reduce((sum, hw) => sum + hw.maxScore, 0);
+
+  const activeQuizzes = Object.keys(quizzesData)
+    .filter(qId => !courseFilter || quizzesData[qId].courseId === courseFilter)
+    .map(qId => ({ id: qId, totalQuestions: (quizzesData[qId].questions ? quizzesData[qId].questions.length : 0) }));
+  const totalQuizPossible = activeQuizzes.reduce((sum, q) => sum + q.totalQuestions, 0);
+
+  const totalPossible = totalHwPossible + totalQuizPossible;
+
   let html = '';
-  stdKeys.forEach(studentId => {
+  for (let i = 0; i < stdKeys.length; i++) {
+    const studentId = stdKeys[i];
     const std = studentsData[studentId];
-    if (classFilter && std.classLevel !== classFilter) return;
+    if (classFilter && std.classLevel !== classFilter) continue;
 
-    // Calculate total homework score
     let totalHwEarned = 0;
-    let totalHwPossible = 0;
-
-    Object.keys(homeworkData).forEach(hwId => {
-      const hw = homeworkData[hwId];
-      if (courseFilter && hw.courseId !== courseFilter) return;
-
-      totalHwPossible += hw.maxScore;
-      if (submissionsData[hwId] && submissionsData[hwId][studentId] && submissionsData[hwId][studentId].score !== undefined) {
-        totalHwEarned += submissionsData[hwId][studentId].score;
+    for (let h = 0; h < activeHws.length; h++) {
+      const hw = activeHws[h];
+      const sub = submissionsData[hw.id]?.[studentId];
+      if (sub && sub.score !== undefined) {
+        totalHwEarned += sub.score;
       }
-    });
+    }
 
-    // Calculate total quiz score
     let totalQuizEarned = 0;
-    let totalQuizPossible = 0;
-
-    Object.keys(quizzesData).forEach(qId => {
-      const q = quizzesData[qId];
-      if (courseFilter && q.courseId !== courseFilter) return;
-
-      const qTotal = q.questions ? q.questions.length : 0;
-      totalQuizPossible += qTotal;
-
-      if (quizResultsData[qId] && quizResultsData[qId][studentId]) {
-        totalQuizEarned += quizResultsData[qId][studentId].score;
+    for (let q = 0; q < activeQuizzes.length; q++) {
+      const quiz = activeQuizzes[q];
+      const qRes = quizResultsData[quiz.id]?.[studentId];
+      if (qRes && qRes.score !== undefined) {
+        totalQuizEarned += qRes.score;
       }
-    });
+    }
 
     const totalEarned = totalHwEarned + totalQuizEarned;
-    const totalPossible = totalHwPossible + totalQuizPossible;
-    let percent = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
+    const percent = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
 
     html += `
       <tr>
@@ -3358,7 +3402,7 @@ function renderScoreReports() {
         <td><strong style="color:var(--primary); font-size:1.05rem;">${totalEarned} / ${totalPossible}</strong> <span class="badge badge-purple" style="margin-left:4px;">${percent}%</span></td>
       </tr>
     `;
-  });
+  }
 
   tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center; padding:30px;" class="text-muted">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
 }
