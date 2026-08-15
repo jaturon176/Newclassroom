@@ -689,11 +689,19 @@ function switchNav(viewName) {
   if (viewName === 'users') renderUsersTable();
 
   // Close sidebar on mobile
-  document.getElementById('sidebar').classList.remove('show');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.remove('show', 'mobile-active');
+  if (backdrop) backdrop.classList.remove('active');
 }
 
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('show');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+  const isShow = sidebar.classList.toggle('show');
+  sidebar.classList.toggle('mobile-active', isShow);
+  if (backdrop) backdrop.classList.toggle('active', isShow);
 }
 
 
