@@ -3975,11 +3975,54 @@ function closeModal(modalId) {
   if (el) el.classList.remove('active');
 }
 
-function getPdfBlobUrl(base64DataUrl) {
+let currentActivePdfDoc = null;
+let currentPdfRenderScale = 1.0;
+let currentActivePdfDataOrUrl = null;
+let currentActiveFileTitle = 'document';
+
+function convertDataURIToBinary(dataURI) {
+  const base64Index = dataURI.indexOf(';base64,');
+  let base64 = dataURI;
+  if (base64Index !== -1) {
+    base64 = dataURI.substring(base64Index + ';base64,'.length);
+  }
+  const raw = window.atob(base64);
+  const rawLength = raw.length;
+  const array = new Uint8Array(new ArrayBuffer(rawLength));
+  for (let i = 0; i < rawLength; i++) {
+    array[i] = raw.charCodeAt(i);
+  }
+  return array;
+}
+
+function zoomPdf(delta) {
+  if (!currentActivePdfDoc) return;
+  const newScale = Math.min(3.0, Math.max(0.4, currentPdfRenderScale + delta));
+  if (Math.abs(newScale - currentPdfRenderScale) < 0.05) return;
+  currentPdfRenderScale = newScale;
+  renderPdfPages();
+}
+
+function resetPdfZoom() {
+  if (!currentActivePdfDoc) return;
+  calculatePdfFitScale();
+  renderPdfPages();
+}
+
+function openPdfInNewTab() {
+  if (!currentActivePdfDataOrUrl) return;
+
+  if (currentActivePdfDataOrUrl.startsWith('data:application/pdf')) {
+    const blob = getPdfBlob(currentActivePdfDataOrUrl);
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  } else {
+    window.open(currentActivePdfDataOrUrl, '_blank');
+  }
+}
+
+function getPdfBlob(base64DataUrl) {
   try {
-    if (!base64DataUrl || !base64DataUrl.startsWith('data:application/pdf')) {
-      return base64DataUrl;
-    }
     const parts = base64DataUrl.split(';base64,');
     const contentType = parts[0].split(':')[1] || 'application/pdf';
     const raw = window.atob(parts[1]);
@@ -3988,7 +4031,18 @@ function getPdfBlobUrl(base64DataUrl) {
     for (let i = 0; i < rawLength; ++i) {
       uInt8Array[i] = raw.charCodeAt(i);
     }
-    const blob = new Blob([uInt8Array], { type: contentType });
+    return new Blob([uInt8Array], { type: contentType });
+  } catch (err) {
+    return new Blob([base64DataUrl], { type: 'application/pdf' });
+  }
+}
+
+function getPdfBlobUrl(base64DataUrl) {
+  try {
+    if (!base64DataUrl || !base64DataUrl.startsWith('data:application/pdf')) {
+      return base64DataUrl;
+    }
+    const blob = getPdfBlob(base64DataUrl);
     return URL.createObjectURL(blob);
   } catch (err) {
     console.warn("Error converting base64 to blob:", err);
@@ -3996,63 +4050,180 @@ function getPdfBlobUrl(base64DataUrl) {
   }
 }
 
-function showPDFPreviewModal(fileUrl, fileTitle = 'เอกสารคำสั่งงาน PDF') {
+function calculatePdfFitScale() {
+  if (!currentActivePdfDoc) return;
+  const container = document.getElementById('file-preview-body');
+  const availableWidth = container ? (container.clientWidth - 36) : (window.innerWidth - 60);
+  const defaultPageWidth = 595;
+  const fitScale = Math.min(1.6, Math.max(0.45, availableWidth / defaultPageWidth));
+  currentPdfRenderScale = fitScale;
+}
+
+async function renderPdfPages() {
+  if (!currentActivePdfDoc) return;
+
+  const container = document.getElementById('file-preview-body');
+  const zoomText = document.getElementById('pdf-zoom-level-text');
+  const pageInfo = document.getElementById('pdf-page-count-info');
+
+  if (zoomText) {
+    zoomText.innerText = `${Math.round(currentPdfRenderScale * 100)}%`;
+  }
+  if (pageInfo) {
+    pageInfo.innerText = `เอกสารทั้งหมด ${currentActivePdfDoc.numPages} หน้า`;
+  }
+
+  container.innerHTML = '';
+
+  const pagesWrapper = document.createElement('div');
+  pagesWrapper.id = 'pdf-pages-scroll-wrapper';
+  pagesWrapper.style.cssText = 'width:100%; display:flex; flex-direction:column; align-items:center; gap:16px; padding:12px 6px;';
+  container.appendChild(pagesWrapper);
+
+  const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+
+  for (let pageNum = 1; pageNum <= currentActivePdfDoc.numPages; pageNum++) {
+    try {
+      const page = await currentActivePdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale: currentPdfRenderScale });
+
+      const pageCard = document.createElement('div');
+      pageCard.style.cssText = 'background:#ffffff; box-shadow:0 6px 20px rgba(0,0,0,0.3); border-radius:8px; overflow:hidden; position:relative; max-width:100%;';
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = Math.floor(viewport.width * pixelRatio);
+      canvas.height = Math.floor(viewport.height * pixelRatio);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
+      canvas.style.maxWidth = '100%';
+      canvas.style.display = 'block';
+
+      ctx.scale(pixelRatio, pixelRatio);
+
+      const pageBadge = document.createElement('div');
+      pageBadge.innerText = `หน้า ${pageNum} / ${currentActivePdfDoc.numPages}`;
+      pageBadge.style.cssText = 'position:absolute; bottom:8px; right:8px; background:rgba(15,23,42,0.75); color:#fff; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px; pointer-events:none; backdrop-filter:blur(4px);';
+
+      pageCard.appendChild(canvas);
+      pageCard.appendChild(pageBadge);
+      pagesWrapper.appendChild(pageCard);
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: viewport
+      }).promise;
+    } catch (pageErr) {
+      console.warn(`Error rendering PDF page ${pageNum}:`, pageErr);
+    }
+  }
+}
+
+async function showPDFPreviewModal(fileUrl, fileTitle = 'เอกสารคำสั่งงาน PDF') {
   if (!fileUrl) return;
 
   fileUrl = fileUrl.replace(/^http:\/\//i, 'https://');
   const isPdf = fileUrl.includes('application/pdf') || fileUrl.includes('.pdf') || fileUrl.toLowerCase().includes('pdf');
 
-  // Title
+  currentActivePdfDataOrUrl = fileUrl;
+  currentActiveFileTitle = fileTitle;
+
   const titleEl = document.getElementById('file-preview-title');
   if (titleEl) {
     titleEl.innerHTML = `<i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'};"></i> ${fileTitle}`;
   }
 
-  // URL Handling: Convert Base64 data URL to Blob URL for iframe rendering
-  let displayUrl = fileUrl;
-  let downloadUrl = fileUrl;
-
-  if (fileUrl.startsWith('data:application/pdf')) {
-    displayUrl = getPdfBlobUrl(fileUrl);
-    downloadUrl = displayUrl;
-  }
-
-  // Setup Download & New Tab Action Buttons
+  const zoomControls = document.getElementById('pdf-zoom-controls');
+  const pageInfo = document.getElementById('pdf-page-count-info');
+  const container = document.getElementById('file-preview-body');
   const downloadBtn = document.getElementById('file-preview-download');
+
   if (downloadBtn) {
-    downloadBtn.href = downloadUrl;
+    if (fileUrl.startsWith('data:application/pdf')) {
+      const blob = getPdfBlob(fileUrl);
+      downloadBtn.href = URL.createObjectURL(blob);
+    } else {
+      downloadBtn.href = fileUrl;
+    }
     downloadBtn.setAttribute('download', `${fileTitle || 'document'}.pdf`);
   }
 
-  const newtabBtn = document.getElementById('file-preview-newtab');
-  if (newtabBtn) {
-    newtabBtn.href = displayUrl;
-  }
+  openModal('modal-file-preview');
 
-  const container = document.getElementById('file-preview-body');
   if (!container) return;
 
   if (isPdf) {
+    if (zoomControls) zoomControls.style.display = 'inline-flex';
+    if (pageInfo) pageInfo.innerText = 'กำลังโหลดเอกสาร...';
+    container.style.background = '#334155';
+
     container.innerHTML = `
-      <div style="width:100%; height:75vh; border-radius:12px; overflow:hidden; border:1px solid var(--border); box-shadow:var(--shadow-sm); background:#334155;">
-        <iframe src="${displayUrl}" style="width:100%; height:100%; border:none; display:block;" frameborder="0" allowfullscreen>
-          <div style="padding:40px; text-align:center; color:#ffffff;">
-            <i class="fa-solid fa-file-pdf fa-3x" style="color:#ef4444; margin-bottom:14px;"></i>
-            <h4 style="font-weight:700;">เปิดดูเอกสาร PDF</h4>
-            <p style="margin:10px 0 16px 0; color:#e2e8f0;">เบราว์เซอร์ไม่รองรับการแสดงตัวอย่างในหน้านี้</p>
-            <a href="${downloadUrl}" download="${fileTitle}.pdf" class="btn btn-success"><i class="fa-solid fa-download"></i> ดาวน์โหลดเอกสาร PDF</a>
-          </div>
-        </iframe>
+      <div style="padding:60px 20px; text-align:center; color:#e2e8f0;">
+        <i class="fa-solid fa-spinner fa-spin fa-3x" style="color:#38bdf8; margin-bottom:16px;"></i>
+        <h4 style="font-weight:700; color:#ffffff; font-size:1.15rem;">กำลังเรนเดอร์เอกสาร PDF...</h4>
+        <p style="font-size:0.86rem; color:#94a3b8; margin-top:4px;">ระบบกำลังเตรียมหน้าเอกสารสำหรับมือถือและแท็บเล็ต</p>
       </div>
     `;
+
+    try {
+      if (typeof window.pdfjsLib === 'undefined') {
+        throw new Error("pdfjsLib not available");
+      }
+
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      let loadingTask;
+      if (fileUrl.startsWith('data:application/pdf')) {
+        const pdfBytes = convertDataURIToBinary(fileUrl);
+        loadingTask = window.pdfjsLib.getDocument({ data: pdfBytes });
+      } else {
+        loadingTask = window.pdfjsLib.getDocument(fileUrl);
+      }
+
+      const pdfDoc = await loadingTask.promise;
+      currentActivePdfDoc = pdfDoc;
+
+      calculatePdfFitScale();
+      await renderPdfPages();
+
+    } catch (err) {
+      console.error("PDF.js loading failed, using fallback:", err);
+      if (pageInfo) pageInfo.innerText = '';
+      if (zoomControls) zoomControls.style.display = 'none';
+
+      container.innerHTML = `
+        <div style="padding:40px 20px; text-align:center; color:#e2e8f0; max-width:480px; margin:auto;">
+          <div style="width:64px; height:64px; border-radius:50%; background:rgba(239,68,68,0.2); color:#ef4444; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">
+            <i class="fa-solid fa-file-pdf"></i>
+          </div>
+          <h4 style="font-weight:800; color:#ffffff; font-size:1.2rem; margin-bottom:8px;">${fileTitle}</h4>
+          <p style="font-size:0.88rem; color:#cbd5e1; margin-bottom:20px; line-height:1.5;">
+            กดปุ่มด้านล่างเพื่อเปิดอ่านเอกสาร PDF ในแท็บใหม่ หรือดาวน์โหลดลงในโทรศัพท์/ไอแพดของคุณได้ทันที
+          </p>
+          <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary" onclick="openPdfInNewTab()" style="border-radius:10px; font-weight:700; padding:10px 18px;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูเอกสาร
+            </button>
+            <a href="${fileUrl}" download="${fileTitle}.pdf" class="btn btn-success" style="border-radius:10px; font-weight:700; padding:10px 18px;">
+              <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
   } else {
-    // Image Preview
+    // Image File Preview
+    if (zoomControls) zoomControls.style.display = 'none';
+    if (pageInfo) pageInfo.innerText = '';
+    container.style.background = '#f8fafc';
     container.innerHTML = `
-      <img src="${fileUrl}" style="max-width:100%; max-height:75vh; object-fit:contain; border-radius:14px; box-shadow:var(--shadow-md);" alt="ตัวอย่างรูปภาพ">
+      <div style="padding:16px; text-align:center;">
+        <img src="${fileUrl}" style="max-width:100%; max-height:75vh; object-fit:contain; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,0.15);" alt="ตัวอย่างรูปภาพ">
+      </div>
     `;
   }
-
-  openModal('modal-file-preview');
 }
 
 // Backward compatibility alias
