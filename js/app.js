@@ -73,6 +73,240 @@ function showPopupConfirm(title, text = '', confirmText = 'ยืนยัน', 
   } else {
     return Promise.resolve(confirm(text ? `${title}\n${text}` : title));
   }
+/* -------------------------------------------------------------
+   0. 3D CYBER MATRIX & PROGRAMMING DATA FLOW CANVAS ENGINE
+------------------------------------------------------------- */
+function initCyberDataFlowCanvas() {
+  const canvas = document.getElementById('cyber-matrix-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  let width = (canvas.width = window.innerWidth);
+  let height = (canvas.height = window.innerHeight);
+
+  // Responsive resize
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  });
+
+  // Mouse cursor attraction
+  const mouse = { x: null, y: null, maxDist: 150 };
+  window.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+  window.addEventListener('mouseleave', () => {
+    mouse.x = null;
+    mouse.y = null;
+  });
+
+  // Cyber Neon Colors
+  const colors = [
+    { r: 56, g: 189, b: 248 },  // Sky Cyan
+    { r: 59, g: 130, b: 246 },  // Electric Blue
+    { r: 16, g: 185, b: 129 },  // Emerald Tech
+    { r: 168, g: 85, b: 247 },  // Cyber Violet
+  ];
+
+  // 1. Cyber Network Nodes
+  const nodeCount = Math.min(Math.floor((width * height) / 16000), 75);
+  const nodes = [];
+
+  for (let i = 0; i < nodeCount; i++) {
+    const col = colors[Math.floor(Math.random() * colors.length)];
+    nodes.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.7,
+      vy: (Math.random() - 0.5) * 0.7,
+      radius: Math.random() * 2.2 + 1.2,
+      color: col,
+      pulse: Math.random() * Math.PI,
+      pulseSpeed: Math.random() * 0.03 + 0.015
+    });
+  }
+
+  // 2. Data Packet Pulses
+  const packets = [];
+  const maxPackets = 24;
+
+  function spawnPacket(n1, n2) {
+    if (packets.length >= maxPackets) return;
+    packets.push({
+      x1: n1.x,
+      y1: n1.y,
+      x2: n2.x,
+      y2: n2.y,
+      progress: 0,
+      speed: Math.random() * 0.02 + 0.012,
+      color: n1.color
+    });
+  }
+
+  // 3. Floating Programming Code & Data Stream Tokens
+  const codeSnippets = [
+    "<code/>",
+    "01001011",
+    "const data = await sync();",
+    "01110010",
+    "if (passed === true) { score++ }",
+    "{ status: 200, online: true }",
+    "import { Firebase } from 'realtime'",
+    "Cloudinary.upload(compressedImage)",
+    "git commit -m 'Release v6.5'",
+    "for (let i = 0; i < students.length; i++)",
+    "01010101",
+    "SELECT * FROM Classroom_DB",
+    "new Promise((resolve) => { ... })",
+    "11001100",
+    "console.log('Classroom Online 24/7')",
+    "function classroom() { return success; }",
+    "01101001",
+    "01101111",
+    "01110101"
+  ];
+
+  const floatingCodes = [];
+  const codeCount = Math.min(Math.floor(width / 90), 18);
+
+  for (let i = 0; i < codeCount; i++) {
+    floatingCodes.push({
+      text: codeSnippets[Math.floor(Math.random() * codeSnippets.length)],
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vy: -(Math.random() * 0.45 + 0.25),
+      alpha: Math.random() * 0.45 + 0.2,
+      size: Math.floor(Math.random() * 3) + 11,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    });
+  }
+
+  function render() {
+    // Only animate if login screen is visible
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen && loginScreen.style.display === 'none') {
+      requestAnimationFrame(render);
+      return;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+
+    // --- A. Draw & Update Floating Code Stream ---
+    ctx.textBaseline = 'middle';
+    floatingCodes.forEach((fc) => {
+      fc.y += fc.vy;
+      if (fc.y < -30) {
+        fc.y = height + 30;
+        fc.x = Math.random() * width;
+        fc.text = codeSnippets[Math.floor(Math.random() * codeSnippets.length)];
+      }
+
+      ctx.font = `600 ${fc.size}px 'Courier New', 'Consolas', monospace`;
+      ctx.fillStyle = `rgba(${fc.color.r}, ${fc.color.g}, ${fc.color.b}, ${fc.alpha})`;
+      ctx.shadowColor = `rgba(${fc.color.r}, ${fc.color.g}, ${fc.color.b}, 0.5)`;
+      ctx.shadowBlur = 6;
+      ctx.fillText(fc.text, fc.x, fc.y);
+      ctx.shadowBlur = 0;
+    });
+
+    // --- B. Update & Draw Connected Cyber Network ---
+    const connectionDist = 125;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const n1 = nodes[i];
+
+      // Move node
+      n1.x += n1.vx;
+      n1.y += n1.vy;
+      n1.pulse += n1.pulseSpeed;
+
+      // Bounce boundaries
+      if (n1.x < 0 || n1.x > width) n1.vx *= -1;
+      if (n1.y < 0 || n1.y > height) n1.vy *= -1;
+
+      // Mouse attraction & connection
+      if (mouse.x !== null && mouse.y !== null) {
+        const dx = mouse.x - n1.x;
+        const dy = mouse.y - n1.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < mouse.maxDist) {
+          const force = (1 - dist / mouse.maxDist) * 0.025;
+          n1.x += dx * force;
+          n1.y += dy * force;
+
+          // Connection to mouse
+          const mAlpha = (1 - dist / mouse.maxDist) * 0.4;
+          ctx.strokeStyle = `rgba(56, 189, 248, ${mAlpha})`;
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.moveTo(n1.x, n1.y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.stroke();
+        }
+      }
+
+      // Connect with other nodes
+      for (let j = i + 1; j < nodes.length; j++) {
+        const n2 = nodes[j];
+        const dx = n1.x - n2.x;
+        const dy = n1.y - n2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < connectionDist) {
+          const alpha = (1 - dist / connectionDist) * 0.28;
+          ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
+          ctx.lineWidth = 0.85;
+          ctx.beginPath();
+          ctx.moveTo(n1.x, n1.y);
+          ctx.lineTo(n2.x, n2.y);
+          ctx.stroke();
+
+          // Occasionally spawn a data packet
+          if (Math.random() < 0.0018) {
+            spawnPacket(n1, n2);
+          }
+        }
+      }
+
+      // Draw node circle with glowing aura
+      const currentRadius = n1.radius + Math.sin(n1.pulse) * 0.55;
+      ctx.fillStyle = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.85)`;
+      ctx.shadowColor = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.9)`;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(n1.x, n1.y, Math.max(currentRadius, 1), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // --- C. Update & Draw Fiber-Optic Data Packets ---
+    for (let k = packets.length - 1; k >= 0; k--) {
+      const p = packets[k];
+      p.progress += p.speed;
+
+      if (p.progress >= 1) {
+        packets.splice(k, 1);
+        continue;
+      }
+
+      const currX = p.x1 + (p.x2 - p.x1) * p.progress;
+      const currY = p.y1 + (p.y2 - p.y1) * p.progress;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, 1)`;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(currX, currY, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  render();
 }
 
 // Initialize App
@@ -89,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.warn("Failed reading ag_homework from localStorage:", e);
   }
 
+  initCyberDataFlowCanvas();
   initRealtimeSync();
   checkSavedSession();
   
