@@ -1859,15 +1859,73 @@ async function saveHomeworkForm(e) {
   });
 }
 
+function resetCourseFilters() {
+  const searchInput = document.getElementById('course-search-input');
+  const levelFilter = document.getElementById('course-level-filter');
+  if (searchInput) searchInput.value = '';
+  if (levelFilter) levelFilter.value = 'all';
+  renderCoursesList();
+}
+
 function renderCoursesList() {
   const container = document.getElementById('courses-list-container');
+  if (!container) return;
+
+  const searchInput = document.getElementById('course-search-input');
+  const levelFilter = document.getElementById('course-level-filter');
+  const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const selectedLevel = levelFilter ? levelFilter.value : 'all';
+
   let courseKeys = Object.keys(coursesData);
   const isStudent = currentUser && currentUser.role === 'student';
   const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
 
+  // Populate level filter dropdown dynamically
+  if (levelFilter && levelFilter.options.length <= 1) {
+    const levelSet = new Set();
+    Object.values(coursesData).forEach(c => {
+      if (c.level && c.level.trim()) levelSet.add(c.level.trim());
+    });
+    const sortedLevels = Array.from(levelSet).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+    let levelOpts = `<option value="all">-- ทุกระดับชั้น --</option>`;
+    sortedLevels.forEach(lvl => {
+      levelOpts += `<option value="${lvl}">ระดับชั้น ${lvl}</option>`;
+    });
+    levelFilter.innerHTML = levelOpts;
+  }
+
+  // Student eligibility filter
   if (isStudent) {
     courseKeys = courseKeys.filter(courseId => {
       return isStudentEligibleForCourse(studentClass, coursesData[courseId]);
+    });
+  }
+
+  // Level filter
+  if (selectedLevel !== 'all') {
+    courseKeys = courseKeys.filter(courseId => {
+      const c = coursesData[courseId];
+      return (c.level || '').trim() === selectedLevel;
+    });
+  }
+
+  // Search filter
+  if (searchQuery) {
+    courseKeys = courseKeys.filter(courseId => {
+      const c = coursesData[courseId];
+      const matchCourse = (c.name || '').toLowerCase().includes(searchQuery) ||
+                          (c.code || '').toLowerCase().includes(searchQuery) ||
+                          (c.teacher || '').toLowerCase().includes(searchQuery);
+      if (matchCourse) return true;
+
+      // Also search through its homeworks
+      const hasMatchingHw = Object.values(homeworkData).some(hw => {
+        return hw.courseId === courseId && (
+          (hw.title || '').toLowerCase().includes(searchQuery) ||
+          (hw.desc || '').toLowerCase().includes(searchQuery)
+        );
+      });
+      return hasMatchingHw;
     });
   }
 
@@ -1877,9 +1935,9 @@ function renderCoursesList() {
         <div style="width:64px; height:64px; border-radius:50%; background:#eff6ff; color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">
           <i class="fa-solid fa-folder-open"></i>
         </div>
-        <h4 style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:6px;">${isStudent ? 'ยังไม่มีรายวิชาสำหรับห้องเรียนของคุณ' : 'ยังไม่มีรายวิชาในระบบ'}</h4>
-        <p style="color:#64748b; font-size:0.9rem; margin-bottom:18px;">${isStudent ? 'เมื่อคุณครูเพิ่มรายวิชาสำหรับระดับชั้นของคุณ รายวิชาจะปรากฏที่นี่โดยอัตโนมัติ' : 'คุณครูสามารถสร้างรายวิชาและมอบหมายการบ้านเพื่อเริ่มต้นการเรียนการสอนได้ทันที'}</p>
-        ${(currentUser && currentUser.role !== 'student') ? `
+        <h4 style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:6px;">${searchQuery ? 'ไม่พบรายวิชาหรือการบ้านที่ค้นหา' : (isStudent ? 'ยังไม่มีรายวิชาสำหรับห้องเรียนของคุณ' : 'ยังไม่มีรายวิชาในระบบ')}</h4>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:18px;">${searchQuery ? `ไม่พบข้อมูลที่ตรงกับคำค้นหา "${searchQuery}"` : (isStudent ? 'เมื่อคุณครูเพิ่มรายวิชาสำหรับระดับชั้นของคุณ รายวิชาจะปรากฏที่นี่โดยอัตโนมัติ' : 'คุณครูสามารถสร้างรายวิชาและมอบหมายการบ้านเพื่อเริ่มต้นการเรียนการสอนได้ทันที')}</p>
+        ${(currentUser && currentUser.role !== 'student' && !searchQuery) ? `
           <button class="btn btn-primary" onclick="openAddCourseModal()" style="border-radius:10px; font-weight:700;">
             <i class="fa-solid fa-plus-circle"></i> สร้างรายวิชาแรก
           </button>
@@ -1889,9 +1947,18 @@ function renderCoursesList() {
     return;
   }
 
+  const courseThemes = [
+    { cls: 'course-theme-blue', border: '#2563eb', icon: 'fa-solid fa-code' },
+    { cls: 'course-theme-indigo', border: '#4f46e5', icon: 'fa-solid fa-microchip' },
+    { cls: 'course-theme-emerald', border: '#059669', icon: 'fa-solid fa-laptop-code' },
+    { cls: 'course-theme-purple', border: '#7e22ce', icon: 'fa-solid fa-robot' },
+    { cls: 'course-theme-amber', border: '#ea580c', icon: 'fa-solid fa-book-open' }
+  ];
+
   let html = '';
-  courseKeys.forEach(courseId => {
+  courseKeys.forEach((courseId, index) => {
     const course = coursesData[courseId];
+    const theme = courseThemes[index % courseThemes.length];
     const cleanTeacher = (course.teacher || 'ยังไม่ระบุ').trim().replace(/^"|"$/g, '');
     const cleanCode = (course.code || '-').trim();
     
@@ -1911,53 +1978,54 @@ function renderCoursesList() {
 
     html += `
       <div class="course-card-modern">
-        <!-- Course Header -->
-        <div class="course-card-header">
-          <div>
+        <!-- Vibrant Hero Banner -->
+        <div class="course-hero-banner ${theme.cls}">
+          <div style="flex:1; min-width:260px;">
             <div class="course-meta-pills">
-              <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-family:monospace; font-weight:800; font-size:0.88rem; padding:4px 10px; border-radius:8px;">
-                <i class="fa-solid fa-barcode"></i> ${cleanCode}
+              <span class="course-pill-code">
+                <i class="${theme.icon}"></i> ${cleanCode}
               </span>
-              <span class="badge badge-purple" style="font-size:0.84rem; font-weight:700; padding:4px 12px; border-radius:8px;">
+              <span class="course-pill-level">
                 <i class="fa-solid fa-graduation-cap"></i> ระดับชั้น ${course.level || '-'}
               </span>
-              <span class="badge ${courseHws.length > 0 ? 'badge-green' : 'badge-yellow'}" style="font-size:0.84rem; font-weight:700; padding:4px 12px; border-radius:8px;">
-                <i class="fa-solid fa-clipboard-list"></i> ${courseHws.length} ชิ้นงาน
+              <span class="course-pill-count">
+                <i class="fa-solid fa-clipboard-list" style="color:${theme.border};"></i> ${courseHws.length} ชิ้นงาน
               </span>
             </div>
             <h3 class="course-title-text">${course.name}</h3>
             <div class="course-teacher-info">
-              <i class="fa-solid fa-chalkboard-user"></i> ครูผู้สอน: <span style="color:#0f172a; font-weight:700;">${cleanTeacher}</span>
+              <i class="fa-solid fa-chalkboard-user"></i> ครูผู้สอน: <span>${cleanTeacher}</span>
             </div>
           </div>
 
           ${(currentUser && currentUser.role !== 'student') ? `
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn btn-sm btn-success" onclick="openCreateHomeworkModal('${courseId}')" style="border-radius:9px; font-weight:700;" title="สั่งการบ้านในวิชานี้">
+            <div class="course-hero-actions">
+              <button class="course-glass-btn btn-glass-success" onclick="openCreateHomeworkModal('${courseId}')" title="สั่งการบ้านในวิชานี้">
                 <i class="fa-solid fa-plus-circle"></i> สั่งการบ้าน
               </button>
-              <button class="btn btn-sm btn-outline-primary" onclick="openEditCourseModal('${courseId}')" style="border-radius:9px; font-weight:600;" title="แก้ไขข้อมูลวิชา">
+              <button class="course-glass-btn" onclick="openEditCourseModal('${courseId}')" title="แก้ไขข้อมูลวิชา">
                 <i class="fa-solid fa-pen-to-square"></i> แก้ไขวิชา
               </button>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteCourse('${courseId}')" style="border-radius:9px; font-weight:600;" title="ลบรายวิชานี้">
+              <button class="course-glass-btn btn-glass-danger" onclick="deleteCourse('${courseId}')" title="ลบรายวิชานี้">
                 <i class="fa-solid fa-trash-can"></i> ลบวิชา
               </button>
             </div>
           ` : ''}
         </div>
 
-        <!-- Homework Section Header -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 10px;">
-          <div style="font-size:1rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-list-check" style="color:var(--primary);"></i> รายการการบ้านและชิ้นงาน (${courseHws.length} ชิ้น)
+        <!-- Course Content & Homework Grid -->
+        <div class="course-card-content">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9;">
+            <div style="font-size:1.05rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-layer-group" style="color:${theme.border};"></i> รายการการบ้านและภาระงาน (${courseHws.length} ชิ้น)
+            </div>
           </div>
-        </div>
     `;
 
     if (courseHws.length === 0) {
       html += `
-        <div style="padding:22px; background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:12px; text-align:center; color:#64748b; font-size:0.92rem; margin-top:10px;">
-          <i class="fa-solid fa-inbox" style="font-size:1.4rem; color:#94a3b8; display:block; margin-bottom:6px;"></i>
+        <div style="padding:28px 20px; background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:14px; text-align:center; color:#64748b; font-size:0.92rem; margin:10px 0;">
+          <i class="fa-solid fa-inbox" style="font-size:1.6rem; color:#94a3b8; display:block; margin-bottom:6px;"></i>
           ยังไม่มีการบ้านในวิชานี้ (หรือไม่มีงานที่มอบหมายให้ห้องของคุณ)
         </div>
       `;
@@ -1987,21 +2055,21 @@ function renderCoursesList() {
         const embedUrl = getYouTubeEmbedUrl(hw.youtubeUrl);
 
         html += `
-          <div class="homework-card-modern">
+          <div class="homework-card-modern" style="border-top-color:${theme.border};">
             <div>
               <!-- Top Badges -->
               <div class="hw-card-top">
-                <span class="badge ${isTargetAll ? 'badge-purple' : 'badge-yellow'}" style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:8px;">
+                <span class="badge ${isTargetAll ? 'badge-purple' : 'badge-yellow'}" style="font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:8px;">
                   <i class="${isTargetAll ? 'fa-solid fa-globe' : 'fa-solid fa-chalkboard'}"></i> ${targetLabel}
                 </span>
-                <span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:800; font-size:0.78rem; padding:4px 10px; border-radius:8px;">
+                <span class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:800; font-size:0.8rem; padding:4px 10px; border-radius:8px;">
                   <i class="fa-solid fa-star"></i> เต็ม ${hw.maxScore} คะแนน
                 </span>
               </div>
 
               <!-- Title & Description -->
               <h4 class="hw-title-text">${hw.title}</h4>
-              <div class="hw-desc-text">${hw.desc || '-'}</div>
+              <div class="hw-desc-text">${hw.desc || 'ไม่มีคำอธิบายเพิ่มเติม'}</div>
 
               <!-- YouTube Embed -->
               ${embedUrl ? `
@@ -2015,8 +2083,8 @@ function renderCoursesList() {
               <!-- PDF / Image Attachment Button -->
               ${fileUrl ? `
                 <div style="margin:8px 0;">
-                  <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="width:100%; justify-content:flex-start; text-align:left; padding:8px 12px; border-radius:10px; font-weight:600; font-size:0.84rem; background:#ffffff; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                    <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="font-size:1.15rem; color:${isPdf ? '#ef4444' : '#2563eb'};"></i> 
+                  <button type="button" class="hw-attachment-btn" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')">
+                    <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="font-size:1.2rem; color:${isPdf ? '#ef4444' : '#2563eb'};"></i> 
                     <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">📄 ${fileName}</span>
                     <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.75rem; opacity:0.6;"></i>
                   </button>
@@ -2025,7 +2093,7 @@ function renderCoursesList() {
 
               <!-- Due Date -->
               <div class="hw-due-date-badge">
-                <i class="fa-regular fa-calendar-check" style="color:var(--primary); font-size:0.9rem;"></i> กำหนดส่ง: <span style="color:#1e293b; font-weight:700;">${formatThaiDate(hw.dueDate)}</span>
+                <i class="fa-regular fa-calendar-check" style="color:${theme.border}; font-size:0.92rem;"></i> กำหนดส่ง: <span style="color:#1e293b; font-weight:700;">${formatThaiDate(hw.dueDate)}</span>
               </div>
             </div>
 
@@ -2033,14 +2101,14 @@ function renderCoursesList() {
             <div class="hw-card-bottom">
               ${(currentUser && currentUser.role === 'student') ? `
                 ${studentSub ? `
-                  <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:8px 12px; width:100%;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1.5px solid #a7f3d0; border-radius:10px; padding:8px 12px; width:100%;">
                     <span style="color:#059669; font-weight:700; font-size:0.86rem;"><i class="fa-solid fa-circle-check"></i> ส่งงานเรียบร้อยแล้ว</span>
-                    <span class="badge ${studentSub.score !== undefined ? 'badge-green' : 'badge-yellow'}" style="font-weight:800; font-size:0.82rem; padding:4px 10px;">
+                    <span class="badge ${studentSub.score !== undefined ? 'badge-green' : 'badge-yellow'}" style="font-weight:800; font-size:0.84rem; padding:4px 10px;">
                       ${studentSub.score !== undefined ? studentSub.score + ' / ' + hw.maxScore + ' คะแนน' : 'รอตรวจ'}
                     </span>
                   </div>
                 ` : `
-                  <button class="btn btn-primary" onclick="openSubmitHomeworkModal('${hw.id}')" style="width:100%; border-radius:10px; font-weight:700; padding:9px 14px; background:linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow:0 3px 8px rgba(37,99,235,0.25);">
+                  <button class="btn btn-primary" onclick="openSubmitHomeworkModal('${hw.id}')" style="width:100%; border-radius:10px; font-weight:800; padding:9px 14px; background:linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow:0 4px 12px rgba(37,99,235,0.3);">
                     <i class="fa-solid fa-cloud-arrow-up"></i> ส่งการบ้านชิ้นนี้
                   </button>
                 `}
@@ -2049,13 +2117,13 @@ function renderCoursesList() {
                   <i class="fa-solid fa-user-check"></i> ส่งแล้ว ${subCount} คน
                 </span>
                 <div style="display:flex; gap:6px;">
-                  <button class="btn btn-sm btn-primary" onclick="openGradeSubmissionsModal('${hw.id}')" title="ตรวจงานนักเรียน" style="border-radius:8px; font-weight:600; padding:5px 10px;">
+                  <button class="btn btn-sm btn-primary" onclick="openGradeSubmissionsModal('${hw.id}')" title="ตรวจงานนักเรียน" style="border-radius:8px; font-weight:700; padding:6px 12px; box-shadow:0 2px 6px rgba(37,99,235,0.25);">
                     <i class="fa-solid fa-clipboard-check"></i> ตรวจงาน
                   </button>
-                  <button class="btn btn-sm btn-outline-primary" onclick="openEditHomeworkModal('${hw.id}')" title="แก้ไขการบ้าน" style="border-radius:8px; padding:5px 8px;">
+                  <button class="btn btn-sm btn-outline-primary" onclick="openEditHomeworkModal('${hw.id}')" title="แก้ไขการบ้าน" style="border-radius:8px; padding:6px 9px;">
                     <i class="fa-solid fa-pen-to-square"></i>
                   </button>
-                  <button class="btn btn-sm btn-outline-danger" onclick="deleteHomework('${hw.id}')" title="ลบการบ้าน" style="border-radius:8px; padding:5px 8px;">
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteHomework('${hw.id}')" title="ลบการบ้าน" style="border-radius:8px; padding:6px 9px;">
                     <i class="fa-solid fa-trash-can"></i>
                   </button>
                 </div>
@@ -2067,7 +2135,10 @@ function renderCoursesList() {
       html += `</div>`;
     }
 
-    html += `</div>`;
+    html += `
+        </div>
+      </div>
+    `;
   });
 
   container.innerHTML = html;
