@@ -2044,383 +2044,7 @@ a {
 }
 
 /* ==========================================================================
-   9. RESPONSIVE BREAKPOINTS
-   ========================================================================== */
-@media (max-width: 1024px) {
-  .dashboard-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Sidebar Mobile Dark Backdrop */
-.sidebar-backdrop {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(15, 23, 42, 0.65);
-  z-index: 9995;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.sidebar-backdrop.active {
-  display: block;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-@media (max-width: 860px) {
-  .login-wrapper {
-    padding: 16px 12px 32px 12px;
-    align-items: flex-start;
-    min-height: 100vh;
-    min-height: 100dvh;
-  }
-
-  .login-bg-glow-orb {
-    display: none !important;
-  }
-
-  .login-card-container {
-    flex-direction: column;
-    max-width: 440px;
-    width: 100%;
-    margin: 0 auto;
-    border-radius: 22px;
-    min-height: auto;
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
-    background: #ffffff;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .login-branding {
-    padding: 24px 18px 16px 18px;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 22px 22px 0 0;
-  }
-
-  .brand-live-ribbon {
-    font-size: 0.68rem;
-    padding: 4px 10px;
-  }
-
-  .brand-logo-hero {
-    margin-bottom: 2px;
-  }
-
-  .brand-logo-image {
-    max-width: 130px;
-    max-height: 130px;
-  }
-
-  .logo-ambient-aura {
-    width: 140px;
-    height: 140px;
-  }
-
-  .brand-subtitle {
-    font-size: 0.85rem;
-    margin-top: 2px;
-    margin-bottom: 4px;
-  }
-
-  /* Hide long feature pill stack on phones so login form is immediately accessible without scrolling */
-  .brand-features {
-    display: none !important;
-  }
-
-  .brand-footer {
-    padding-top: 8px;
-    margin-top: 4px;
-  }
-
-  .login-form-side {
-    padding: 24px 20px 28px 20px;
-    border-radius: 0 0 22px 22px;
-    background: #ffffff;
-  }
-
-  .login-header {
-    margin-bottom: 16px;
-    text-align: center;
-  }
-
-  .login-avatar {
-    width: 48px;
-    height: 48px;
-    font-size: 1.25rem;
-    margin-bottom: 10px;
-  }
-
-  .login-title {
-    font-size: 1.35rem;
-  }
-
-  .login-desc {
-    font-size: 0.84rem;
-  }
-
-  .login-info-box {
-    padding: 10px 12px;
-    font-size: 0.82rem;
-  }
-
-  .sidebar {
-    transform: translateX(-100%);
-    z-index: 9999;
-    width: 250px;
-  }
-  .sidebar.mobile-active,
-  .sidebar.show {
-    transform: translateX(0);
-  }
-  
-  .main-wrapper {
-    margin-left: 0;
-  }
-  
-  /* Top Header on Mobile - Clean One-Line Layout (Fixing white block overlap) */
-  .top-header {
-    height: 54px;
-    padding: 0 12px;
-    gap: 8px;
-    background: #ffffff;
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-  
-  .header-title-container {
-    flex: 1;
-    min-width: 0;
-    gap: 8px;
-  }
-  
-  .mobile-toggle {
-    display: block;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    background: #f1f5f9;
-    flex-shrink: 0;
-  }
-  
-  .page-title {
-    font-size: 1.02rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .header-right {
-    gap: 6px;
-    flex-shrink: 0;
-  }
-  
-  .header-clock {
-    display: none !important;
-  }
-  
-  .live-indicator {
-    padding: 3px 8px;
-    font-size: 0.72rem;
-  }
-  
-  .live-indicator span {
-    display: none;
-  }
-  .live-indicator::after {
-    content: "SYNC";
-    font-size: 0.7rem;
-    font-weight: 800;
-  }
-
-  .content-body {
-    padding: 12px 12px 32px 12px;
-  }
-
-  /* Exam Modal on Mobile (Fixing cut-off box) */
-  .modal-overlay {
-    padding: 8px;
-    align-items: center;
-  }
-
-  .modal-exam-container {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 94vh !important;
-    height: 94dvh !important;
-    max-height: 94dvh !important;
-    border-radius: 16px;
-    margin: 0;
-  }
-
-  .exam-header-bar {
-    padding: 10px 12px;
-    gap: 8px;
-    flex-wrap: nowrap;
-    align-items: center;
-  }
-
-  .exam-header-left {
-    gap: 8px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .exam-badge-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
-    border-radius: 10px;
-    flex-shrink: 0;
-  }
-
-  .exam-meta-pills {
-    gap: 4px;
-    margin-bottom: 2px;
-  }
-
-  .badge-exam-course, .badge-exam-academic {
-    font-size: 0.68rem;
-    padding: 2px 6px;
-  }
-
-  .exam-title-text {
-    font-size: 0.95rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .exam-student-info {
-    display: none;
-  }
-
-  .exam-timer-card {
-    padding: 4px 10px;
-    border-radius: 10px;
-    flex-shrink: 0;
-  }
-
-  .exam-timer-label {
-    font-size: 0.62rem;
-  }
-
-  .exam-timer-digits {
-    font-size: 1.15rem;
-    letter-spacing: 1px;
-  }
-
-  .exam-progress-bar-container {
-    padding: 6px 12px;
-    gap: 4px;
-  }
-
-  .exam-progress-info {
-    font-size: 0.78rem;
-  }
-
-  .exam-body {
-    padding: 12px 12px;
-    gap: 12px;
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .exam-question-card-modern {
-    padding: 12px 12px;
-    border-radius: 14px;
-  }
-
-  .exam-q-header {
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .exam-q-num-badge {
-    font-size: 0.78rem;
-    padding: 3px 8px;
-  }
-
-  .exam-q-title {
-    font-size: 0.94rem;
-    line-height: 1.45;
-  }
-
-  .exam-choice-card {
-    padding: 9px 12px;
-    gap: 10px;
-    border-radius: 10px;
-  }
-
-  .choice-letter-badge {
-    width: 28px;
-    height: 28px;
-    font-size: 0.82rem;
-  }
-
-  .choice-text {
-    font-size: 0.88rem;
-  }
-
-  .exam-footer-bar {
-    padding: 10px 12px;
-    gap: 8px;
-  }
-
-  .btn-exam-submit {
-    padding: 8px 16px;
-    font-size: 0.88rem;
-    border-radius: 10px;
-    flex: 1;
-    justify-content: center;
-  }
-
-  .btn-exam-cancel {
-    padding: 8px 14px;
-    font-size: 0.84rem;
-    border-radius: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  .login-wrapper {
-    padding: 10px 8px 24px 8px;
-  }
-  .login-card-container {
-    border-radius: 18px;
-  }
-  .login-branding {
-    padding: 18px 14px 12px 14px;
-    border-radius: 18px 18px 0 0;
-  }
-  .brand-logo-image {
-    max-width: 110px;
-    max-height: 110px;
-  }
-  .login-form-side {
-    padding: 20px 16px 24px 16px;
-    border-radius: 0 0 18px 18px;
-  }
-  .btn-primary-large {
-    padding: 11px 18px;
-    font-size: 0.95rem;
-  }
-}
-
-/* ==========================================================================
-   10. ROLE-BASED SECURITY DISPLAY RULES
+   9. ROLE-BASED SECURITY DISPLAY RULES
    ========================================================================== */
 body.role-student .teacher-only,
 body.role-student .teacher-only-btn,
@@ -2431,7 +2055,7 @@ body.role-student #nav-users {
 }
 
 /* ==========================================================================
-   11. UPLOAD DROPZONE & LIVE PREVIEW CARDS
+   10. UPLOAD DROPZONE & LIVE PREVIEW CARDS
    ========================================================================== */
 .upload-dropzone {
   border: 2px dashed #cbd5e1;
@@ -2475,7 +2099,7 @@ body.role-student #nav-users {
 }
 
 /* ==========================================================================
-   10. OFFICIAL ACADEMIC ONLINE EXAMINATION SUITE
+   11. OFFICIAL ACADEMIC ONLINE EXAMINATION SUITE (DESKTOP & BASE)
    ========================================================================== */
 .modal-exam-container {
   max-width: 900px;
@@ -2491,53 +2115,67 @@ body.role-student #nav-users {
 }
 
 .exam-header-bar {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: linear-gradient(135deg, #071330 0%, #0d1e4c 100%);
   color: #ffffff;
-  padding: 18px 24px;
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 3px solid #2563eb;
+  flex-shrink: 0;
+}
+
+.exam-header-main-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 3px solid #2563eb;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  gap: 14px;
+  gap: 12px;
+  width: 100%;
 }
 
 .exam-header-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .exam-badge-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #2563eb, #3b82f6);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   color: #ffffff;
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
   flex-shrink: 0;
 }
 
+.exam-header-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .exam-meta-pills {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .badge-exam-course {
   background: rgba(37, 99, 235, 0.35);
   color: #93c5fd;
   border: 1px solid rgba(147, 197, 253, 0.4);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 6px;
 }
 
@@ -2545,36 +2183,33 @@ body.role-student #nav-users {
   background: rgba(245, 158, 11, 0.2);
   color: #fcd34d;
   border: 1px solid rgba(252, 211, 77, 0.3);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 6px;
 }
 
 .exam-title-text {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: #ffffff;
   margin: 0;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.exam-student-info {
-  font-size: 0.84rem;
-  color: #cbd5e1;
-  margin-top: 3px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.exam-header-right {
+  flex-shrink: 0;
 }
 
 .exam-timer-card {
   background: rgba(15, 23, 42, 0.75);
   border: 1.5px solid rgba(56, 189, 248, 0.5);
-  border-radius: 14px;
-  padding: 8px 18px;
+  border-radius: 12px;
+  padding: 6px 14px;
   text-align: center;
-  backdrop-filter: blur(8px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   transition: all 0.3s ease;
 }
@@ -2592,12 +2227,12 @@ body.role-student #nav-users {
 }
 
 .exam-timer-label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .exam-timer-card.urgent .exam-timer-label {
@@ -2606,10 +2241,10 @@ body.role-student #nav-users {
 
 .exam-timer-digits {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 1.65rem;
+  font-size: 1.45rem;
   font-weight: 900;
   color: #38bdf8;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   line-height: 1;
 }
 
@@ -2617,13 +2252,27 @@ body.role-student #nav-users {
   color: #f87171;
 }
 
+.exam-student-info {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .exam-progress-bar-container {
   background: #f8fafc;
-  padding: 10px 24px;
+  padding: 8px 20px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   flex-shrink: 0;
 }
 
@@ -2631,7 +2280,7 @@ body.role-student #nav-users {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #475569;
 }
@@ -2651,20 +2300,20 @@ body.role-student #nav-users {
 }
 
 .exam-body {
-  padding: 22px 24px;
+  padding: 20px 22px;
   background: #f8fafc;
   overflow-y: auto;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .exam-question-card-modern {
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
   border-radius: 16px;
-  padding: 20px 22px;
+  padding: 18px 20px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
   transition: all 0.2s ease;
 }
@@ -2677,8 +2326,8 @@ body.role-student #nav-users {
 .exam-q-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .exam-q-num-badge {
@@ -2686,17 +2335,17 @@ body.role-student #nav-users {
   color: #1d4ed8;
   border: 1px solid #bfdbfe;
   font-weight: 800;
-  font-size: 0.88rem;
-  padding: 4px 12px;
+  font-size: 0.84rem;
+  padding: 3px 10px;
   border-radius: 8px;
   flex-shrink: 0;
 }
 
 .exam-q-title {
-  font-size: 1.08rem;
+  font-size: 1.04rem;
   font-weight: 700;
   color: #0f172a;
-  line-height: 1.5;
+  line-height: 1.45;
   margin: 0;
   flex: 1;
 }
@@ -2711,7 +2360,7 @@ body.role-student #nav-users {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 11px 14px;
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
   border-radius: 12px;
@@ -2733,13 +2382,13 @@ body.role-student #nav-users {
 }
 
 .choice-letter-badge {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: #f1f5f9;
   color: #475569;
   font-weight: 800;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2754,7 +2403,7 @@ body.role-student #nav-users {
 }
 
 .choice-text {
-  font-size: 0.96rem;
+  font-size: 0.94rem;
   color: #1e293b;
   font-weight: 500;
   flex: 1;
@@ -2778,23 +2427,31 @@ body.role-student #nav-users {
 }
 
 .exam-footer-bar {
-  padding: 16px 24px;
+  padding: 12px 20px;
   background: #ffffff;
   border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.exam-footer-hint {
+  font-size: 0.82rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn-exam-submit {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: #ffffff;
   font-weight: 800;
-  font-size: 0.96rem;
-  padding: 10px 24px;
+  font-size: 0.94rem;
+  padding: 10px 22px;
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
   border: none;
@@ -2816,8 +2473,8 @@ body.role-student #nav-users {
   color: #475569;
   border: 1.5px solid #cbd5e1;
   font-weight: 600;
-  font-size: 0.9rem;
-  padding: 9px 18px;
+  font-size: 0.88rem;
+  padding: 9px 16px;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
@@ -2886,6 +2543,439 @@ body.role-student #nav-users {
   font-weight: 600;
   color: #64748b;
 }
+
+/* ==========================================================================
+   12. RESPONSIVE BREAKPOINTS (TABLET & MOBILE ARCHITECTURE)
+   ========================================================================== */
+/* Sidebar Mobile Dark Backdrop */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.65);
+  z-index: 9995;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.sidebar-backdrop.active {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .login-wrapper {
+    padding: 16px 12px 32px 12px;
+    align-items: flex-start;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .login-bg-glow-orb {
+    display: none !important;
+  }
+
+  .login-card-container {
+    flex-direction: column;
+    max-width: 440px;
+    width: 100%;
+    margin: 0 auto;
+    border-radius: 22px;
+    min-height: auto;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+    background: #ffffff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .login-branding {
+    padding: 24px 18px 16px 18px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px 22px 0 0;
+  }
+
+  .brand-live-ribbon {
+    font-size: 0.68rem;
+    padding: 4px 10px;
+  }
+
+  .brand-logo-hero {
+    margin-bottom: 2px;
+  }
+
+  .brand-logo-image {
+    max-width: 130px;
+    max-height: 130px;
+  }
+
+  .logo-ambient-aura {
+    width: 140px;
+    height: 140px;
+  }
+
+  .brand-subtitle {
+    font-size: 0.85rem;
+    margin-top: 2px;
+    margin-bottom: 4px;
+  }
+
+  .brand-features {
+    display: none !important;
+  }
+
+  .brand-footer {
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+
+  .login-form-side {
+    padding: 24px 20px 28px 20px;
+    border-radius: 0 0 22px 22px;
+    background: #ffffff;
+  }
+
+  .login-header {
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .login-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+    margin-bottom: 10px;
+  }
+
+  .login-title {
+    font-size: 1.35rem;
+  }
+
+  .login-desc {
+    font-size: 0.84rem;
+  }
+
+  .login-info-box {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    z-index: 9999;
+    width: 250px;
+  }
+  .sidebar.mobile-active,
+  .sidebar.show {
+    transform: translateX(0);
+  }
+  
+  .main-wrapper {
+    margin-left: 0;
+  }
+  
+  /* Top Header on Mobile - Clean One-Line Layout */
+  .top-header {
+    height: 54px;
+    padding: 0 12px;
+    gap: 8px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  
+  .header-title-container {
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+  }
+  
+  .mobile-toggle {
+    display: block;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #f1f5f9;
+    flex-shrink: 0;
+  }
+  
+  .page-title {
+    font-size: 1.02rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .header-right {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  
+  .header-clock {
+    display: none !important;
+  }
+  
+  .live-indicator {
+    padding: 3px 8px;
+    font-size: 0.72rem;
+  }
+  
+  .live-indicator span {
+    display: none;
+  }
+  .live-indicator::after {
+    content: "SYNC";
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .content-body {
+    padding: 12px 12px 32px 12px;
+  }
+
+  /* -------------------------------------------------------------
+     ACADEMIC EXAMINATION MODAL (FULL SCREEN MOBILE OPTIMIZED)
+  ------------------------------------------------------------- */
+  .modal-overlay {
+    padding: 8px;
+    align-items: center;
+  }
+
+  .modal-exam-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 94vh !important;
+    height: 94dvh !important;
+    max-height: 94dvh !important;
+    border-radius: 16px;
+    margin: 0;
+  }
+
+  .exam-header-bar {
+    padding: 10px 12px 8px 12px !important;
+    gap: 6px !important;
+  }
+
+  .exam-header-main-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .exam-header-left {
+    gap: 8px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .exam-badge-icon {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.9rem !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .exam-header-titles {
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .exam-meta-pills {
+    gap: 4px !important;
+    margin-bottom: 1px !important;
+  }
+
+  .badge-exam-course, .badge-exam-academic {
+    font-size: 0.65rem !important;
+    padding: 1px 6px !important;
+  }
+
+  .badge-exam-academic {
+    display: none !important; /* Hide secondary tag on mobile to prevent clutter */
+  }
+
+  .exam-title-text {
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin: 0 !important;
+    color: #ffffff !important;
+  }
+
+  .exam-header-right {
+    flex-shrink: 0 !important;
+  }
+
+  .exam-timer-card {
+    padding: 3px 8px !important;
+    border-radius: 8px !important;
+    min-width: 80px !important;
+    text-align: center !important;
+    border: 1.5px solid rgba(56, 189, 248, 0.5) !important;
+    background: rgba(15, 23, 42, 0.85) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .exam-timer-label {
+    font-size: 0.58rem !important;
+    letter-spacing: 0.3px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .exam-timer-digits {
+    font-size: 1.1rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 1px !important;
+    color: #38bdf8 !important;
+    line-height: 1 !important;
+  }
+
+  .exam-student-info {
+    width: 100% !important;
+    padding: 3px 8px !important;
+    font-size: 0.72rem !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-top: 1px !important;
+  }
+
+  .exam-progress-bar-container {
+    padding: 6px 12px !important;
+    gap: 4px !important;
+  }
+
+  .exam-progress-info {
+    font-size: 0.76rem !important;
+  }
+
+  .exam-body {
+    padding: 10px 12px !important;
+    gap: 10px !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .exam-question-card-modern {
+    padding: 12px 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .exam-q-header {
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .exam-q-num-badge {
+    font-size: 0.78rem !important;
+    padding: 2px 7px !important;
+  }
+
+  .exam-q-title {
+    font-size: 0.92rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .exam-choice-card {
+    padding: 9px 10px !important;
+    gap: 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .choice-letter-badge {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+  }
+
+  .choice-text {
+    font-size: 0.86rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .exam-footer-bar {
+    padding: 8px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    align-items: stretch !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+  }
+
+  .exam-footer-hint {
+    font-size: 0.7rem !important;
+    color: #64748b !important;
+    text-align: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+  }
+
+  .btn-exam-submit {
+    width: 100% !important;
+    padding: 9px 14px !important;
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-wrapper {
+    padding: 10px 8px 24px 8px;
+  }
+  .login-card-container {
+    border-radius: 18px;
+  }
+  .login-branding {
+    padding: 18px 14px 12px 14px;
+    border-radius: 18px 18px 0 0;
+  }
+  .brand-logo-image {
+    max-width: 110px;
+    max-height: 110px;
+  }
+  .login-form-side {
+    padding: 20px 16px 24px 16px;
+    border-radius: 0 0 18px 18px;
+  }
+  .btn-primary-large {
+    padding: 11px 18px;
+    font-size: 0.95rem;
+  }
+}
+
 @media print {
   body {
     background: #ffffff !important;

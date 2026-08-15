@@ -2914,9 +2914,14 @@ function startQuizRunner(quizId) {
   const studentInfoEl = document.getElementById('runner-student-info');
   if (studentInfoEl && currentUser) {
     studentInfoEl.innerHTML = `
-      <i class="fa-solid fa-user-graduate" style="color:#60a5fa;"></i> ผู้เข้าสอบ: <strong style="color:#ffffff;">${currentUser.name}</strong> 
-      • รหัสประจำตัว <span style="font-family:monospace; font-weight:700; color:#93c5fd;">${currentUser.studentId || '-'}</span> 
-      • ระดับชั้น <span style="font-weight:700; color:#fde047;">${currentUser.classLevel || '-'}</span>
+      <span style="display:inline-flex; align-items:center; gap:6px; min-width:0; overflow:hidden; text-overflow:ellipsis;">
+        <i class="fa-solid fa-user-graduate" style="color:#60a5fa; flex-shrink:0;"></i> 
+        <strong style="color:#ffffff; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${currentUser.name}</strong>
+      </span>
+      <span style="display:inline-flex; align-items:center; gap:6px; flex-shrink:0; font-size:0.76rem;">
+        <span style="background:rgba(253,224,71,0.18); color:#fde047; padding:2px 6px; border-radius:6px; font-weight:700;">ห้อง ${currentUser.classLevel || '-'}</span>
+        <span style="background:rgba(147,197,253,0.18); color:#93c5fd; padding:2px 6px; border-radius:6px; font-family:monospace; font-weight:700;">${currentUser.studentId || '-'}</span>
+      </span>
     `;
   }
 
