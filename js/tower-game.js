@@ -1,85 +1,93 @@
 /* ==========================================================================
-   TOWER OF WISDOM: IDLE RPG & CO-OP LOGIC DUNGEON ENGINE
-   หอคอยแห่งปัญญา 10 ชั้น: ระบบเกม Idle RPG ผจญภัยฟาร์มอัตโนมัติ & ตะลุยบอสเรด
+   TOWER OF WISDOM: RAGNAROK-STYLE ACTION RPG & LOGIC DUNGEON
+   หอคอยแห่งปัญญา 10 ชั้น: ระบบเกม Action RPG ควบคุมตัวละครอิสระสไตล์ Ragnarok
    ========================================================================== */
+
+// Player Hero Character State (Ragnarok Mechanics)
+let roHero = {
+  x: 200,
+  y: 200,
+  targetX: 200,
+  targetY: 200,
+  speed: 3.8,
+  direction: 'down',
+  isMoving: false,
+  isAttacking: false,
+  targetEnemy: null,
+  attackRange: 48,
+  attackCooldown: 0,
+  maxAttackCooldown: 0.45,
+  castCircle: 0,
+  skillsCooldown: { skill1: 0, skill2: 0, heal: 0 }
+};
 
 // Global Game State
 let towerPlayerState = {
   level: 1,
   exp: 0,
-  gold: 150,
+  gold: 200,
   levelCap: 10,
   highestClearedFloor: 0,
   currentFloor: 1,
-  currentWave: 1,
-  maxWavesPerFloor: 10,
-  baseStats: { atk: 15, def: 8, maxHp: 120, currentHp: 120 },
+  baseStats: { atk: 18, def: 10, maxHp: 150, currentHp: 150, maxSp: 80, currentSp: 80 },
   bonusStats: { atk: 0, def: 0, maxHp: 0 },
   equipment: {
-    weapon: { name: 'ดาบเหล็กผู้กล้า', rarity: 'common', atk: 8, icon: '⚔️' },
-    armor: { name: 'เกราะหนังนักผจญภัย', rarity: 'common', def: 5, icon: '🛡️' },
-    relic: { name: 'แหวนรูนฝึกหัด', rarity: 'common', maxHp: 40, icon: '💍' }
+    weapon: { name: 'ดาบเหล็กผู้กล้า (Novice Blade)', rarity: 'common', atk: 10, icon: '⚔️' },
+    armor: { name: 'เสื้อเกราะผ้า (Adventurer Suit)', rarity: 'common', def: 6, icon: '🛡️' },
+    relic: { name: 'แหวนรูนฝึกหัด (Rune Ring)', rarity: 'common', maxHp: 50, icon: '💍' }
   },
-  skills: ['oracle_eye'],
-  isAutoBattle: true,
-  gameSpeed: 1,
-  feverTimer: 0
+  skills: ['bash_strike', 'fire_bolt', 'heal_light'],
+  feverTimer: 0,
+  monstersDefeatedOnFloor: 0,
+  monstersNeededForBoss: 8
 };
 
-// Skill Master Catalog
-const TOWER_ALL_SKILLS = [
-  { id: 'oracle_eye', name: 'เนตรหยั่งรู้', icon: 'fa-eye', desc: 'ตัดตัวเลือกที่ผิดทิ้ง 2 ตัวเลือกทันที', color: '#38bdf8' },
-  { id: 'time_warp', name: 'ย้อนกาลเวลา', icon: 'fa-hourglass-half', desc: 'เพิ่มเวลาคิดปริศนา +25 วินาที', color: '#fbbf24' },
-  { id: 'aegis_shield', name: 'โล่เทพพิทักษ์', icon: 'fa-shield-halved', desc: 'ป้องกันความเสียหายจากบอส 100%', color: '#34d399' },
-  { id: 'critical_mind', name: 'ระเบิดปัญญา', icon: 'fa-bolt-lightning', desc: 'โจมตีคริติคอลรุนแรง 300%', color: '#f43f5e' },
-  { id: 'elixir_heal', name: 'น้ำยาฟื้นฟูกายา', icon: 'fa-flask', desc: 'ฟื้นฟูเลือด HP 50% ให้ทีม', color: '#10b981' },
-  { id: 'chain_lightning', name: 'สายฟ้าลูกโซ่', icon: 'fa-cloud-bolt', desc: 'โจมตีมอนสเตอร์ทุกตัว ดาเมจ 200%', color: '#818cf8' },
-  { id: 'frost_trap', name: 'มนต์แช่แข็ง', icon: 'fa-snowflake', desc: 'แช่แข็งมอนสเตอร์หยุดเดิน 3 วินาที', color: '#67e8f9' },
-  { id: 'berserk_will', name: 'จิตวิญญาณนักสู้', icon: 'fa-fire-flame-curved', desc: 'เมื่อเลือดต่ำ พลังโจมตี x2', color: '#ef4444' },
-  { id: 'phoenix_rebirth', name: 'นกฟีนิกซ์คืนชีพ', icon: 'fa-dove', desc: 'ฟื้นคืนชีพเมื่อเลือดหมด 1 ครั้ง', color: '#fb923c' }
-];
+// All Ragnarok-Style Action Skills
+const RO_SKILLS = {
+  bash_strike: { id: 'bash_strike', name: 'Bash (ฟันกระแทก)', sp: 15, cooldown: 3, icon: 'fa-gavel', color: '#f59e0b', desc: 'ฟันศัตรูอย่างรุนแรง ดาเมจ 280% พร้อมผลักกระเด็น' },
+  fire_bolt: { id: 'fire_bolt', name: 'Fire Bolt (บอลเพลิง)', sp: 25, cooldown: 5, icon: 'fa-fire-flame-curved', color: '#ef4444', desc: 'ยิงลูกไฟเวทมนตร์ระยะไกล ดาเมจ 350%' },
+  heal_light: { id: 'heal_light', name: 'Heal (แสงฟื้นฟู)', sp: 20, cooldown: 6, icon: 'fa-heart', color: '#10b981', desc: 'ฟื้นฟูเลือด HP 45% ให้ตนเองทันที' },
+  sonic_blow: { id: 'sonic_blow', name: 'Sonic Blow (เพลงดาบวายุ)', sp: 35, cooldown: 8, icon: 'fa-bolt', color: '#8b5cf6', desc: 'ฟันรัวต่อเนื่อง 6 ฮิต ดาเมจมหาศาล' }
+};
 
 // 10 Floors Data & Boss Configurations
 const TOWER_FLOORS_DATA = [
-  { floor: 1, name: 'ประตูวิหารสัจนิรันดร์', theme: 'Logic Gates (AND, OR, NOT)', levelCap: 10, boss: { name: 'โกเลมหินสัจจะ (Logic Golem)', level: 10, maxHp: 2500, atk: 18, def: 8, avatar: '🗿' } },
-  { floor: 2, name: 'ถ้ำลำดับเวทมนตร์', theme: 'Pattern Recognition & Sequences', levelCap: 20, boss: { name: 'อสรพิษลำดับอนันต์ (Infinite Serpent)', level: 20, maxHp: 5000, atk: 28, def: 14, avatar: '🐍' } },
-  { floor: 3, name: 'ป่าเขาวงกตอัลกอริทึม', theme: 'Flowcharts & Algorithms', levelCap: 30, boss: { name: 'ภูตเขาวงกต (Labyrinth Sprite)', level: 30, maxHp: 9000, atk: 42, def: 22, avatar: '🧚' } },
-  { floor: 4, name: 'หุบเขาเลขฐานสอง', theme: 'Binary & Bitwise Logic', levelCap: 40, boss: { name: 'การ์กอยล์ทวิภาค (Binary Gargoyle)', level: 40, maxHp: 14000, atk: 58, def: 30, avatar: '🦇' } },
-  { floor: 5, name: 'สุสานข้อผิดพลาด', theme: 'Code Debugging Trials', levelCap: 50, boss: { name: 'ราชินีบั๊กมรณะ (The Dread Bug)', level: 50, maxHp: 20000, atk: 75, def: 40, avatar: '🦂' } },
-  { floor: 6, name: 'หอสมุดเงื่อนไขซ้อน', theme: 'If-Else & Conditionals', levelCap: 60, boss: { name: 'จอมเวทเงื่อนไข (Conditional Mage)', level: 60, maxHp: 28000, atk: 95, def: 52, avatar: '🧙‍♂️' } },
-  { floor: 7, name: 'ห้องนิรภัยโครงสร้างข้อมูล', theme: 'Arrays, Stacks & Queues', levelCap: 70, boss: { name: 'อัศวินผลึก (Structure Guardian)', level: 70, maxHp: 38000, atk: 118, def: 65, avatar: '🛡️' } },
-  { floor: 8, name: 'ยอดผาฟังก์ชันและตัวแปร', theme: 'Functions & Loops', levelCap: 80, boss: { name: 'มังกรเพลิงฟังก์ชัน (Recursive Dragon)', level: 80, maxHp: 50000, atk: 142, def: 78, avatar: '🐉' } },
-  { floor: 9, name: 'ปราสาทถอดรหัสไซเฟอร์', theme: 'Cryptography & Ciphers', levelCap: 90, boss: { name: 'ชาโดว์รหัสลับ (Cipher Phantom)', level: 90, maxHp: 65000, atk: 170, def: 90, avatar: '👤' } },
-  { floor: 10, name: 'บัลลังก์จักรกล AI', theme: 'AI Logic & Systems', levelCap: 99, boss: { name: 'ผู้คุมกฎแห่งมิติดิจิทัล (AI Mastermind)', level: 100, maxHp: 100000, atk: 210, def: 110, avatar: '🤖' } }
+  { floor: 1, name: 'วิหารสัจนิรันดร์ (Prontera Catacombs)', theme: 'ตรรกศาสตร์ & Logic Gates', levelCap: 10, boss: { name: 'โกเลมหินสัจจะ (Logic Golem)', level: 10, maxHp: 2500, atk: 18, def: 8, avatar: '🗿' } },
+  { floor: 2, name: 'ถ้ำอนุกรมเวทมนตร์ (Payon Cave)', theme: 'การหารูปแบบ & Sequences', levelCap: 20, boss: { name: 'พญางูลำดับอนันต์ (Infinite Serpent)', level: 20, maxHp: 5000, atk: 28, def: 14, avatar: '🐍' } },
+  { floor: 3, name: 'ป่าเขาวงกตผังงาน (Labyrinth Forest)', theme: 'Flowcharts & Algorithms', levelCap: 30, boss: { name: 'ภูตเขาวงกต (Labyrinth Sprite)', level: 30, maxHp: 9000, atk: 42, def: 22, avatar: '🧚' } },
+  { floor: 4, name: 'หุบเขาเลขฐานสอง (Binary Valley)', theme: 'Binary & Bitwise Logic', levelCap: 40, boss: { name: 'การ์กอยล์ทวิภาค (Binary Gargoyle)', level: 40, maxHp: 14000, atk: 58, def: 30, avatar: '🦇' } },
+  { floor: 5, name: 'สุสานข้อผิดพลาด (Catacombs of Bugs)', theme: 'Code Debugging Trials', levelCap: 50, boss: { name: 'ราชินีบั๊กมรณะ (The Bug Queen)', level: 50, maxHp: 20000, atk: 75, def: 40, avatar: '🦂' } },
+  { floor: 6, name: 'หอสมุดเงื่อนไขซ้อน (Geffen Library)', theme: 'If-Else & Conditionals', levelCap: 60, boss: { name: 'จอมเวทเงื่อนไข (Conditional Mage)', level: 60, maxHp: 28000, atk: 95, def: 52, avatar: '🧙‍♂️' } },
+  { floor: 7, name: 'ห้องนิรภัยอาร์เรย์ (Array Sanctuary)', theme: 'Arrays, Stacks & Queues', levelCap: 70, boss: { name: 'อัศวินผลึกโครงสร้าง (Structure Knight)', level: 70, maxHp: 38000, atk: 118, def: 65, avatar: '🛡️' } },
+  { floor: 8, name: 'ผาฟังก์ชันเพลิง (Magma Cliff)', theme: 'Functions & Loops', levelCap: 80, boss: { name: 'มังกรเพลิงฟังก์ชัน (Recursive Dragon)', level: 80, maxHp: 50000, atk: 142, def: 78, avatar: '🐉' } },
+  { floor: 9, name: 'ปราสาทถอดรหัส (Cipher Castle)', theme: 'Cryptography & Ciphers', levelCap: 90, boss: { name: 'ชาโดว์รหัสลับ (Cipher Phantom)', level: 90, maxHp: 65000, atk: 170, def: 90, avatar: '👤' } },
+  { floor: 10, name: 'บัลลังก์จักรกล AI (AI Overlord Core)', theme: 'AI Logic & Systems', levelCap: 99, boss: { name: 'ผู้คุมกฎแห่งมิติดิจิทัล (AI Mastermind)', level: 100, maxHp: 100000, atk: 210, def: 110, avatar: '🤖' } }
 ];
 
 // Equipment Loot Table
 const TOWER_LOOT_TABLE = {
   weapons: [
-    { name: 'ดาบไม้ฝึกหัด', rarity: 'common', atk: 6, icon: '🗡️' },
-    { name: 'ดาบเหล็กตรรกะ', rarity: 'common', atk: 14, icon: '⚔️' },
+    { name: 'ดาบเหล็กตรรกะ', rarity: 'common', atk: 12, icon: '⚔️' },
     { name: 'คทาเวทมนตร์รูน', rarity: 'rare', atk: 26, icon: '🪄' },
-    { name: 'ดาบคริสตัลอัลกอริทึม', rarity: 'rare', atk: 42, icon: '💎' },
-    { name: 'หอกสายฟ้าทวิภาค', rarity: 'epic', atk: 65, icon: '⚡' },
-    { name: 'ดาบแสงปัญญาประดิษฐ์', rarity: 'legendary', atk: 110, icon: '🌟' }
+    { name: 'ดาบคริสตัลอัลกอริทึม', rarity: 'rare', atk: 45, icon: '💎' },
+    { name: 'หอกสายฟ้าทวิภาค', rarity: 'epic', atk: 70, icon: '⚡' },
+    { name: 'ดาบแห่งแสงปัญญา AI', rarity: 'legendary', atk: 120, icon: '🌟' }
   ],
   armors: [
-    { name: 'เสื้อเกราะผ้าธรรมดา', rarity: 'common', def: 4, icon: '🥋' },
     { name: 'เกราะหนังนักผจญภัย', rarity: 'common', def: 10, icon: '🛡️' },
-    { name: 'ชุดคลุมจอมเวทคัดสรร', rarity: 'rare', def: 24, icon: '👘' },
-    { name: 'เกราะเพลทผลึกศิลา', rarity: 'epic', def: 48, icon: '🛡️' },
-    { name: 'เกราะทองคำเทพพิทักษ์', rarity: 'legendary', def: 80, icon: '👑' }
+    { name: 'ชุดคลุมจอมเวทคัดสรร', rarity: 'rare', def: 25, icon: '👘' },
+    { name: 'เกราะเพลทผลึกศิลา', rarity: 'epic', def: 52, icon: '🛡️' },
+    { name: 'เกราะทองคำเทพพิทักษ์', rarity: 'legendary', def: 88, icon: '👑' }
   ],
   relics: [
-    { name: 'แหวนทองแดงสมาธิ', rarity: 'common', maxHp: 35, icon: '💍' },
-    { name: 'สร้อยคอหินนำโชค', rarity: 'common', maxHp: 75, icon: '📿' },
-    { name: 'จี้ห้อยคอหัวใจมังกร', rarity: 'rare', maxHp: 140, icon: '❤️' },
-    { name: 'แหวนรูนชีวิตนิรันดร์', rarity: 'epic', maxHp: 240, icon: '💍' },
-    { name: 'มงกุฎจักรพรรดิแห่งปัญญา', rarity: 'legendary', maxHp: 400, icon: '👑' }
+    { name: 'สร้อยคอหินนำโชค', rarity: 'common', maxHp: 70, icon: '📿' },
+    { name: 'จี้ห้อยคอหัวใจมังกร', rarity: 'rare', maxHp: 150, icon: '❤️' },
+    { name: 'แหวนรูนชีวิตนิรันดร์', rarity: 'epic', maxHp: 260, icon: '💍' },
+    { name: 'มงกุฎจักรพรรดิแห่งปัญญา', rarity: 'legendary', maxHp: 450, icon: '👑' }
   ]
 };
 
-// Puzzle Question Bank for Logic Boosts
+// Logic Puzzle Bank for Rune Altars
 const TOWER_PUZZLE_BANK = {
   1: [
     { q: 'ผลลัพธ์ของ (TRUE AND FALSE) มีค่าตรงกับข้อใด?', options: ['TRUE', 'FALSE', 'ERROR', 'NULL'], ans: 1 },
@@ -124,24 +132,72 @@ const TOWER_PUZZLE_BANK = {
   ]
 };
 
-/* -------------------------------------------------------------
-   IDLE RPG BATTLE SIMULATION & RENDER ENGINE
-------------------------------------------------------------- */
-let idleBattleInterval = null;
-let activeEnemies = [];
+// Map Dungeon Monsters & Objects
+let dungeonMonsters = [];
+let groundLoots = [];
 let damagePopups = [];
+let targetMoveIndicator = null;
+let gameLoopAnimationId = null;
 
-// Hero Party Members in Battle
-const HERO_PARTY = [
-  { name: 'อัศวินสาว (Knight)', class: 'knight', emoji: '👧⚔️', color: '#60a5fa', x: 80, y: 140, attackCooldown: 0 },
-  { name: 'นักธนูเวท (Archer)', class: 'archer', emoji: '🏹👧', color: '#34d399', x: 40, y: 80, attackCooldown: 0 },
-  { name: 'จอมเวทสาว (Mage)', class: 'mage', emoji: '🪄👧', color: '#c084fc', x: 30, y: 190, attackCooldown: 0 }
-];
+// Rune Altars on Map
+let runeAltar = { x: 380, y: 120, radius: 26, isSolved: false };
 
+/* -------------------------------------------------------------
+   INITIALIZATION & MAP SPAWN
+------------------------------------------------------------- */
 function initTowerGameModule() {
   if (!currentUser) return;
   loadStudentTowerProgress();
-  startIdleBattleLoop();
+  setupDungeonMap(towerPlayerState.currentFloor);
+  startRagnarokGameLoop();
+}
+
+function setupDungeonMap(floorNum) {
+  dungeonMonsters = [];
+  groundLoots = [];
+  damagePopups = [];
+  roHero.x = 100;
+  roHero.y = 260;
+  roHero.targetX = 100;
+  roHero.targetY = 260;
+  roHero.targetEnemy = null;
+
+  runeAltar = { x: 420, y: 130, radius: 26, isSolved: false };
+
+  // Monster Spawns for this floor
+  const monsterDefs = [
+    { name: 'Poring สัจจะ', emoji: '💧', hp: 80 + (floorNum * 40), maxHp: 80 + (floorNum * 40), atk: 8 + (floorNum * 4), exp: 25, speed: 1.2 },
+    { name: 'Skeleton นักรบ', emoji: '💀', hp: 120 + (floorNum * 50), maxHp: 120 + (floorNum * 50), atk: 14 + (floorNum * 6), exp: 40, speed: 1.5 },
+    { name: 'Orc ค้อนศิลา', emoji: '👹', hp: 180 + (floorNum * 70), maxHp: 180 + (floorNum * 70), atk: 20 + (floorNum * 8), exp: 65, speed: 1.0 },
+    { name: 'Fabre หนอนตรรกะ', emoji: '🐛', hp: 60 + (floorNum * 30), maxHp: 60 + (floorNum * 30), atk: 6 + (floorNum * 3), exp: 20, speed: 0.9 }
+  ];
+
+  const spawnPoints = [
+    { x: 300, y: 180 }, { x: 480, y: 220 }, { x: 600, y: 150 },
+    { x: 550, y: 320 }, { x: 350, y: 340 }, { x: 220, y: 140 }
+  ];
+
+  spawnPoints.forEach((sp, idx) => {
+    const template = monsterDefs[idx % monsterDefs.length];
+    dungeonMonsters.push({
+      id: 'mob_' + Date.now() + '_' + idx,
+      name: template.name,
+      emoji: template.emoji,
+      x: sp.x + (Math.random() * 30 - 15),
+      y: sp.y + (Math.random() * 30 - 15),
+      homeX: sp.x,
+      homeY: sp.y,
+      hp: template.hp,
+      maxHp: template.maxHp,
+      atk: template.atk,
+      exp: template.exp,
+      speed: template.speed,
+      attackCooldown: 0,
+      radius: 20,
+      state: 'idle',
+      aggroRadius: 130
+    });
+  });
 }
 
 function loadStudentTowerProgress() {
@@ -152,12 +208,11 @@ function loadStudentTowerProgress() {
       if (data) {
         towerPlayerState.level = data.level || 1;
         towerPlayerState.exp = data.exp || 0;
-        towerPlayerState.gold = data.gold || 150;
+        towerPlayerState.gold = data.gold || 200;
         towerPlayerState.highestClearedFloor = data.highestClearedFloor || 0;
         towerPlayerState.currentFloor = data.currentFloor || 1;
-        towerPlayerState.currentWave = data.currentWave || 1;
         towerPlayerState.levelCap = calculateLevelCap(towerPlayerState.highestClearedFloor);
-        towerPlayerState.baseStats = data.baseStats || { atk: 15 + (towerPlayerState.level * 3), def: 8 + (towerPlayerState.level * 2), maxHp: 120 + (towerPlayerState.level * 18), currentHp: 120 + (towerPlayerState.level * 18) };
+        towerPlayerState.baseStats = data.baseStats || { atk: 18 + (towerPlayerState.level * 4), def: 10 + (towerPlayerState.level * 2), maxHp: 150 + (towerPlayerState.level * 20), currentHp: 150 + (towerPlayerState.level * 20), maxSp: 80, currentSp: 80 };
         towerPlayerState.bonusStats = data.bonusStats || { atk: 0, def: 0, maxHp: 0 };
         towerPlayerState.equipment = data.equipment || towerPlayerState.equipment;
         if (data.skills && Array.isArray(data.skills)) towerPlayerState.skills = data.skills;
@@ -180,7 +235,6 @@ function saveStudentTowerProgress() {
       gold: towerPlayerState.gold,
       highestClearedFloor: towerPlayerState.highestClearedFloor,
       currentFloor: towerPlayerState.currentFloor,
-      currentWave: towerPlayerState.currentWave,
       levelCap: towerPlayerState.levelCap,
       baseStats: towerPlayerState.baseStats,
       bonusStats: towerPlayerState.bonusStats,
@@ -210,167 +264,238 @@ function getTotalStats() {
     atk: (towerPlayerState.baseStats.atk + towerPlayerState.bonusStats.atk + eqAtk) * feverMultiplier,
     def: towerPlayerState.baseStats.def + towerPlayerState.bonusStats.def + eqDef,
     maxHp: towerPlayerState.baseStats.maxHp + towerPlayerState.bonusStats.maxHp + eqHp,
-    currentHp: Math.min(towerPlayerState.baseStats.currentHp, towerPlayerState.baseStats.maxHp + towerPlayerState.bonusStats.maxHp + eqHp)
+    currentHp: towerPlayerState.baseStats.currentHp,
+    maxSp: towerPlayerState.baseStats.maxSp || 80,
+    currentSp: towerPlayerState.baseStats.currentSp || 80
   };
 }
 
 /* -------------------------------------------------------------
-   IDLE AUTO-BATTLE CYCLE (60 FPS Game Loop)
+   60 FPS RAGNAROK ACTION GAME LOOP
 ------------------------------------------------------------- */
-function startIdleBattleLoop() {
-  if (idleBattleInterval) clearInterval(idleBattleInterval);
+function startRagnarokGameLoop() {
+  if (gameLoopAnimationId) cancelAnimationFrame(gameLoopAnimationId);
 
-  spawnEnemyWave();
+  let lastTime = performance.now();
 
-  idleBattleInterval = setInterval(() => {
-    updateIdleCombatState();
-    drawIdleBattleCanvas();
-  }, 100); // 10 ticks/sec
-}
+  function loop(currentTime) {
+    const dt = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
 
-function spawnEnemyWave() {
-  activeEnemies = [];
-  const floor = towerPlayerState.currentFloor;
-  const enemyCount = 3 + Math.floor(Math.random() * 2);
+    updateRagnarokWorld(dt);
+    drawRagnarokCanvas();
 
-  const monsterTypes = [
-    { name: 'สเกเลตันนักดาบ', emoji: '💀⚔️', baseHp: 40 + (floor * 35), maxHp: 40 + (floor * 35), atk: 8 + (floor * 5) },
-    { name: 'ออร์คค้อนหนาม', emoji: '👹🔨', baseHp: 65 + (floor * 50), maxHp: 65 + (floor * 50), atk: 12 + (floor * 7) },
-    { name: 'ก็อบลินมีดคู่', emoji: '👺🗡️', baseHp: 30 + (floor * 25), maxHp: 30 + (floor * 25), atk: 10 + (floor * 6) }
-  ];
-
-  for (let i = 0; i < enemyCount; i++) {
-    const template = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
-    activeEnemies.push({
-      id: 'enemy_' + Date.now() + '_' + i,
-      name: template.name,
-      emoji: template.emoji,
-      hp: template.baseHp,
-      maxHp: template.maxHp,
-      atk: template.atk,
-      x: 380 + (i * 70) + (Math.random() * 20),
-      y: 70 + (i * 55),
-      targetX: 200 + (i * 35)
-    });
-  }
-}
-
-function updateIdleCombatState() {
-  if (towerPlayerState.feverTimer > 0) {
-    towerPlayerState.feverTimer -= 0.1;
+    gameLoopAnimationId = requestAnimationFrame(loop);
   }
 
+  gameLoopAnimationId = requestAnimationFrame(loop);
+}
+
+function updateRagnarokWorld(dt) {
   const totalStats = getTotalStats();
 
-  // 1. Move Enemies leftward
-  activeEnemies.forEach(e => {
-    if (e.x > e.targetX) {
-      e.x -= 3 * towerPlayerState.gameSpeed;
-    }
-  });
+  // Cooldowns
+  if (roHero.attackCooldown > 0) roHero.attackCooldown -= dt;
+  if (roHero.skillsCooldown.skill1 > 0) roHero.skillsCooldown.skill1 -= dt;
+  if (roHero.skillsCooldown.skill2 > 0) roHero.skillsCooldown.skill2 -= dt;
+  if (roHero.skillsCooldown.heal > 0) roHero.skillsCooldown.heal -= dt;
+  if (towerPlayerState.feverTimer > 0) towerPlayerState.feverTimer -= dt;
 
-  // 2. Heroes Auto Attack
-  HERO_PARTY.forEach(hero => {
-    hero.attackCooldown -= 0.1 * towerPlayerState.gameSpeed;
-    if (hero.attackCooldown <= 0 && activeEnemies.length > 0) {
-      hero.attackCooldown = 0.8 + Math.random() * 0.4;
+  // SP Natural Regen
+  if (towerPlayerState.baseStats.currentSp < totalStats.maxSp) {
+    towerPlayerState.baseStats.currentSp = Math.min(totalStats.maxSp, towerPlayerState.baseStats.currentSp + dt * 4);
+  }
 
-      // Target closest enemy
-      const target = activeEnemies[0];
-      if (target) {
-        const damage = Math.round(totalStats.atk * (0.8 + Math.random() * 0.5));
-        target.hp -= damage;
-
-        // Damage Popup
-        damagePopups.push({
-          text: (damage * (1 + (Math.random() * 0.4))).toFixed(2),
-          x: target.x + (Math.random() * 20 - 10),
-          y: target.y - 15,
-          opacity: 1,
-          isCrit: towerPlayerState.feverTimer > 0
-        });
-
-        // Check if enemy dead
-        if (target.hp <= 0) {
-          activeEnemies.shift();
-          handleEnemyKilled();
-        }
+  // 1. Move Hero towards target destination
+  if (roHero.targetEnemy) {
+    // Chase target enemy
+    const distToEnemy = Math.hypot(roHero.targetEnemy.x - roHero.x, roHero.targetEnemy.y - roHero.y);
+    if (distToEnemy > roHero.attackRange) {
+      const angle = Math.atan2(roHero.targetEnemy.y - roHero.y, roHero.targetEnemy.x - roHero.x);
+      roHero.x += Math.cos(angle) * roHero.speed;
+      roHero.y += Math.sin(angle) * roHero.speed;
+      roHero.isMoving = true;
+    } else {
+      roHero.isMoving = false;
+      // Auto-Attack target enemy when in range
+      if (roHero.attackCooldown <= 0) {
+        performHeroAttack(roHero.targetEnemy, 1.0, false);
+        roHero.attackCooldown = roHero.maxAttackCooldown;
       }
     }
+  } else {
+    // Normal Point-and-Click movement
+    const distToTarget = Math.hypot(roHero.targetX - roHero.x, roHero.targetY - roHero.y);
+    if (distToTarget > 4) {
+      const angle = Math.atan2(roHero.targetY - roHero.y, roHero.targetX - roHero.x);
+      roHero.x += Math.cos(angle) * roHero.speed;
+      roHero.y += Math.sin(angle) * roHero.speed;
+      roHero.isMoving = true;
+    } else {
+      roHero.isMoving = false;
+      targetMoveIndicator = null;
+    }
+  }
+
+  // 2. Monster AI (Roaming & Aggro chasing)
+  dungeonMonsters.forEach(m => {
+    const distToHero = Math.hypot(roHero.x - m.x, roHero.y - m.y);
+
+    if (distToHero < m.aggroRadius) {
+      // Aggro on Hero
+      m.state = 'chase';
+      if (distToHero > 36) {
+        const angle = Math.atan2(roHero.y - m.y, roHero.x - m.x);
+        m.x += Math.cos(angle) * m.speed;
+        m.y += Math.sin(angle) * m.speed;
+      } else {
+        // Monster attacks player
+        if (!m.attackCooldown || m.attackCooldown <= 0) {
+          m.attackCooldown = 1.4;
+          const dmg = Math.max(5, m.atk - totalStats.def);
+          towerPlayerState.baseStats.currentHp = Math.max(0, towerPlayerState.baseStats.currentHp - dmg);
+
+          damagePopups.push({
+            text: `-${dmg}`,
+            x: roHero.x,
+            y: roHero.y - 20,
+            opacity: 1,
+            color: '#ef4444'
+          });
+
+          if (towerPlayerState.baseStats.currentHp <= 0) {
+            handleRagnarokDeath();
+          }
+        }
+      }
+    } else {
+      // Return or wander near home
+      m.state = 'idle';
+      if (m.attackCooldown > 0) m.attackCooldown -= dt;
+    }
   });
 
-  // 3. Update Damage Popups
+  // 3. Loot Pickup on Proximity
+  groundLoots.forEach((loot, idx) => {
+    const dist = Math.hypot(roHero.x - loot.x, roHero.y - loot.y);
+    if (dist < 32) {
+      towerPlayerState.gold += loot.gold || 15;
+      if (loot.item) {
+        equipDroppedItem(loot.item);
+      }
+      damagePopups.push({
+        text: loot.item ? `+${loot.item.name}` : `+${loot.gold} Zeny`,
+        x: loot.x,
+        y: loot.y - 15,
+        opacity: 1,
+        color: '#facc15'
+      });
+      groundLoots.splice(idx, 1);
+      updateRagnarokHUD();
+    }
+  });
+
+  // 4. Update Damage Popups
   damagePopups.forEach(p => {
-    p.y -= 2;
-    p.opacity -= 0.08;
+    p.y -= 1.2;
+    p.opacity -= 0.03;
   });
   damagePopups = damagePopups.filter(p => p.opacity > 0);
+}
 
-  // 4. Wave Cleared Check
-  if (activeEnemies.length === 0) {
-    towerPlayerState.currentWave++;
-    if (towerPlayerState.currentWave > towerPlayerState.maxWavesPerFloor) {
-      towerPlayerState.currentWave = towerPlayerState.maxWavesPerFloor;
-    }
-    spawnEnemyWave();
-    updateWaveUI();
+function performHeroAttack(monster, damageMultiplier = 1.0, isSkill = false) {
+  const totalStats = getTotalStats();
+  const damage = Math.round(totalStats.atk * damageMultiplier * (0.9 + Math.random() * 0.3));
+
+  monster.hp -= damage;
+
+  // Slash effect / Cast animation
+  roHero.isAttacking = true;
+  setTimeout(() => { roHero.isAttacking = false; }, 200);
+
+  damagePopups.push({
+    text: damage.toString(),
+    x: monster.x + (Math.random() * 16 - 8),
+    y: monster.y - 20,
+    opacity: 1,
+    color: isSkill ? '#fef08a' : '#ffffff',
+    isCrit: isSkill || towerPlayerState.feverTimer > 0
+  });
+
+  if (monster.hp <= 0) {
+    handleMonsterKilled(monster);
   }
 }
 
-function handleEnemyKilled() {
-  const floor = towerPlayerState.currentFloor;
-  const expGained = Math.round(15 * floor * (1 + Math.random() * 0.5));
-  const goldGained = Math.round(8 * floor * (1 + Math.random() * 0.8));
+function handleMonsterKilled(monster) {
+  // Drop Loot on Map
+  groundLoots.push({
+    x: monster.x,
+    y: monster.y,
+    gold: Math.round(15 * towerPlayerState.currentFloor * (1 + Math.random() * 0.8)),
+    item: Math.random() < 0.25 ? rollRandomLoot() : null
+  });
 
-  towerPlayerState.gold += goldGained;
-
-  // Level Cap EXP check
+  // Add EXP
   if (towerPlayerState.level < towerPlayerState.levelCap) {
-    towerPlayerState.exp += expGained;
+    towerPlayerState.exp += monster.exp;
     const expNeeded = towerPlayerState.level * 100;
     if (towerPlayerState.exp >= expNeeded) {
       towerPlayerState.exp -= expNeeded;
       towerPlayerState.level += 1;
       towerPlayerState.baseStats.atk += 4;
       towerPlayerState.baseStats.def += 2;
-      towerPlayerState.baseStats.maxHp += 20;
+      towerPlayerState.baseStats.maxHp += 25;
       towerPlayerState.baseStats.currentHp = towerPlayerState.baseStats.maxHp;
       showLevelUpToast();
     }
   }
 
-  // 15% Chance to Drop Gear Loot
-  if (Math.random() < 0.15) {
-    const categories = ['weapons', 'armors', 'relics'];
-    const cat = categories[Math.floor(Math.random() * categories.length)];
-    const items = TOWER_LOOT_TABLE[cat];
-    const loot = items[Math.floor(Math.random() * items.length)];
+  // Remove monster & count
+  dungeonMonsters = dungeonMonsters.filter(m => m.id !== monster.id);
+  if (roHero.targetEnemy === monster) roHero.targetEnemy = null;
 
-    if (cat === 'weapons' && loot.atk > (towerPlayerState.equipment.weapon ? towerPlayerState.equipment.weapon.atk : 0)) {
-      towerPlayerState.equipment.weapon = loot;
-    } else if (cat === 'armors' && loot.def > (towerPlayerState.equipment.armor ? towerPlayerState.equipment.armor.def : 0)) {
-      towerPlayerState.equipment.armor = loot;
-    } else if (cat === 'relics' && loot.maxHp > (towerPlayerState.equipment.relic ? towerPlayerState.equipment.relic.maxHp : 0)) {
-      towerPlayerState.equipment.relic = loot;
+  towerPlayerState.monstersDefeatedOnFloor++;
+  updateRagnarokHUD();
+
+  // Respawn new monster after 3 seconds
+  setTimeout(() => {
+    if (dungeonMonsters.length < 6) {
+      setupDungeonMap(towerPlayerState.currentFloor);
     }
-  }
-
-  updateStatsHeaderUI();
+  }, 3500);
 }
 
-function showLevelUpToast() {
-  const banner = document.getElementById('idle-levelup-toast');
-  if (banner) {
-    banner.style.display = 'block';
-    setTimeout(() => { banner.style.display = 'none'; }, 2000);
-  }
+function rollRandomLoot() {
+  const categories = ['weapons', 'armors', 'relics'];
+  const cat = categories[Math.floor(Math.random() * categories.length)];
+  const items = TOWER_LOOT_TABLE[cat];
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function equipDroppedItem(item) {
+  if (item.atk) towerPlayerState.equipment.weapon = item;
+  if (item.def) towerPlayerState.equipment.armor = item;
+  if (item.maxHp) towerPlayerState.equipment.relic = item;
+  saveStudentTowerProgress();
+  renderTowerMainView();
+}
+
+function handleRagnarokDeath() {
+  towerPlayerState.baseStats.currentHp = towerPlayerState.baseStats.maxHp;
+  roHero.x = 100;
+  roHero.y = 260;
+  roHero.targetX = 100;
+  roHero.targetY = 260;
+  roHero.targetEnemy = null;
+  showPopupError('คุณหมดสติ!', 'คุณถูกมอนสเตอร์โจมตีจนหมดสติ ถูกพากลับมายังจุดเริ่มต้นของชั้น');
 }
 
 /* -------------------------------------------------------------
-   CANVAS BATTLE GRAPHICS (Dynamic Side-View Arena)
+   CANVAS RAGNAROK GRAPHICS (2D ISOMETRIC / TOP-DOWN MAP)
 ------------------------------------------------------------- */
-function drawIdleBattleCanvas() {
-  const canvas = document.getElementById('idle-battle-canvas');
+function drawRagnarokCanvas() {
+  const canvas = document.getElementById('ragnarok-map-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -378,96 +503,278 @@ function drawIdleBattleCanvas() {
   const w = canvas.width;
   const h = canvas.height;
 
-  // 1. Draw Fantasy Blue Grass Dungeon Background
-  const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, '#1e1b4b');
-  gradient.addColorStop(0.5, '#1e3a8a');
-  gradient.addColorStop(1, '#0f172a');
-  ctx.fillStyle = gradient;
+  // 1. Draw Ragnarok Dungeon Floor (Stone Tile Grid)
+  ctx.fillStyle = '#0f172a';
   ctx.fillRect(0, 0, w, h);
 
-  // Floor terrain
-  ctx.fillStyle = '#1e293b';
-  ctx.fillRect(0, h - 35, w, 35);
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillRect(0, h - 35, w, 2);
-
-  // 2. Draw Heroes on the Left
-  HERO_PARTY.forEach(hero => {
-    ctx.save();
-    // Shadow
+  // Tile Grid
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 32) {
     ctx.beginPath();
-    ctx.ellipse(hero.x + 15, hero.y + 35, 18, 6, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y < h; y += 32) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+
+  // 2. Draw Target Move Indicator (Green Ripple Circle on Click)
+  if (targetMoveIndicator) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(targetMoveIndicator.x, targetMoveIndicator.y, targetMoveIndicator.r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#34d399';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    targetMoveIndicator.r = (targetMoveIndicator.r + 0.5) % 18;
+    ctx.restore();
+  }
+
+  // 3. Draw Ancient Rune Altar (Logic Puzzle Trigger)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(runeAltar.x, runeAltar.y, runeAltar.radius, 0, Math.PI * 2);
+  ctx.fillStyle = runeAltar.isSolved ? 'rgba(52, 211, 153, 0.25)' : 'rgba(56, 189, 248, 0.25)';
+  ctx.fill();
+  ctx.strokeStyle = runeAltar.isSolved ? '#34d399' : '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.font = '22px sans-serif';
+  ctx.fillText('🏛️', runeAltar.x - 12, runeAltar.y + 8);
+  ctx.font = 'bold 11px Sarabun, sans-serif';
+  ctx.fillStyle = '#fcd34d';
+  ctx.fillText('ศิลาตรรกะรูน [คลิก]', runeAltar.x - 42, runeAltar.y + 36);
+  ctx.restore();
+
+  // 4. Draw Boss Chamber Warp Portal
+  const isBossUnlocked = towerPlayerState.monstersDefeatedOnFloor >= towerPlayerState.monstersNeededForBoss;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(w - 60, h / 2, 28, 0, Math.PI * 2);
+  ctx.fillStyle = isBossUnlocked ? 'rgba(239, 68, 68, 0.35)' : 'rgba(100, 116, 139, 0.2)';
+  ctx.fill();
+  ctx.strokeStyle = isBossUnlocked ? '#ef4444' : '#64748b';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.font = '24px sans-serif';
+  ctx.fillText('🚪', w - 74, h / 2 + 8);
+  ctx.font = 'bold 11px Sarabun, sans-serif';
+  ctx.fillStyle = isBossUnlocked ? '#f87171' : '#94a3b8';
+  ctx.fillText(isBossUnlocked ? 'วาร์ปห้องบอส 🔥' : 'วาร์ปถูกผนึก 🔒', w - 100, h / 2 + 42);
+  ctx.restore();
+
+  // 5. Draw Ground Loots with Sparkling Gold
+  groundLoots.forEach(loot => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(loot.x, loot.y, 14, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
     ctx.fill();
-
-    // Emoji Character Sprite
-    ctx.font = '28px sans-serif';
-    ctx.fillText(hero.emoji, hero.x, hero.y + 25);
-
-    // Hero Name & Health Tag
-    ctx.font = '10px Sarabun, sans-serif';
-    ctx.fillStyle = '#93c5fd';
-    ctx.fillText(hero.name.split(' ')[0], hero.x - 4, hero.y - 8);
-
+    ctx.font = '16px sans-serif';
+    ctx.fillText(loot.item ? loot.item.icon : '🪙', loot.x - 8, loot.y + 6);
     ctx.restore();
   });
 
-  // 3. Draw Enemies on the Right
-  activeEnemies.forEach(e => {
+  // 6. Draw Dungeon Monsters
+  dungeonMonsters.forEach(m => {
     ctx.save();
     // Shadow
     ctx.beginPath();
-    ctx.ellipse(e.x + 15, e.y + 35, 18, 6, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.ellipse(m.x, m.y + 14, 14, 5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fill();
 
-    // Health Bar above enemy head (styled like screenshot)
-    const barW = 55;
-    const barH = 5;
-    const hpRatio = Math.max(0, e.hp / e.maxHp);
+    // Target Selection Cursor if locked
+    if (roHero.targetEnemy === m) {
+      ctx.beginPath();
+      ctx.arc(m.x, m.y + 2, 24, 0, Math.PI * 2);
+      ctx.strokeStyle = '#f87171';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(e.x, e.y - 12, barW, barH);
-    ctx.fillStyle = '#eab308';
-    ctx.fillRect(e.x, e.y - 12, barW, 1);
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(e.x, e.y - 11, barW * hpRatio, barH - 2);
+    // Health Bar above head
+    const barW = 38;
+    const hpRatio = Math.max(0, m.hp / m.maxHp);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(m.x - barW / 2, m.y - 24, barW, 4);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(m.x - barW / 2, m.y - 24, barW * hpRatio, 4);
 
-    // Enemy Sprite
-    ctx.font = '28px sans-serif';
-    ctx.fillText(e.emoji, e.x, e.y + 25);
-
+    // Monster Sprite & Name
+    ctx.font = '24px sans-serif';
+    ctx.fillText(m.emoji, m.x - 12, m.y + 10);
+    ctx.font = '9px Sarabun, sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(m.name, m.x - 22, m.y - 28);
     ctx.restore();
   });
 
-  // 4. Draw Floating Damage Numbers (Exactly like screenshot e.g. 149.59, 52.94)
+  // 7. Draw Hero Character (Ragnarok Novice/Knight)
+  ctx.save();
+  // Hero Shadow
+  ctx.beginPath();
+  ctx.ellipse(roHero.x, roHero.y + 16, 16, 6, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fill();
+
+  // Attack Slash FX
+  if (roHero.isAttacking) {
+    ctx.beginPath();
+    ctx.arc(roHero.x, roHero.y, 36, -Math.PI / 4, Math.PI / 2);
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+
+  // Hero Sprite
+  ctx.font = '28px sans-serif';
+  ctx.fillText('🧙‍♂️', roHero.x - 14, roHero.y + 12);
+
+  // Hero Name & Level Header (Ragnarok Character Plate)
+  ctx.font = 'bold 11px Sarabun, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  const nameText = `${currentUser ? currentUser.name : 'ฮีโร่'} (Lv.${towerPlayerState.level})`;
+  ctx.fillText(nameText, roHero.x - 35, roHero.y - 22);
+
+  // Hero Small HP Bar
+  const heroTotal = getTotalStats();
+  const heroHpRatio = Math.max(0, heroTotal.currentHp / heroTotal.maxHp);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(roHero.x - 25, roHero.y - 18, 50, 4);
+  ctx.fillStyle = '#10b981';
+  ctx.fillRect(roHero.x - 25, roHero.y - 18, 50 * heroHpRatio, 4);
+
+  ctx.restore();
+
+  // 8. Draw Floating Damage Numbers
   damagePopups.forEach(p => {
     ctx.save();
     ctx.globalAlpha = p.opacity;
-    ctx.font = p.isCrit ? 'bold 22px Courier New, monospace' : 'bold 18px Courier New, monospace';
-    ctx.fillStyle = '#000000'; // Shadow stroke
+    ctx.font = p.isCrit ? 'bold 20px Courier New, monospace' : 'bold 16px Courier New, monospace';
+    ctx.fillStyle = '#000000';
     ctx.strokeText(p.text, p.x, p.y);
-    ctx.fillStyle = p.isCrit ? '#fef08a' : '#ffffff';
+    ctx.fillStyle = p.color || '#ffffff';
     ctx.fillText(p.text, p.x, p.y);
     ctx.restore();
   });
 
-  // 5. Fever Mode Screen Aura
+  // 9. Fever Mode Screen Aura
   if (towerPlayerState.feverTimer > 0) {
     ctx.save();
     ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
     ctx.strokeRect(2, 2, w - 4, h - 4);
-    ctx.font = 'bold 14px Sarabun, sans-serif';
+    ctx.font = 'bold 13px Sarabun, sans-serif';
     ctx.fillStyle = '#fbbf24';
-    ctx.fillText(`🔥 FEVER MODE x2 ATK (${towerPlayerState.feverTimer.toFixed(1)}s)`, w / 2 - 90, 24);
+    ctx.fillText(`🔥 FEVER MODE x2 ATK (${towerPlayerState.feverTimer.toFixed(1)}s)`, w / 2 - 90, 22);
     ctx.restore();
   }
 }
 
 /* -------------------------------------------------------------
-   RENDER MAIN TOWER VIEW & IDLE CONTROLS
+   USER INTERACTIVE CONTROLS (CLICK-TO-MOVE / TOUCH / SKILLS)
+------------------------------------------------------------- */
+function handleCanvasClick(event) {
+  const canvas = document.getElementById('ragnarok-map-canvas');
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const clickX = (event.clientX - rect.left) * scaleX;
+  const clickY = (event.clientY - rect.top) * scaleY;
+
+  // 1. Check if clicked on Rune Altar
+  const distToAltar = Math.hypot(clickX - runeAltar.x, clickY - runeAltar.y);
+  if (distToAltar < runeAltar.radius + 15) {
+    openRuneAltarPuzzle();
+    return;
+  }
+
+  // 2. Check if clicked on Boss Warp Portal
+  const isBossUnlocked = towerPlayerState.monstersDefeatedOnFloor >= towerPlayerState.monstersNeededForBoss;
+  const distToPortal = Math.hypot(clickX - (canvas.width - 60), clickY - canvas.height / 2);
+  if (distToPortal < 35) {
+    if (isBossUnlocked) {
+      openBossRaidModal(towerPlayerState.currentFloor);
+    } else {
+      showPopupInfo('ประตูยังถูกผนึก!', `คุณต้องปราบมอนสเตอร์ในชั้นนี้อีก ${towerPlayerState.monstersNeededForBoss - towerPlayerState.monstersDefeatedOnFloor} ตัว เพื่อปลดผนึกห้องบอสครับ`);
+    }
+    return;
+  }
+
+  // 3. Check if clicked on a Monster (Lock target to attack)
+  let clickedMonster = null;
+  dungeonMonsters.forEach(m => {
+    const dist = Math.hypot(clickX - m.x, clickY - m.y);
+    if (dist < m.radius + 14) {
+      clickedMonster = m;
+    }
+  });
+
+  if (clickedMonster) {
+    roHero.targetEnemy = clickedMonster;
+    roHero.targetX = clickedMonster.x;
+    roHero.targetY = clickedMonster.y;
+    targetMoveIndicator = null;
+  } else {
+    // Normal Point-and-Click ground movement
+    roHero.targetEnemy = null;
+    roHero.targetX = clickX;
+    roHero.targetY = clickY;
+    targetMoveIndicator = { x: clickX, y: clickY, r: 6 };
+  }
+}
+
+function castRoSkill(skillKey) {
+  const skill = RO_SKILLS[skillKey];
+  if (!skill) return;
+
+  const totalStats = getTotalStats();
+
+  if (roHero.skillsCooldown[skillKey] > 0) {
+    showPopupInfo('สกิลติดคูลดาวน์!', `กรุณารอ ${roHero.skillsCooldown[skillKey].toFixed(1)} วินาที`);
+    return;
+  }
+
+  if (towerPlayerState.baseStats.currentSp < skill.sp) {
+    showPopupError('SP ไม่เพียงพอ!', `คุณต้องมีอย่างน้อย ${skill.sp} SP ในการร่ายสกิลนี้`);
+    return;
+  }
+
+  // Deduct SP
+  towerPlayerState.baseStats.currentSp -= skill.sp;
+  roHero.skillsCooldown[skillKey] = skill.cooldown;
+
+  if (skillKey === 'heal_light') {
+    const healAmount = Math.round(totalStats.maxHp * 0.45);
+    towerPlayerState.baseStats.currentHp = Math.min(totalStats.maxHp, towerPlayerState.baseStats.currentHp + healAmount);
+    damagePopups.push({ text: `+${healAmount} HP`, x: roHero.x, y: roHero.y - 25, opacity: 1, color: '#34d399' });
+    showPopupSuccess('Heal!', `ฟื้นฟูเลือด +${healAmount} HP สำเร็จ!`);
+  } else {
+    // Attack Target or closest monster
+    const target = roHero.targetEnemy || dungeonMonsters[0];
+    if (target) {
+      const mult = skillKey === 'fire_bolt' ? 3.5 : 2.8;
+      performHeroAttack(target, mult, true);
+    } else {
+      showPopupInfo('ไม่มีเป้าหมาย!', 'กรุณาคลิกเลือกมอนสเตอร์ที่ต้องการโจมตีก่อนครับ');
+    }
+  }
+
+  updateRagnarokHUD();
+}
+
+/* -------------------------------------------------------------
+   RENDER MAIN TOWER VIEW & ACTION RPG HUD
 ------------------------------------------------------------- */
 function renderTowerMainView() {
   const container = document.getElementById('view-tower');
@@ -475,104 +782,106 @@ function renderTowerMainView() {
 
   const totalStats = getTotalStats();
   const floorData = TOWER_FLOORS_DATA.find(f => f.floor === towerPlayerState.currentFloor) || TOWER_FLOORS_DATA[0];
-  const isBossReady = towerPlayerState.currentWave >= towerPlayerState.maxWavesPerFloor;
+  const isBossUnlocked = towerPlayerState.monstersDefeatedOnFloor >= towerPlayerState.monstersNeededForBoss;
 
   let html = `
-    <div class="idle-tower-wrapper">
+    <div class="ro-game-wrapper">
       
-      <!-- Top Level & Stat Sheet -->
-      <div class="idle-header-dashboard">
-        <div class="idle-hero-profile">
-          <div class="idle-hero-avatar">
-            <span>🧙‍♂️</span>
-            <span class="hero-lvl-chip">Lv. ${towerPlayerState.level}</span>
+      <!-- Top Ragnarok Character Bar -->
+      <div class="ro-hero-hud-card">
+        <div class="ro-avatar-col">
+          <span class="ro-avatar-icon">🧙‍♂️</span>
+          <span class="ro-level-badge">Lv. ${towerPlayerState.level}</span>
+        </div>
+
+        <div class="ro-hero-meta-col">
+          <div class="ro-name-row">
+            <h3 class="ro-name">${currentUser ? currentUser.name : 'ผู้กล้าแห่งรูน'}</h3>
+            <span class="ro-cap-badge"><i class="fa-solid fa-lock"></i> เพดานเลเวล: Lv. ${towerPlayerState.levelCap}</span>
           </div>
-          <div class="idle-hero-details">
-            <div class="idle-hero-title-row">
-              <h3 class="hero-name-heading">${currentUser ? currentUser.name : 'นักผจญภัย'}</h3>
-              <span class="hero-cap-chip"><i class="fa-solid fa-lock"></i> เพดาน: Lv. ${towerPlayerState.levelCap}</span>
+
+          <!-- HP & SP Bars -->
+          <div class="ro-bars-row">
+            <div class="ro-bar-container hp">
+              <span class="bar-lbl">HP</span>
+              <div class="bar-track"><div class="bar-fill" id="ro-hp-bar" style="width:${(totalStats.currentHp / totalStats.maxHp) * 100}%;"></div></div>
+              <span class="bar-val" id="ro-hp-val">${totalStats.currentHp}/${totalStats.maxHp}</span>
             </div>
-            <div class="idle-exp-wrapper">
-              <div class="idle-exp-track">
-                <div class="idle-exp-fill" id="idle-exp-bar" style="width:${Math.min(100, (towerPlayerState.exp / (towerPlayerState.level * 100)) * 100)}%;"></div>
-              </div>
-              <span class="idle-exp-text" id="idle-exp-text">EXP: ${towerPlayerState.exp}/${towerPlayerState.level * 100}</span>
+            <div class="ro-bar-container sp">
+              <span class="bar-lbl">SP</span>
+              <div class="bar-track"><div class="bar-fill" id="ro-sp-bar" style="width:${(totalStats.currentSp / totalStats.maxSp) * 100}%;"></div></div>
+              <span class="bar-val" id="ro-sp-val">${Math.round(totalStats.currentSp)}/${totalStats.maxSp}</span>
             </div>
           </div>
         </div>
 
         <!-- 3 Core Stats -->
-        <div class="idle-stats-trio">
-          <div class="idle-stat-badge atk" title="พลังโจมตีฮีโร่">
-            <i class="fa-solid fa-khanda"></i>
-            <div><span>โจมตี (ATK)</span><strong id="idle-stat-atk">${totalStats.atk}</strong></div>
-          </div>
-          <div class="idle-stat-badge def" title="พลังป้องกันฮีโร่">
-            <i class="fa-solid fa-shield-halved"></i>
-            <div><span>ป้องกัน (DEF)</span><strong id="idle-stat-def">${totalStats.def}</strong></div>
-          </div>
-          <div class="idle-stat-badge hp" title="พลังชีวิตสูงสุด">
-            <i class="fa-solid fa-heart-pulse"></i>
-            <div><span>พลังชีวิต (HP)</span><strong id="idle-stat-hp">${totalStats.maxHp}</strong></div>
-          </div>
-        </div>
-
-        <!-- Gold Balance & Level Up Toast -->
-        <div class="idle-currency-box">
-          <span class="gold-badge"><i class="fa-solid fa-coins" style="color:#fbbf24;"></i> <strong id="idle-gold-val">${towerPlayerState.gold}</strong> ทอง</span>
-          <div id="idle-levelup-toast" class="idle-toast" style="display:none;">✨ LEVEL UP! ✨</div>
+        <div class="ro-stats-hud-box">
+          <div class="stat-pill"><i class="fa-solid fa-khanda" style="color:#f87171;"></i> ATK: <strong>${totalStats.atk}</strong></div>
+          <div class="stat-pill"><i class="fa-solid fa-shield-halved" style="color:#60a5fa;"></i> DEF: <strong>${totalStats.def}</strong></div>
+          <div class="stat-pill"><i class="fa-solid fa-coins" style="color:#fbbf24;"></i> <strong id="ro-gold-text">${towerPlayerState.gold} Zeny</strong></div>
         </div>
       </div>
 
-      <!-- Main Side-View Idle Battle Arena Screen (Like Screenshot) -->
-      <div class="idle-battle-screen-card">
-        <div class="battle-stage-header">
-          <div class="stage-info">
-            <span class="floor-pill"><i class="fa-solid fa-dungeon"></i> ชั้นที่ ${floorData.floor}: ${floorData.name}</span>
-            <span class="wave-pill" id="idle-wave-pill"><i class="fa-solid fa-skull"></i> เวฟ ${towerPlayerState.currentWave} / ${towerPlayerState.maxWavesPerFloor}</span>
+      <!-- Main Ragnarok 2D Map Screen -->
+      <div class="ro-dungeon-card">
+        <div class="ro-dungeon-header">
+          <div class="dungeon-title">
+            <span class="d-floor-badge"><i class="fa-solid fa-dungeon"></i> ชั้นที่ ${floorData.floor}: ${floorData.name}</span>
+            <span class="d-theme-text"><i class="fa-solid fa-brain"></i> ${floorData.theme}</span>
           </div>
-          <div class="stage-controls">
-            <button class="btn btn-sm ${towerPlayerState.gameSpeed === 2 ? 'btn-warning' : 'btn-outline-light'}" onclick="toggleGameSpeed()">
-              <i class="fa-solid fa-forward"></i> ${towerPlayerState.gameSpeed}x Speed
+          <div class="dungeon-actions">
+            <button class="btn btn-sm btn-outline-info" onclick="openRuneAltarPuzzle()">
+              <i class="fa-solid fa-puzzle-piece"></i> 💡 ถอดรหัสศิลาตรรกะ (Rune Puzzle)
             </button>
-            <button class="btn btn-sm btn-info" onclick="openLogicBoostModal()">
-              <i class="fa-solid fa-brain"></i> 💡 ไขปริศนาเร่งพลัง (Fever Boost)
+            <button class="btn btn-sm ${isBossUnlocked ? 'btn-danger-glow' : 'btn-secondary-disabled'}" onclick="${isBossUnlocked ? `openBossRaidModal(${floorData.floor})` : `showPopupInfo('ห้องบอสยังถูกผนึก', 'ปราบมอนสเตอร์ในชั้นนี้อีก ${towerPlayerState.monstersNeededForBoss - towerPlayerState.monstersDefeatedOnFloor} ตัวเพื่อเปิดวาร์ปครับ')`}">
+              <i class="fa-solid fa-skull"></i> วาร์ปห้องบอส ${isBossUnlocked ? '🔥' : '🔒'}
             </button>
           </div>
         </div>
 
-        <!-- HTML5 Canvas Arena -->
-        <div class="canvas-container">
-          <canvas id="idle-battle-canvas" width="680" height="260"></canvas>
+        <!-- Canvas Game Screen -->
+        <div class="ro-canvas-box">
+          <canvas id="ragnarok-map-canvas" width="740" height="380" onclick="handleCanvasClick(event)"></canvas>
+          <div class="ro-control-hint-overlay">
+            <span>🖱️ <strong>วิธีเล่น:</strong> คลิกพื้นเพื่อเดิน | คลิกที่มอนสเตอร์เพื่อล็อกเป้าและโจมตี | คลิกที่ศิลา 🏛️ เพื่อตอบคำถามรับบัฟ</span>
+          </div>
         </div>
 
-        <!-- Boss Trigger Banner / Stage Progress -->
-        <div class="battle-stage-footer">
-          ${isBossReady ? `
-            <div class="boss-ready-glow-box">
-              <span class="boss-alert-text">🔥 เคลียร์ครบ 10 เวฟแล้ว! ประตูบอสประจำชั้นเปิดออกแล้ว!</span>
-              <button class="btn btn-danger-glow" onclick="openBossRaidModal(${floorData.floor})">
-                <i class="fa-solid fa-skull-crossbones"></i> ท้าทายบอสประจำชั้น (Boss Lv. ${floorData.boss.level})
-              </button>
-            </div>
-          ` : `
-            <div class="wave-progress-bar-box">
-              <span>ความคืบหน้าการฟาร์มมอนสเตอร์ในชั้นนี้: <strong>${towerPlayerState.currentWave}/${towerPlayerState.maxWavesPerFloor} เวฟ</strong></span>
-              <div class="wave-track"><div class="wave-fill" style="width:${(towerPlayerState.currentWave / towerPlayerState.maxWavesPerFloor) * 100}%;"></div></div>
-            </div>
-          `}
+        <!-- Action RPG Skill Hotbar (Touch & Click Friendly) -->
+        <div class="ro-skill-hotbar">
+          <button class="ro-skill-btn attack-btn" onclick="roHero.targetEnemy ? performHeroAttack(roHero.targetEnemy, 1.0) : (dungeonMonsters[0] ? performHeroAttack(dungeonMonsters[0], 1.0) : null)" title="โจมตีปกติ">
+            <span class="btn-key">SPACE / คลิก</span>
+            <i class="fa-solid fa-sword"></i>
+            <strong>โจมตีปกติ</strong>
+          </button>
+          <button class="ro-skill-btn" onclick="castRoSkill('bash_strike')" title="Bash (ฟันกระแทก 280%)">
+            <span class="btn-key">1</span>
+            <i class="fa-solid fa-gavel" style="color:#f59e0b;"></i>
+            <strong>Bash (15 SP)</strong>
+          </button>
+          <button class="ro-skill-btn" onclick="castRoSkill('fire_bolt')" title="Fire Bolt (ลูกไฟเวท 350%)">
+            <span class="btn-key">2</span>
+            <i class="fa-solid fa-fire-flame-curved" style="color:#ef4444;"></i>
+            <strong>Fire Bolt (25 SP)</strong>
+          </button>
+          <button class="ro-skill-btn" onclick="castRoSkill('heal_light')" title="Heal (ฟื้นฟูเลือด 45%)">
+            <span class="btn-key">3</span>
+            <i class="fa-solid fa-heart" style="color:#10b981;"></i>
+            <strong>Heal (20 SP)</strong>
+          </button>
         </div>
       </div>
 
-      <!-- Lower Controls: Equipment, Upgrades & Floor Selector -->
+      <!-- Lower Panels: Equipment, Upgrades & Floor Travel -->
       <div class="idle-bottom-grid">
         
-        <!-- Equipped Gear -->
+        <!-- Equipped Items -->
         <div class="idle-panel-card">
-          <h4 class="panel-heading"><i class="fa-solid fa-shield" style="color:#38bdf8;"></i> อุปกรณ์สวมใส่ที่ดรอปได้</h4>
+          <h4 class="panel-heading"><i class="fa-solid fa-shield" style="color:#38bdf8;"></i> อุปกรณ์สวมใส่ปัจจุบัน</h4>
           <div class="gear-showcase-row">
             <div class="gear-card-box ${towerPlayerState.equipment.weapon ? towerPlayerState.equipment.weapon.rarity : ''}">
-              <span class="g-icon">${towerPlayerState.equipment.weapon ? towerPlayerState.equipment.weapon.icon : '🗡️'}</span>
+              <span class="g-icon">${towerPlayerState.equipment.weapon ? towerPlayerState.equipment.weapon.icon : '⚔️'}</span>
               <div class="g-meta">
                 <strong>${towerPlayerState.equipment.weapon ? towerPlayerState.equipment.weapon.name : 'ไม่มีอาวุธ'}</strong>
                 <span>+${towerPlayerState.equipment.weapon ? towerPlayerState.equipment.weapon.atk : 0} ATK</span>
@@ -595,28 +904,28 @@ function renderTowerMainView() {
           </div>
         </div>
 
-        <!-- Gold Stat Upgrades -->
+        <!-- Zeny Stat Upgrades -->
         <div class="idle-panel-card">
-          <h4 class="panel-heading"><i class="fa-solid fa-arrow-up-right-dots" style="color:#fbbf24;"></i> อัปเกรดพลังด้วยเหรียญทอง</h4>
+          <h4 class="panel-heading"><i class="fa-solid fa-arrow-up-right-dots" style="color:#fbbf24;"></i> อัปเกรดพลังด้วยเงิน Zeny</h4>
           <div class="upgrade-btn-grid">
-            <button class="upgrade-btn" onclick="buyStatUpgrade('atk')">
-              <span>⚔️ อัปเกรด ATK (+3)</span>
-              <strong><i class="fa-solid fa-coins"></i> 50 ทอง</strong>
+            <button class="upgrade-btn" onclick="buyZenyUpgrade('atk')">
+              <span>⚔️ เพิ่ม ATK (+3)</span>
+              <strong><i class="fa-solid fa-coins"></i> 50 Zeny</strong>
             </button>
-            <button class="upgrade-btn" onclick="buyStatUpgrade('def')">
-              <span>🛡️ อัปเกรด DEF (+2)</span>
-              <strong><i class="fa-solid fa-coins"></i> 50 ทอง</strong>
+            <button class="upgrade-btn" onclick="buyZenyUpgrade('def')">
+              <span>🛡️ เพิ่ม DEF (+2)</span>
+              <strong><i class="fa-solid fa-coins"></i> 50 Zeny</strong>
             </button>
-            <button class="upgrade-btn" onclick="buyStatUpgrade('maxHp')">
-              <span>❤️ อัปเกรด HP (+25)</span>
-              <strong><i class="fa-solid fa-coins"></i> 50 ทอง</strong>
+            <button class="upgrade-btn" onclick="buyZenyUpgrade('maxHp')">
+              <span>❤️ เพิ่ม Max HP (+25)</span>
+              <strong><i class="fa-solid fa-coins"></i> 50 Zeny</strong>
             </button>
           </div>
         </div>
 
-        <!-- 10-Floor Stage Select -->
+        <!-- Floor Warp Map -->
         <div class="idle-panel-card">
-          <h4 class="panel-heading"><i class="fa-solid fa-mountain" style="color:#a855f7;"></i> เลือกชั้นหอคอยที่ต้องการฟาร์ม</h4>
+          <h4 class="panel-heading"><i class="fa-solid fa-dungeon" style="color:#a855f7;"></i> วาร์ปเปลี่ยนชั้นหอคอย</h4>
           <div class="floor-selector-list">
             ${TOWER_FLOORS_DATA.map(f => {
               const isUnlocked = f.floor <= (towerPlayerState.highestClearedFloor + 1);
@@ -640,44 +949,29 @@ function renderTowerMainView() {
   container.innerHTML = html;
 }
 
-function updateWaveUI() {
-  const wavePill = document.getElementById('idle-wave-pill');
-  if (wavePill) {
-    wavePill.innerHTML = `<i class="fa-solid fa-skull"></i> เวฟ ${towerPlayerState.currentWave} / ${towerPlayerState.maxWavesPerFloor}`;
-  }
-}
-
-function updateStatsHeaderUI() {
+function updateRagnarokHUD() {
   const totalStats = getTotalStats();
-  const expBar = document.getElementById('idle-exp-bar');
-  const expText = document.getElementById('idle-exp-text');
-  const goldVal = document.getElementById('idle-gold-val');
+  const hpBar = document.getElementById('ro-hp-bar');
+  const hpVal = document.getElementById('ro-hp-val');
+  const spBar = document.getElementById('ro-sp-bar');
+  const spVal = document.getElementById('ro-sp-val');
+  const goldText = document.getElementById('ro-gold-text');
 
-  if (expBar) expBar.style.width = `${Math.min(100, (towerPlayerState.exp / (towerPlayerState.level * 100)) * 100)}%`;
-  if (expText) expText.innerText = `EXP: ${towerPlayerState.exp}/${towerPlayerState.level * 100}`;
-  if (goldVal) goldVal.innerText = towerPlayerState.gold;
-
-  const atkEl = document.getElementById('idle-stat-atk');
-  const defEl = document.getElementById('idle-stat-def');
-  const hpEl = document.getElementById('idle-stat-hp');
-  if (atkEl) atkEl.innerText = totalStats.atk;
-  if (defEl) defEl.innerText = totalStats.def;
-  if (hpEl) hpEl.innerText = totalStats.maxHp;
-}
-
-function toggleGameSpeed() {
-  towerPlayerState.gameSpeed = towerPlayerState.gameSpeed === 1 ? 2 : 1;
-  renderTowerMainView();
+  if (hpBar) hpBar.style.width = `${(totalStats.currentHp / totalStats.maxHp) * 100}%`;
+  if (hpVal) hpVal.innerText = `${totalStats.currentHp}/${totalStats.maxHp}`;
+  if (spBar) spBar.style.width = `${(totalStats.currentSp / totalStats.maxSp) * 100}%`;
+  if (spVal) spVal.innerText = `${Math.round(totalStats.currentSp)}/${totalStats.maxSp}`;
+  if (goldText) goldText.innerText = `${towerPlayerState.gold} Zeny`;
 }
 
 function changeCurrentFloor(floorNum) {
   towerPlayerState.currentFloor = floorNum;
-  towerPlayerState.currentWave = 1;
-  spawnEnemyWave();
+  towerPlayerState.monstersDefeatedOnFloor = 0;
+  setupDungeonMap(floorNum);
   renderTowerMainView();
 }
 
-function buyStatUpgrade(statType) {
+function buyZenyUpgrade(statType) {
   if (towerPlayerState.gold >= 50) {
     towerPlayerState.gold -= 50;
     if (statType === 'atk') towerPlayerState.bonusStats.atk += 3;
@@ -688,35 +982,35 @@ function buyStatUpgrade(statType) {
     renderTowerMainView();
     showPopupSuccess('อัปเกรดสำเร็จ!', `เพิ่มพลังสเตตัสให้กับตัวละครเรียบร้อยแล้ว`);
   } else {
-    showPopupError('เหรียญทองไม่พอ!', 'คุณต้องมีอย่างน้อย 50 เหรียญทองจากการฟาร์มมอนสเตอร์ครับ');
+    showPopupError('เงิน Zeny ไม่พอ!', 'คุณต้องมีอย่างน้อย 50 Zeny จากการปราบมอนสเตอร์ครับ');
   }
 }
 
 /* -------------------------------------------------------------
-   LOGIC BOOST PUZZLE MODAL (Interactive Learning Quiz)
+   RUNE ALTAR PUZZLE MODAL (LOGIC LEARNING TRIAL)
 ------------------------------------------------------------- */
-function openLogicBoostModal() {
+function openRuneAltarPuzzle() {
   const floor = towerPlayerState.currentFloor;
   const bank = TOWER_PUZZLE_BANK[floor] || TOWER_PUZZLE_BANK[1];
   const puzzle = bank[Math.floor(Math.random() * bank.length)];
 
   const modalHtml = `
-    <div class="modal-overlay active" id="modal-logic-boost" style="z-index:10010;">
+    <div class="modal-overlay active" id="modal-rune-puzzle" style="z-index:10010;">
       <div class="modal-container modal-puzzle-box">
         <div class="modal-header" style="background:#0f172a; color:#fff; border-bottom:2px solid #38bdf8;">
-          <h3 class="modal-title" style="color:#fff; margin:0; font-size:1.1rem;"><i class="fa-solid fa-brain" style="color:#38bdf8;"></i> ปริศนาตรรกะเร่งพลังเวทมนตร์ (Fever Boost)</h3>
-          <button class="btn-close-modal" onclick="closeModal('modal-logic-boost')"><i class="fa-solid fa-xmark"></i></button>
+          <h3 class="modal-title" style="color:#fff; margin:0; font-size:1.1rem;"><i class="fa-solid fa-brain" style="color:#38bdf8;"></i> ปริศนาศิลาตรรกะแห่งหอคอย (Rune Trial)</h3>
+          <button class="btn-close-modal" onclick="closeModal('modal-rune-puzzle')"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
         <div class="modal-body" style="padding:22px 20px;">
           <div class="puzzle-q-box">
-            <span class="puzzle-badge">โจทย์วิทยาการคำนวณชั้นที่ ${floor}</span>
+            <span class="puzzle-badge">โจทย์วิทยาการคำนวณประจำศิลาชั้นที่ ${floor}</span>
             <h4 class="puzzle-question-text">${puzzle.q}</h4>
           </div>
 
           <div class="puzzle-options-list">
             ${puzzle.options.map((opt, idx) => `
-              <button class="puzzle-opt-btn" onclick="submitLogicBoost(${idx}, ${puzzle.ans})">
+              <button class="puzzle-opt-btn" onclick="submitRunePuzzle(${idx}, ${puzzle.ans})">
                 <span class="opt-letter">${String.fromCharCode(65 + idx)}</span>
                 <span class="opt-text">${opt}</span>
               </button>
@@ -727,28 +1021,28 @@ function openLogicBoostModal() {
     </div>
   `;
 
-  const existing = document.getElementById('modal-logic-boost');
+  const existing = document.getElementById('modal-rune-puzzle');
   if (existing) existing.remove();
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-function submitLogicBoost(chosenIdx, correctIdx) {
-  closeModal('modal-logic-boost');
+function submitRunePuzzle(chosenIdx, correctIdx) {
+  closeModal('modal-rune-puzzle');
 
   if (chosenIdx === correctIdx) {
-    // Grant FEVER MODE + 100 EXP + 50 Gold + Stat Buff
-    towerPlayerState.feverTimer = 15; // 15 seconds of x2 ATK
-    towerPlayerState.gold += 60;
-    towerPlayerState.exp += 80;
+    runeAltar.isSolved = true;
+    towerPlayerState.feverTimer = 18; // 18 seconds of x2 ATK
+    towerPlayerState.gold += 80;
+    towerPlayerState.exp += 100;
     towerPlayerState.bonusStats.atk += 2;
 
     saveStudentTowerProgress();
     renderTowerMainView();
 
-    showPopupSuccess('ยอดเยี่ยมมาก!', 'ตอบถูกต้อง! คุณได้รับ FEVER MODE x2 ATK 15 วินาที พร้อม +80 EXP, +60 ทอง, และ +2 ATK ถาวร!');
+    showPopupSuccess('ถอดรหัสสำเร็จ!', 'คุณได้รับ FEVER MODE x2 ATK 18 วินาที พร้อม +100 EXP, +80 Zeny, และ +2 ATK ถาวร!');
   } else {
-    showPopupError('ตอบผิดพลาด!', 'คำตอบยังไม่ถูกต้อง ทบทวนตรรกะแล้วลองใหม่อีกครั้งนะครับ');
+    showPopupError('คำตอบไม่ถูกต้อง!', 'มนต์อาถรรพ์สะท้อนกลับ ทบทวนตรรกะแล้วลองใหม่อีกครั้งนะครับ');
   }
 }
 
@@ -866,22 +1160,6 @@ function renderRaidArena(floorData, initialHp) {
           <div class="raid-options-grid" id="raid-options-container">
             <!-- Rendered choices -->
           </div>
-
-          <div class="raid-skills-bar">
-            <span style="font-size:0.78rem; font-weight:700; color:#94a3b8; display:flex; align-items:center; gap:6px;">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> ร่ายสกิลพิเศษ:
-            </span>
-            <div class="raid-skill-buttons">
-              ${towerPlayerState.skills.map(sId => {
-                const skill = TOWER_ALL_SKILLS.find(s => s.id === sId) || { name: sId, icon: 'fa-star' };
-                return `
-                  <button class="btn-skill-cast" onclick="castSkillInRaid('${sId}')" title="${skill.name}">
-                    <i class="fa-solid ${skill.icon}"></i> ${skill.name}
-                  </button>
-                `;
-              }).join('')}
-            </div>
-          </div>
         </div>
 
       </div>
@@ -916,37 +1194,11 @@ function executeRaidAttack(chosenIdx, correctIdx) {
   const totalStats = getTotalStats();
 
   if (chosenIdx === correctIdx) {
-    const baseDamage = totalStats.atk * 4 + Math.floor(Math.random() * 20);
+    const baseDamage = totalStats.atk * 4 + Math.floor(Math.random() * 25);
     sendDamageToRaidBoss(baseDamage);
     generateNextRaidPuzzle();
   } else {
-    showPopupError('ตอบผิดพลาด!', 'ตอบผิดทำให้การโจมตีไร้ผล! ลองตอบข้อถัดไปเพื่อแก้ตัวใหม่');
-    generateNextRaidPuzzle();
-  }
-}
-
-function castSkillInRaid(skillId) {
-  const totalStats = getTotalStats();
-  if (skillId === 'oracle_eye') {
-    const btns = document.querySelectorAll('.raid-opt-btn');
-    let hidden = 0;
-    btns.forEach((btn, idx) => {
-      if (idx !== currentRaidQuestion.ans && hidden < 2) {
-        btn.style.opacity = '0.2';
-        btn.style.pointerEvents = 'none';
-        hidden++;
-      }
-    });
-    showPopupSuccess('เนตรหยั่งรู้!', 'ตัดตัวเลือกที่ผิดทิ้ง 2 ตัวเลือก!');
-  } else if (skillId === 'critical_mind') {
-    const critDamage = totalStats.atk * 10;
-    sendDamageToRaidBoss(critDamage);
-    showPopupSuccess('CRITICAL HIT!', `ระเบิดปัญญาสร้างดาเมจรุนแรง -${critDamage} ดาเมจใส่บอส!`);
-    generateNextRaidPuzzle();
-  } else {
-    const spellDamage = totalStats.atk * 6;
-    sendDamageToRaidBoss(spellDamage);
-    showPopupSuccess('ร่ายเวทมนตร์สำเร็จ!', `สร้างดาเมจ -${spellDamage} ดาเมจใส่บอส!`);
+    showPopupError('ตอบผิดพลาด!', 'ตอบผิดทำให้การโจมตีไร้ผล! ตอบข้อถัดไปเพื่อแก้ตัว');
     generateNextRaidPuzzle();
   }
 }
@@ -988,17 +1240,9 @@ function handleBossDefeatedByClassroom(floorNum) {
 
   towerPlayerState.levelCap = calculateLevelCap(towerPlayerState.highestClearedFloor);
 
-  // Unlock next floor automatically
   if (towerPlayerState.currentFloor < 10) {
     towerPlayerState.currentFloor++;
-    towerPlayerState.currentWave = 1;
-  }
-
-  const availableSkills = TOWER_ALL_SKILLS.filter(s => !towerPlayerState.skills.includes(s.id));
-  let newSkillGranted = null;
-  if (availableSkills.length > 0) {
-    newSkillGranted = availableSkills[Math.floor(Math.random() * availableSkills.length)];
-    towerPlayerState.skills.push(newSkillGranted.id);
+    towerPlayerState.monstersDefeatedOnFloor = 0;
   }
 
   saveStudentTowerProgress();
@@ -1019,16 +1263,6 @@ function handleBossDefeatedByClassroom(floorNum) {
               <span>คุณสามารถเก็บเลเวลได้สูงสุดถึง <strong style="color:#fbbf24;">Lv. ${towerPlayerState.levelCap}</strong></span>
             </div>
           </div>
-
-          ${newSkillGranted ? `
-            <div class="v-reward-item skill-reward">
-              <span class="v-icon"><i class="fa-solid ${newSkillGranted.icon}" style="color:${newSkillGranted.color};"></i></span>
-              <div>
-                <strong>ได้รับสกิลพิเศษถาวรใหม่: ${newSkillGranted.name}</strong>
-                <span>${newSkillGranted.desc}</span>
-              </div>
-            </div>
-          ` : ''}
         </div>
 
         <button class="btn btn-primary-large" onclick="closeModal('modal-boss-victory')" style="width:100%; margin-top:16px;">

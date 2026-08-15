@@ -2546,20 +2546,20 @@ body.role-student #nav-users {
 }
 
 /* ==========================================================================
-   12. TOWER OF WISDOM: IDLE RPG & CO-OP LOGIC DUNGEON UI
+   12. TOWER OF WISDOM: RAGNAROK ACTION RPG & LOGIC DUNGEON UI
    ========================================================================== */
-.idle-tower-wrapper {
+.ro-game-wrapper {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* Top Dashboard & Hero Stat Bar */
-.idle-header-dashboard {
+/* Top Ragnarok Character HUD Bar */
+.ro-hero-hud-card {
   background: linear-gradient(135deg, #071330 0%, #0f172a 60%, #1e293b 100%);
   border: 1.5px solid rgba(56, 189, 248, 0.4);
   border-radius: 20px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   color: #ffffff;
   display: flex;
   justify-content: space-between;
@@ -2569,14 +2569,7 @@ body.role-student #nav-users {
   box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.35);
 }
 
-.idle-hero-profile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 220px;
-}
-
-.idle-hero-avatar {
+.ro-avatar-col {
   width: 52px;
   height: 52px;
   border-radius: 14px;
@@ -2587,9 +2580,10 @@ body.role-student #nav-users {
   position: relative;
   font-size: 1.8rem;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  flex-shrink: 0;
 }
 
-.hero-lvl-chip {
+.ro-level-badge {
   position: absolute;
   bottom: -6px;
   background: #f59e0b;
@@ -2601,27 +2595,29 @@ body.role-student #nav-users {
   border: 1.5px solid #ffffff;
 }
 
-.idle-hero-details {
+.ro-hero-meta-col {
+  flex: 1;
+  min-width: 220px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.idle-hero-title-row {
+.ro-name-row {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.hero-name-heading {
-  font-size: 1.1rem;
+.ro-name {
+  font-size: 1.15rem;
   font-weight: 800;
   margin: 0;
   color: #ffffff;
 }
 
-.hero-cap-chip {
+.ro-cap-badge {
   font-size: 0.7rem;
   background: rgba(245, 158, 11, 0.2);
   color: #fcd34d;
@@ -2631,103 +2627,79 @@ body.role-student #nav-users {
   font-weight: 700;
 }
 
-.idle-exp-wrapper {
+.ro-bars-row {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 170px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.idle-exp-track {
-  height: 6px;
+.ro-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 150px;
+  flex: 1;
+}
+
+.bar-lbl {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.ro-bar-container.hp .bar-lbl { color: #34d399; }
+.ro-bar-container.sp .bar-lbl { color: #60a5fa; }
+
+.bar-track {
+  flex: 1;
+  height: 8px;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   overflow: hidden;
 }
 
-.idle-exp-fill {
+.ro-bar-container.hp .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  background: linear-gradient(90deg, #10b981, #34d399);
   border-radius: 999px;
-  transition: width 0.3s ease;
+  transition: width 0.25s ease;
 }
 
-.idle-exp-text {
+.ro-bar-container.sp .bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.bar-val {
   font-size: 0.68rem;
   color: #94a3b8;
-  font-weight: 600;
+  font-weight: 700;
+  min-width: 55px;
 }
 
-/* 3 Core Stats Trio */
-.idle-stats-trio {
+/* Stats Box */
+.ro-stats-hud-box {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.idle-stat-badge {
+.stat-pill {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.idle-stat-badge.atk i { color: #f87171; }
-.idle-stat-badge.def i { color: #60a5fa; }
-.idle-stat-badge.hp i { color: #34d399; }
-
-.idle-stat-badge div {
-  display: flex;
-  flex-direction: column;
-}
-
-.idle-stat-badge span {
-  font-size: 0.62rem;
-  color: #94a3b8;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.idle-stat-badge strong {
-  font-size: 0.92rem;
-  font-weight: 800;
-  color: #ffffff;
-}
-
-.idle-currency-box {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.gold-badge {
-  background: rgba(251, 191, 36, 0.15);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  color: #fef08a;
-  font-size: 0.85rem;
-  font-weight: 800;
-  padding: 6px 12px;
-  border-radius: 10px;
-}
-
-.idle-toast {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 900;
-  padding: 2px 8px;
-  border-radius: 6px;
-  animation: pulse 1s infinite alternate;
-}
-
-/* ==========================================================================
-   IDLE RPG BATTLE ARENA (Matching User's Side-View Screenshot)
-   ========================================================================== */
-.idle-battle-screen-card {
+/* Main Ragnarok Dungeon Canvas Screen */
+.ro-dungeon-card {
   background: #0f172a;
   border: 2px solid #38bdf8;
   border-radius: 20px;
@@ -2737,7 +2709,7 @@ body.role-student #nav-users {
   flex-direction: column;
 }
 
-.battle-stage-header {
+.ro-dungeon-header {
   padding: 10px 16px;
   background: #070d19;
   border-bottom: 1.5px solid rgba(56, 189, 248, 0.3);
@@ -2748,15 +2720,15 @@ body.role-student #nav-users {
   gap: 8px;
 }
 
-.stage-info {
+.dungeon-title {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.floor-pill {
-  font-size: 0.82rem;
+.d-floor-badge {
+  font-size: 0.84rem;
   font-weight: 800;
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.15);
@@ -2765,83 +2737,99 @@ body.role-student #nav-users {
   border-radius: 8px;
 }
 
-.wave-pill {
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  padding: 3px 10px;
-  border-radius: 8px;
+.d-theme-text {
+  font-size: 0.78rem;
+  color: #94a3b8;
 }
 
-.stage-controls {
+.dungeon-actions {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.canvas-container {
+.ro-canvas-box {
   width: 100%;
+  position: relative;
+  background: #090e1a;
   display: flex;
   justify-content: center;
-  background: #1e1b4b;
-  position: relative;
 }
 
-#idle-battle-canvas {
+#ragnarok-map-canvas {
   width: 100%;
-  max-width: 680px;
-  height: 260px;
+  max-width: 740px;
+  height: 380px;
   display: block;
+  cursor: crosshair;
 }
 
-.battle-stage-footer {
-  padding: 10px 16px;
+.ro-control-hint-overlay {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  right: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Ragnarok Skill Hotbar (Click & Touch) */
+.ro-skill-hotbar {
+  padding: 12px 16px;
   background: #070d19;
   border-top: 1.5px solid rgba(255, 255, 255, 0.08);
-}
-
-.boss-ready-glow-box {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.boss-alert-text {
-  font-size: 0.86rem;
-  font-weight: 800;
-  color: #f87171;
+.ro-skill-btn {
+  background: #1e293b;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 8px 14px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+  min-width: 100px;
 }
 
-.wave-progress-bar-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.78rem;
+.ro-skill-btn:hover {
+  background: #334155;
+  border-color: #38bdf8;
+  transform: translateY(-2px);
+}
+
+.ro-skill-btn.attack-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: #f87171;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+}
+
+.btn-key {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 0.6rem;
+  font-weight: 800;
   color: #94a3b8;
 }
 
-.wave-track {
-  flex: 1;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  overflow: hidden;
-}
+.ro-skill-btn i { font-size: 1.15rem; margin-top: 4px; }
+.ro-skill-btn strong { font-size: 0.76rem; font-weight: 700; }
 
-.wave-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #10b981);
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-/* ==========================================================================
-   IDLE RPG LOWER CONTROLS (GEAR, STAT UPGRADES, FLOOR SELECTOR)
-   ========================================================================== */
 .idle-bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -3016,10 +3004,6 @@ body.role-student #nav-users {
 .raid-opt-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15); border-radius: 10px; color: #ffffff; font-weight: 600; cursor: pointer; transition: all 0.2s ease; text-align: left; }
 .raid-opt-btn:hover { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; }
 .opt-num { width: 24px; height: 24px; border-radius: 50%; background: #38bdf8; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
-.raid-skills-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
-.raid-skill-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-skill-cast { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(252, 211, 77, 0.4); color: #fde047; font-weight: 700; font-size: 0.76rem; padding: 4px 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
-.btn-skill-cast:hover { background: #f59e0b; color: #000; }
 .modal-grand-victory { max-width: 480px; text-align: center; padding: 24px; border-radius: 22px; background: #ffffff; }
 .victory-crown-hero { font-size: 3rem; margin-bottom: 6px; }
 .victory-title { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin: 0 0 6px; }
@@ -3439,35 +3423,43 @@ body.role-student #nav-users {
     align-items: stretch !important;
     gap: 10px !important;
   }
-  .idle-hero-profile {
+  /* -------------------------------------------------------------
+     RAGNAROK ACTION RPG MOBILE RESPONSIVE UI
+  ------------------------------------------------------------- */
+  .ro-hero-hud-card {
+    padding: 12px 14px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .ro-hero-meta-col {
     min-width: 0 !important;
   }
-  .idle-stats-trio {
+  .ro-stats-hud-box {
     justify-content: space-between !important;
     gap: 6px !important;
   }
-  .idle-stat-badge {
+  .stat-pill {
     flex: 1 !important;
     padding: 6px 8px !important;
     gap: 6px !important;
     justify-content: center !important;
   }
-  .idle-currency-box {
-    align-items: center !important;
+  #ragnarok-map-canvas {
+    height: 300px !important;
+  }
+  .ro-skill-hotbar {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .ro-skill-btn {
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 10px 8px !important;
   }
   .idle-bottom-grid {
     grid-template-columns: 1fr !important;
-  }
-  #idle-battle-canvas {
-    height: 220px !important;
-  }
-  .boss-ready-glow-box {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    text-align: center !important;
-  }
-  .boss-ready-glow-box button {
-    width: 100% !important;
   }
   .raid-options-grid {
     grid-template-columns: 1fr !important;
