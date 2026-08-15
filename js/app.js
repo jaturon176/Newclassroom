@@ -891,7 +891,7 @@ function renderDashboardHomeworkSummary() {
   }
 
   let html = `<div style="display:flex; flex-direction:column; gap:12px;">`;
-  hwKeys.slice(-4).reverse().forEach(id => {
+  hwKeys.slice(-2).reverse().forEach(id => {
     const hw = homeworkData[id];
     const course = coursesData[hw.courseId] || { code: 'วิชา', name: '' };
     const subs = submissionsData[id] ? Object.keys(submissionsData[id]).length : 0;
@@ -942,7 +942,7 @@ function renderDashboardQuizSummary() {
   }
 
   let html = `<div style="display:flex; flex-direction:column; gap:12px;">`;
-  qKeys.slice(-4).reverse().forEach(id => {
+  qKeys.slice(-2).reverse().forEach(id => {
     const q = quizzesData[id];
     const course = coursesData[q.courseId] || { name: 'วิชา' };
     const doneCount = quizResultsData[id] ? Object.keys(quizResultsData[id]).length : 0;
@@ -979,6 +979,11 @@ function logActivity(text) {
     </div>
   `;
   feed.insertBefore(item, feed.firstChild);
+
+  // Keep only the latest 2 activity items
+  while (feed.children.length > 2) {
+    feed.removeChild(feed.lastChild);
+  }
 }
 
 
