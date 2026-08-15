@@ -2975,7 +2975,7 @@ function renderScoreReports() {
 
   const stdKeys = Object.keys(studentsData);
   if (stdKeys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px;" class="text-muted">ยังไม่มีข้อมูลนักเรียน</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px;" class="text-muted">ยังไม่มีข้อมูลนักเรียน</td></tr>`;
     return;
   }
 
@@ -3016,16 +3016,7 @@ function renderScoreReports() {
 
     const totalEarned = totalHwEarned + totalQuizEarned;
     const totalPossible = totalHwPossible + totalQuizPossible;
-    
     let percent = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
-    let grade = '4.0';
-    if (percent < 50) grade = '0.0';
-    else if (percent < 55) grade = '1.0';
-    else if (percent < 60) grade = '1.5';
-    else if (percent < 65) grade = '2.0';
-    else if (percent < 70) grade = '2.5';
-    else if (percent < 75) grade = '3.0';
-    else if (percent < 80) grade = '3.5';
 
     html += `
       <tr>
@@ -3035,13 +3026,12 @@ function renderScoreReports() {
         <td><span class="badge badge-blue">${std.classLevel || '-'}</span></td>
         <td>${totalHwEarned} / ${totalHwPossible}</td>
         <td>${totalQuizEarned} / ${totalQuizPossible}</td>
-        <td><strong style="color:var(--primary); font-size:1.1rem;">${totalEarned} / ${totalPossible}</strong> (${percent}%)</td>
-        <td><span class="badge ${percent >= 50 ? 'badge-green' : 'badge-red'}" style="font-size:0.95rem;">เกรด ${grade}</span></td>
+        <td><strong style="color:var(--primary); font-size:1.05rem;">${totalEarned} / ${totalPossible}</strong> <span class="badge badge-purple" style="margin-left:4px;">${percent}%</span></td>
       </tr>
     `;
   });
 
-  tbody.innerHTML = html || `<tr><td colspan="8" style="text-align:center; padding:30px;" class="text-muted">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+  tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center; padding:30px;" class="text-muted">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
 }
 
 
