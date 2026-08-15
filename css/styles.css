@@ -2546,56 +2546,50 @@ body.role-student #nav-users {
 }
 
 /* ==========================================================================
-   12. TOWER OF WISDOM FANTASY RPG & CO-OP RAID UI
+   12. TOWER OF WISDOM: IDLE RPG & CO-OP LOGIC DUNGEON UI
    ========================================================================== */
-.tower-hub-container {
+.idle-tower-wrapper {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* Top Hero Character Sheet */
-.tower-hero-sheet {
+/* Top Dashboard & Hero Stat Bar */
+.idle-header-dashboard {
   background: linear-gradient(135deg, #071330 0%, #0f172a 60%, #1e293b 100%);
   border: 1.5px solid rgba(56, 189, 248, 0.4);
   border-radius: 20px;
-  padding: 18px 24px;
+  padding: 16px 20px;
   color: #ffffff;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
   box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.35);
 }
 
-.hero-sheet-left {
+.idle-hero-profile {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 220px;
 }
 
-.hero-avatar-box {
-  width: 58px;
-  height: 58px;
-  border-radius: 16px;
+.idle-hero-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #2563eb, #38bdf8);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
-  flex-shrink: 0;
-}
-
-.hero-class-icon {
   font-size: 1.8rem;
-  line-height: 1;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
 }
 
-.hero-level-badge {
+.hero-lvl-chip {
   position: absolute;
   bottom: -6px;
   background: #f59e0b;
@@ -2607,445 +2601,367 @@ body.role-student #nav-users {
   border: 1.5px solid #ffffff;
 }
 
-.hero-info-text {
+.idle-hero-details {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.hero-name-row {
+.idle-hero-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.hero-student-name {
-  font-size: 1.2rem;
+.hero-name-heading {
+  font-size: 1.1rem;
   font-weight: 800;
   margin: 0;
   color: #ffffff;
 }
 
-.hero-cap-badge {
-  font-size: 0.72rem;
+.hero-cap-chip {
+  font-size: 0.7rem;
   background: rgba(245, 158, 11, 0.2);
   color: #fcd34d;
   border: 1px solid rgba(252, 211, 77, 0.35);
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 6px;
   font-weight: 700;
 }
 
-.hero-exp-bar-container {
+.idle-exp-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  min-width: 180px;
+  gap: 2px;
+  min-width: 170px;
 }
 
-.hero-exp-track {
+.idle-exp-track {
   height: 6px;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   overflow: hidden;
 }
 
-.hero-exp-fill {
+.idle-exp-fill {
   height: 100%;
   background: linear-gradient(90deg, #38bdf8, #818cf8);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
 
-.hero-exp-label {
+.idle-exp-text {
   font-size: 0.68rem;
   color: #94a3b8;
   font-weight: 600;
 }
 
-/* Stats HUD */
-.hero-stats-hud {
+/* 3 Core Stats Trio */
+.idle-stats-trio {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.stat-pill-box {
+.idle-stat-badge {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  padding: 6px 14px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.stat-pill-box.stat-atk i { color: #f87171; }
-.stat-pill-box.stat-def i { color: #60a5fa; }
-.stat-pill-box.stat-hp i { color: #34d399; }
+.idle-stat-badge.atk i { color: #f87171; }
+.idle-stat-badge.def i { color: #60a5fa; }
+.idle-stat-badge.hp i { color: #34d399; }
 
-.stat-meta {
+.idle-stat-badge div {
   display: flex;
   flex-direction: column;
 }
 
-.stat-lbl {
-  font-size: 0.64rem;
+.idle-stat-badge span {
+  font-size: 0.62rem;
   color: #94a3b8;
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.stat-val {
-  font-size: 0.96rem;
+.idle-stat-badge strong {
+  font-size: 0.92rem;
   font-weight: 800;
   color: #ffffff;
 }
 
-/* Gear Slots */
-.hero-gear-slots {
+.idle-currency-box {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.gold-badge {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fef08a;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 10px;
+}
+
+.idle-toast {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 6px;
+  animation: pulse 1s infinite alternate;
+}
+
+/* ==========================================================================
+   IDLE RPG BATTLE ARENA (Matching User's Side-View Screenshot)
+   ========================================================================== */
+.idle-battle-screen-card {
+  background: #0f172a;
+  border: 2px solid #38bdf8;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+
+.battle-stage-header {
+  padding: 10px 16px;
+  background: #070d19;
+  border-bottom: 1.5px solid rgba(56, 189, 248, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.gear-slot-item {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1.5px dashed rgba(255, 255, 255, 0.2);
+.stage-info {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: 0.65rem;
-  color: #94a3b8;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.gear-slot-item .slot-icon { font-size: 1.2rem; }
-.gear-slot-item.equipped { border-style: solid; }
-.gear-slot-item.common { border-color: #cbd5e1; background: rgba(255,255,255,0.1); color: #fff; }
-.gear-slot-item.rare { border-color: #38bdf8; background: rgba(56, 189, 248, 0.15); color: #93c5fd; }
-.gear-slot-item.epic { border-color: #c084fc; background: rgba(192, 132, 252, 0.15); color: #e9d5ff; }
-.gear-slot-item.legendary { border-color: #fbbf24; background: rgba(251, 191, 36, 0.2); color: #fef08a; box-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
+.floor-pill {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 3px 10px;
+  border-radius: 8px;
+}
 
-/* Skills Tray */
-.tower-skills-tray {
-  background: #ffffff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 12px 18px;
+.wave-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+
+.stage-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.canvas-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  background: #1e1b4b;
+  position: relative;
+}
+
+#idle-battle-canvas {
+  width: 100%;
+  max-width: 680px;
+  height: 260px;
+  display: block;
+}
+
+.battle-stage-footer {
+  padding: 10px 16px;
+  background: #070d19;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.boss-ready-glow-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.boss-alert-text {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #f87171;
+}
+
+.wave-progress-bar-box {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: #94a3b8;
 }
 
-.skills-tray-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #1e293b;
+.wave-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
 }
 
-.skills-chips-list {
+.wave-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #10b981);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   IDLE RPG LOWER CONTROLS (GEAR, STAT UPGRADES, FLOOR SELECTOR)
+   ========================================================================== */
+.idle-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+
+.idle-panel-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 16px;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.skill-chip-tag {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: #1e293b;
+.panel-heading {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-/* Tower 10-Floor Map */
-.tower-map-section {
-  background: #ffffff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 20px 24px;
-}
-
-.tower-map-header {
-  margin-bottom: 16px;
-}
-
-.tower-map-header h2 {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 4px;
+.gear-showcase-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
 }
 
-.tower-map-header p {
-  margin: 0;
-  font-size: 0.84rem;
-  color: #64748b;
-}
-
-.tower-floors-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.tower-floor-card {
+.gear-card-box {
   background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  transition: all 0.25s ease;
-}
-
-.tower-floor-card.unlocked {
-  background: #ffffff;
-  border-color: #bfdbfe;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05);
-}
-
-.tower-floor-card.cleared {
-  border-color: #86efac;
-  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
-}
-
-.tower-floor-card.locked {
-  opacity: 0.6;
-  filter: grayscale(0.8);
-}
-
-.floor-badge-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 56px;
-}
-
-.floor-num-badge {
-  width: 44px;
-  height: 44px;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  background: #1e293b;
-  color: #38bdf8;
-  font-weight: 900;
-  font-size: 1.15rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tower-floor-card.cleared .floor-num-badge {
-  background: #10b981;
-  color: #ffffff;
-}
-
-.floor-level-limit {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #64748b;
-}
-
-.floor-main-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.floor-title-row {
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
-.floor-name-text {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0;
-}
+.gear-card-box.common { border-color: #cbd5e1; }
+.gear-card-box.rare { border-color: #93c5fd; background: #eff6ff; }
+.gear-card-box.epic { border-color: #d8b4fe; background: #faf5ff; }
+.gear-card-box.legendary { border-color: #facc15; background: #fefce8; }
 
-.floor-status-badge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-}
+.g-icon { font-size: 1.3rem; }
+.g-meta { display: flex; flex-direction: column; }
+.g-meta strong { font-size: 0.84rem; color: #0f172a; }
+.g-meta span { font-size: 0.72rem; color: #059669; font-weight: 700; }
 
-.status-cleared { background: #dcfce7; color: #166534; }
-.status-active { background: #dbeafe; color: #1e40af; }
-.status-locked { background: #f1f5f9; color: #64748b; }
-
-.floor-theme-sub {
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.floor-subquests-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.subquest-counter-text {
-  font-size: 0.76rem;
-  color: #475569;
-  font-weight: 600;
-}
-
-.subquests-dots {
-  display: flex;
-  gap: 4px;
-}
-
-.sq-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.sq-dot.done {
-  background: #10b981;
-  box-shadow: 0 0 6px #10b981;
-}
-
-.floor-boss-col {
-  display: flex;
-  align-items: center;
-}
-
-.floor-boss-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #0f172a;
+.upgrade-btn-grid {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-}
-
-.boss-emoji { font-size: 1.5rem; line-height: 1; }
-.boss-lvl-tag {
-  position: absolute;
-  bottom: -4px;
-  background: #ef4444;
-  color: #fff;
-  font-size: 0.6rem;
-  font-weight: 800;
-  padding: 1px 4px;
-  border-radius: 4px;
-}
-
-.floor-actions-col {
-  display: flex;
-  align-items: center;
-}
-
-.floor-btn-group {
-  display: flex;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.btn-primary-gradient {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: #ffffff;
-  border: none;
-  font-weight: 700;
-  border-radius: 8px;
-  padding: 7px 14px;
+.upgrade-btn {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
-.btn-danger-glow {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: #ffffff;
-  border: none;
-  font-weight: 800;
-  border-radius: 8px;
-  padding: 7px 14px;
+.upgrade-btn:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.upgrade-btn strong {
+  color: #d97706;
+  font-size: 0.8rem;
+}
+
+.floor-selector-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.floor-select-btn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   cursor: pointer;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
-  animation: raidGlow 1.8s infinite alternate;
+  transition: all 0.2s ease;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #334155;
+  text-align: left;
 }
 
-@keyframes raidGlow {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.03); box-shadow: 0 0 18px rgba(239, 68, 68, 0.6); }
+.floor-select-btn.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1e40af;
 }
 
-.btn-secondary-disabled {
-  background: #f1f5f9;
-  color: #94a3b8;
-  border: 1px solid #cbd5e1;
-  font-weight: 600;
-  border-radius: 8px;
-  padding: 7px 12px;
+.floor-select-btn.disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.locked-floor-hint {
-  font-size: 0.78rem;
-  color: #94a3b8;
-  font-weight: 600;
-}
-
-/* Modals for SubQuests & Puzzles */
-.modal-tower-subquest { max-width: 600px; border-radius: 20px; }
-.subquests-room-grid { display: flex; flex-direction: column; gap: 12px; }
-.subquest-room-card {
-  background: #ffffff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.subquest-room-card.cleared { border-color: #86efac; background: #f0fdf4; }
-.room-card-header { display: flex; align-items: center; gap: 12px; }
-.room-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: #eff6ff;
-  color: #2563eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-}
-.room-title-box h4 { margin: 0 0 2px; font-size: 0.96rem; font-weight: 700; color: #0f172a; }
-.room-reward-tag { font-size: 0.75rem; color: #059669; font-weight: 600; }
-.room-card-footer { display: flex; justify-content: space-between; align-items: center; }
-.room-cleared-badge { font-size: 0.78rem; color: #166534; font-weight: 700; }
-
-/* Puzzle Challenge Box */
+/* Modals & Raid Overrides */
 .modal-puzzle-box { max-width: 520px; border-radius: 20px; }
 .puzzle-q-box { background: #f1f5f9; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
 .puzzle-badge { font-size: 0.7rem; font-weight: 800; background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; }
@@ -3078,76 +2994,18 @@ body.role-student #nav-users {
   font-size: 0.8rem;
 }
 
-/* Loot Drop Alert */
-.loot-drop-alert {
-  border-radius: 12px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-align: left;
-  margin: 12px 0;
-}
-.loot-drop-alert.common { background: #f1f5f9; border: 1px solid #cbd5e1; }
-.loot-drop-alert.rare { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
-.loot-drop-alert.epic { background: #faf5ff; border: 1px solid #d8b4fe; color: #6b21a8; }
-.loot-drop-alert.legendary { background: #fefce8; border: 1.5px solid #facc15; color: #854d0e; box-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
-.level-up-banner {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #fff;
-  font-weight: 900;
-  font-size: 0.88rem;
-  padding: 6px 12px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-}
-
-/* Raid Boss Arena */
 .modal-raid-arena { max-width: 780px; width: 95vw; border-radius: 22px; background: #0f172a; color: #ffffff; }
-.raid-header-bar {
-  padding: 14px 20px;
-  background: #090e1a;
-  border-bottom: 2px solid #ef4444;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.raid-header-bar { padding: 14px 20px; background: #090e1a; border-bottom: 2px solid #ef4444; display: flex; justify-content: space-between; align-items: center; }
 .raid-tag { font-size: 0.7rem; font-weight: 900; color: #f87171; letter-spacing: 0.5px; }
 .raid-boss-name { font-size: 1.25rem; font-weight: 800; color: #ffffff; margin: 2px 0 0; }
-.raid-boss-stage {
-  padding: 16px 20px;
-  background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-.boss-giant-avatar {
-  width: 70px;
-  height: 70px;
-  border-radius: 18px;
-  background: rgba(239, 68, 68, 0.2);
-  border: 2px solid #ef4444;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-  flex-shrink: 0;
-}
+.raid-boss-stage { padding: 16px 20px; background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%); display: flex; align-items: center; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.boss-giant-avatar { width: 70px; height: 70px; border-radius: 18px; background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); flex-shrink: 0; }
 .boss-big-emoji { font-size: 2.4rem; }
 .boss-hp-wrapper { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .boss-hp-info { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; color: #fca5a5; }
 .boss-hp-track { height: 12px; background: rgba(255,255,255,0.15); border-radius: 999px; overflow: hidden; }
 .boss-hp-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); border-radius: 999px; transition: width 0.25s ease; }
-.raid-combat-feed {
-  max-height: 70px;
-  overflow-y: auto;
-  padding: 8px 16px;
-  background: rgba(0,0,0,0.3);
-  font-size: 0.78rem;
-  color: #cbd5e1;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-}
+.raid-combat-feed { max-height: 70px; overflow-y: auto; padding: 8px 16px; background: rgba(0,0,0,0.3); font-size: 0.78rem; color: #cbd5e1; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .combat-feed-item { margin-bottom: 2px; }
 .raid-combat-station { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
 .raid-q-box { background: rgba(255,255,255,0.06); border-radius: 12px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.1); }
@@ -3155,38 +3013,13 @@ body.role-student #nav-users {
 .player-stat-quick { font-size: 0.76rem; color: #94a3b8; }
 .raid-q-text { font-size: 1.05rem; font-weight: 700; color: #ffffff; margin: 6px 0 0; line-height: 1.45; }
 .raid-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.raid-opt-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.08);
-  border: 1.5px solid rgba(255,255,255,0.15);
-  border-radius: 10px;
-  color: #ffffff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
+.raid-opt-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15); border-radius: 10px; color: #ffffff; font-weight: 600; cursor: pointer; transition: all 0.2s ease; text-align: left; }
 .raid-opt-btn:hover { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; }
 .opt-num { width: 24px; height: 24px; border-radius: 50%; background: #38bdf8; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
 .raid-skills-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .raid-skill-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-skill-cast {
-  background: rgba(245, 158, 11, 0.2);
-  border: 1px solid rgba(252, 211, 77, 0.4);
-  color: #fde047;
-  font-weight: 700;
-  font-size: 0.76rem;
-  padding: 4px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+.btn-skill-cast { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(252, 211, 77, 0.4); color: #fde047; font-weight: 700; font-size: 0.76rem; padding: 4px 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
 .btn-skill-cast:hover { background: #f59e0b; color: #000; }
-
-/* Grand Victory & Death Modals */
 .modal-grand-victory { max-width: 480px; text-align: center; padding: 24px; border-radius: 22px; background: #ffffff; }
 .victory-crown-hero { font-size: 3rem; margin-bottom: 6px; }
 .victory-title { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin: 0 0 6px; }
@@ -3194,24 +3027,6 @@ body.role-student #nav-users {
 .victory-rewards-box { display: flex; flex-direction: column; gap: 8px; text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
 .v-reward-item { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; }
 .v-reward-item .v-icon { font-size: 1.3rem; }
-
-.modal-death-screen { max-width: 450px; text-align: center; padding: 24px; border-radius: 22px; background: #0f172a; color: #fff; }
-.death-skull-icon { font-size: 3.2rem; margin-bottom: 6px; }
-.death-title { font-size: 1.3rem; font-weight: 800; color: #f87171; margin: 0 0 6px; }
-.death-desc { font-size: 0.85rem; color: #94a3b8; margin: 0 0 14px; }
-.death-retention-box { display: flex; flex-direction: column; gap: 6px; text-align: left; background: rgba(255,255,255,0.06); border-radius: 12px; padding: 12px; font-size: 0.8rem; }
-.retention-item.kept { color: #34d399; }
-.retention-item.lost { color: #f87171; }
-.btn-danger-large {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: #fff;
-  font-weight: 800;
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: none;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
 /* Sidebar Mobile Dark Backdrop */
 .sidebar-backdrop {
   display: none;
@@ -3616,50 +3431,43 @@ body.role-student #nav-users {
   }
 
   /* -------------------------------------------------------------
-     TOWER OF WISDOM MOBILE RESPONSIVE UI
+     IDLE RPG MOBILE RESPONSIVE UI
   ------------------------------------------------------------- */
-  .tower-hero-sheet {
-    padding: 14px 14px !important;
+  .idle-header-dashboard {
+    padding: 12px 14px !important;
     flex-direction: column !important;
     align-items: stretch !important;
-    gap: 12px !important;
+    gap: 10px !important;
   }
-  .hero-sheet-left {
+  .idle-hero-profile {
     min-width: 0 !important;
   }
-  .hero-stats-hud {
+  .idle-stats-trio {
     justify-content: space-between !important;
     gap: 6px !important;
   }
-  .stat-pill-box {
+  .idle-stat-badge {
     flex: 1 !important;
     padding: 6px 8px !important;
     gap: 6px !important;
     justify-content: center !important;
   }
-  .hero-gear-slots {
-    justify-content: center !important;
+  .idle-currency-box {
+    align-items: center !important;
   }
-  .tower-map-section {
-    padding: 14px 12px !important;
+  .idle-bottom-grid {
+    grid-template-columns: 1fr !important;
   }
-  .tower-floor-card {
+  #idle-battle-canvas {
+    height: 220px !important;
+  }
+  .boss-ready-glow-box {
     flex-direction: column !important;
     align-items: stretch !important;
-    gap: 10px !important;
-    padding: 12px 14px !important;
+    text-align: center !important;
   }
-  .floor-badge-col {
-    flex-direction: row !important;
-    justify-content: space-between !important;
+  .boss-ready-glow-box button {
     width: 100% !important;
-  }
-  .floor-btn-group {
-    width: 100% !important;
-  }
-  .floor-btn-group button {
-    flex: 1 !important;
-    justify-content: center !important;
   }
   .raid-options-grid {
     grid-template-columns: 1fr !important;
