@@ -2433,58 +2433,182 @@ async function handleStudentHomeworkSubmit(e) {
 }
 
 // Teacher Grade Submissions
+// Teacher Grade Submissions with Classroom Filter
 function openGradeSubmissionsModal(hwId) {
   const hw = homeworkData[hwId];
   if (!hw) return;
 
-  document.getElementById('grade-hw-title').innerText = `${hw.title} (คะแนนเต็ม ${hw.maxScore} คะแนน)`;
-  const tbody = document.getElementById('grade-submissions-body');
-  
+  const course = coursesData[hw.courseId] || { code: '-', name: 'วิชาทั่วไป' };
+  document.getElementById('active-grading-hw-id').value = hwId;
+  document.getElementById('grade-hw-subtitle').innerHTML = `
+    <span style="color:#60a5fa; font-weight:700;"><i class="fa-solid fa-book"></i> ${course.code || '-'} ${course.name}</span> 
+    • <strong style="color:#ffffff;">${hw.title}</strong> 
+    • คะแนนเต็ม ${hw.maxScore} คะแนน 
+    • กำหนดส่ง ${hw.dueDate}
+  `;
+
+  // Populate Classrooms Filter
+  const filterSelect = document.getElementById('grade-hw-class-filter');
+  const classSet = new Set();
+
+  // Add classes from students who submitted
   const hwSubs = submissionsData[hwId] || {};
-  const studentKeys = Object.keys(hwSubs);
+  Object.values(hwSubs).forEach(sub => {
+    if (sub.classLevel && sub.classLevel.trim()) {
+      classSet.add(sub.classLevel.trim().replace(/^"|"$/g, ''));
+    }
+  });
 
-  if (studentKeys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;" class="text-muted">ยังไม่มีนักเรียนส่งงานชิ้นนี้</td></tr>`;
+  // Add target classes from homework definition
+  const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+  if (!targets.includes('all')) {
+    targets.forEach(t => classSet.add(t.replace(/^"|"$/g, '')));
   } else {
-    let html = '';
-    studentKeys.forEach(studentId => {
-      const sub = hwSubs[studentId];
-      const currentScore = sub.score !== undefined ? sub.score : '';
-      const currentComment = sub.comment !== undefined ? sub.comment : '';
-
-      html += `
-        <tr>
-          <td>
-            <strong>${sub.studentName}</strong>
-            <div style="font-size:0.8rem; color:var(--text-muted);">${sub.studentId} (${sub.classLevel})</div>
-          </td>
-          <td style="font-size:0.85rem;">${sub.submittedAt}</td>
-          <td>
-            <div>${sub.textAnswer || '-'}</div>
-            ${sub.imageUrl ? `
-              <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:4px;" onclick="showPDFPreviewModal('${sub.imageUrl.replace(/'/g, "\\'")}', '${sub.studentName.replace(/'/g, "\\'")}')">
-                <i class="${(sub.imageUrl.includes('.pdf') || sub.imageUrl.includes('data:application/pdf')) ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูไฟล์แนบชิ้นงาน
-              </button>
-            ` : ''}
-          </td>
-          <td>
-            <input type="number" id="grade-score-${hwId}-${studentId}" class="form-control" style="padding:4px 8px; width:100px;" min="0" max="${hw.maxScore}" value="${currentScore}">
-          </td>
-          <td>
-            <input type="text" id="grade-comment-${hwId}-${studentId}" class="form-control" style="padding:4px 8px;" placeholder="ข้อเสนอแนะ..." value="${currentComment}">
-          </td>
-          <td>
-            <button type="button" class="btn btn-sm btn-success" onclick="saveSubmissionGrade('${hwId}', '${studentId}')">
-              <i class="fa-solid fa-check"></i> บันทึก
-            </button>
-          </td>
-        </tr>
-      `;
+    // Add all classes from studentsData
+    Object.values(studentsData).forEach(s => {
+      if (s.classLevel && s.classLevel.trim()) {
+        classSet.add(s.classLevel.trim().replace(/^"|"$/g, ''));
+      }
     });
-    tbody.innerHTML = html;
   }
 
+  const sortedClasses = Array.from(classSet).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+
+  let filterOptions = `<option value="all">-- แสดงทุกห้องเรียน (${Object.keys(hwSubs).length} คนส่ง) --</option>`;
+  sortedClasses.forEach(c => {
+    const inClassCount = Object.values(hwSubs).filter(s => {
+      const sClass = (s.classLevel || '').trim().replace(/^"|"$/g, '');
+      return sClass === c;
+    }).length;
+    filterOptions += `<option value="${c}">ห้อง ${c} (ส่งแล้ว ${inClassCount} คน)</option>`;
+  });
+
+  filterSelect.innerHTML = filterOptions;
+  filterSelect.value = 'all';
+
+  renderGradeSubmissionsTable();
   openModal('modal-grade-submissions');
+}
+
+function renderGradeSubmissionsTable() {
+  const hwId = document.getElementById('active-grading-hw-id').value;
+  if (!hwId) return;
+
+  const hw = homeworkData[hwId];
+  if (!hw) return;
+
+  const selectedClass = document.getElementById('grade-hw-class-filter').value;
+  const tbody = document.getElementById('grade-submissions-body');
+  const statsContainer = document.getElementById('grade-hw-stats-pill');
+
+  const hwSubs = submissionsData[hwId] || {};
+  let studentKeys = Object.keys(hwSubs);
+
+  // Filter submissions by selected classroom
+  if (selectedClass !== 'all') {
+    studentKeys = studentKeys.filter(sId => {
+      const sub = hwSubs[sId];
+      const sClass = (sub.classLevel || '').trim().replace(/^"|"$/g, '');
+      return sClass === selectedClass;
+    });
+  }
+
+  // Calculate submission & grading statistics
+  const totalSubmissions = studentKeys.length;
+  let gradedCount = 0;
+  studentKeys.forEach(sId => {
+    if (hwSubs[sId].score !== undefined && hwSubs[sId].score !== '') {
+      gradedCount++;
+    }
+  });
+  const pendingCount = totalSubmissions - gradedCount;
+
+  // Render stats pills
+  if (statsContainer) {
+    statsContainer.innerHTML = `
+      <span class="badge badge-blue" style="font-size:0.82rem; font-weight:700; padding:5px 10px;">
+        <i class="fa-solid fa-users"></i> ส่งงานแล้ว ${totalSubmissions} คน
+      </span>
+      <span class="badge badge-green" style="font-size:0.82rem; font-weight:700; padding:5px 10px;">
+        <i class="fa-solid fa-check-double"></i> ตรวจแล้ว ${gradedCount} คน
+      </span>
+      ${pendingCount > 0 ? `
+        <span class="badge badge-yellow" style="font-size:0.82rem; font-weight:700; padding:5px 10px;">
+          <i class="fa-solid fa-hourglass-half"></i> รอตรวจ ${pendingCount} คน
+        </span>
+      ` : ''}
+    `;
+  }
+
+  if (studentKeys.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" style="text-align:center; padding:30px 20px;" class="text-muted">
+          <i class="fa-regular fa-folder-open" style="font-size:2rem; margin-bottom:8px; display:block; color:#94a3b8;"></i>
+          ${selectedClass === 'all' ? 'ยังไม่มีนักเรียนส่งงานชิ้นนี้' : `ยังไม่มีนักเรียนห้อง ${selectedClass} ส่งงานชิ้นนี้`}
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  // Sort by student name / room
+  studentKeys.sort((a, b) => {
+    const subA = hwSubs[a];
+    const subB = hwSubs[b];
+    return (subA.studentName || '').localeCompare(subB.studentName || '', 'th');
+  });
+
+  let html = '';
+  studentKeys.forEach((studentId, idx) => {
+    const sub = hwSubs[studentId];
+    const currentScore = sub.score !== undefined ? sub.score : '';
+    const currentComment = sub.comment !== undefined ? sub.comment : '';
+    const isGraded = sub.score !== undefined && sub.score !== '';
+
+    html += `
+      <tr style="${isGraded ? 'background:rgba(240, 253, 244, 0.4);' : ''}">
+        <td style="text-align:center; font-weight:700; color:#64748b;">${idx + 1}</td>
+        <td>
+          <div style="font-weight:700; color:#0f172a;">${sub.studentName}</div>
+          <div style="font-size:0.8rem; color:var(--text-muted); font-family:monospace;">รหัส: ${sub.studentId}</div>
+        </td>
+        <td style="text-align:center;">
+          <span class="badge badge-yellow" style="font-weight:700; padding:3px 8px; font-size:0.8rem;">
+            ห้อง ${sub.classLevel || '-'}
+          </span>
+        </td>
+        <td style="font-size:0.84rem; color:#475569; white-space:nowrap;">
+          <i class="fa-regular fa-calendar-check" style="color:var(--primary);"></i> ${sub.submittedAt}
+        </td>
+        <td>
+          <div style="font-size:0.9rem; color:#1e293b; max-width:260px; word-break:break-word;">
+            ${sub.textAnswer ? sub.textAnswer : '<span style="color:#94a3b8; font-style:italic;">(ไม่มีข้อความ)</span>'}
+          </div>
+          ${sub.imageUrl ? `
+            <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top:6px; border-radius:8px; font-weight:600;" onclick="showPDFPreviewModal('${sub.imageUrl.replace(/'/g, "\\'")}', '${sub.studentName.replace(/'/g, "\\'")}')">
+              <i class="${(sub.imageUrl.includes('.pdf') || sub.imageUrl.includes('data:application/pdf')) ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}"></i> ดูไฟล์แนบชิ้นงาน
+            </button>
+          ` : ''}
+        </td>
+        <td style="text-align:center;">
+          <div style="display:flex; align-items:center; justify-content:center; gap:4px;">
+            <input type="number" id="grade-score-${hwId}-${studentId}" class="form-control" style="padding:6px 8px; width:80px; text-align:center; font-weight:800; font-size:1rem; border-radius:8px; ${isGraded ? 'border-color:#10b981; color:#059669;' : 'border-color:#cbd5e1;'}" min="0" max="${hw.maxScore}" step="0.5" value="${currentScore}" placeholder="0">
+            <span style="font-size:0.82rem; color:#64748b; font-weight:600;">/ ${hw.maxScore}</span>
+          </div>
+        </td>
+        <td>
+          <input type="text" id="grade-comment-${hwId}-${studentId}" class="form-control" style="padding:6px 10px; border-radius:8px; font-size:0.88rem;" placeholder="ข้อเสนอแนะ..." value="${currentComment}">
+        </td>
+        <td style="text-align:center;">
+          <button type="button" class="btn btn-sm ${isGraded ? 'btn-success' : 'btn-primary'}" style="border-radius:8px; font-weight:700; padding:6px 12px;" onclick="saveSubmissionGrade('${hwId}', '${studentId}')" title="บันทึกผลการตรวจ">
+            <i class="fa-solid fa-check"></i> บันทึก
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
 }
 
 function saveSubmissionGrade(hwId, studentId) {
@@ -2497,13 +2621,25 @@ function saveSubmissionGrade(hwId, studentId) {
   }
 
   const scoreNum = parseFloat(scoreVal);
+  const hw = homeworkData[hwId];
+  if (hw && scoreNum > hw.maxScore) {
+    showPopupWarning("คะแนนเกินกำหนด", `คะแนนที่กรอก (${scoreNum}) เกินคะแนนเต็มของการบ้าน (${hw.maxScore} คะแนน)`);
+    return;
+  }
+
   updateData(`homework_submissions/${hwId}/${studentId}`, {
     score: scoreNum,
     comment: commentVal,
     gradedAt: new Date().toLocaleString('th-TH'),
     gradedBy: currentUser.name
   }).then(() => {
+    // Update local memory
+    if (submissionsData[hwId] && submissionsData[hwId][studentId]) {
+      submissionsData[hwId][studentId].score = scoreNum;
+      submissionsData[hwId][studentId].comment = commentVal;
+    }
     showPopupSuccess("บันทึกคะแนนเรียบร้อย", "บันทึกผลการตรวจชิ้นงานเรียบร้อยแล้ว");
+    renderGradeSubmissionsTable();
   });
 }
 
