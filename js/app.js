@@ -73,6 +73,8 @@ function showPopupConfirm(title, text = '', confirmText = 'ยืนยัน', 
   } else {
     return Promise.resolve(confirm(text ? `${title}\n${text}` : title));
   }
+}
+
 /* -------------------------------------------------------------
    0. 3D CYBER MATRIX & PROGRAMMING DATA FLOW CANVAS ENGINE
 ------------------------------------------------------------- */
@@ -82,17 +84,15 @@ function initCyberDataFlowCanvas() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  let width = (canvas.width = window.innerWidth);
-  let height = (canvas.height = window.innerHeight);
-
-  // Responsive resize
-  window.addEventListener('resize', () => {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-  });
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
 
   // Mouse cursor attraction
-  const mouse = { x: null, y: null, maxDist: 150 };
+  const mouse = { x: null, y: null, maxDist: 170 };
   window.addEventListener('mousemove', (e) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
@@ -102,25 +102,26 @@ function initCyberDataFlowCanvas() {
     mouse.y = null;
   });
 
-  // Cyber Neon Colors
-  const colors = [
-    { r: 56, g: 189, b: 248 },  // Sky Cyan
-    { r: 59, g: 130, b: 246 },  // Electric Blue
-    { r: 16, g: 185, b: 129 },  // Emerald Tech
-    { r: 168, g: 85, b: 247 },  // Cyber Violet
+  // Cyber Neon Colors Palette
+  const neonColors = [
+    { r: 56, g: 189, b: 248 },   // Vivid Cyan
+    { r: 74, g: 222, b: 128 },   // Neon Green
+    { r: 96, g: 165, b: 250 },   // Electric Sky Blue
+    { r: 250, g: 204, b: 21 },   // Cyber Gold
+    { r: 232, g: 121, b: 249 }   // Neon Violet
   ];
 
   // 1. Cyber Network Nodes
-  const nodeCount = Math.min(Math.floor((width * height) / 16000), 75);
+  const nodeCount = Math.min(Math.floor((window.innerWidth * window.innerHeight) / 14000), 80);
   const nodes = [];
 
   for (let i = 0; i < nodeCount; i++) {
-    const col = colors[Math.floor(Math.random() * colors.length)];
+    const col = neonColors[Math.floor(Math.random() * neonColors.length)];
     nodes.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.7,
-      vy: (Math.random() - 0.5) * 0.7,
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      vx: (Math.random() - 0.5) * 0.75,
+      vy: (Math.random() - 0.5) * 0.75,
       radius: Math.random() * 2.2 + 1.2,
       color: col,
       pulse: Math.random() * Math.PI,
@@ -128,9 +129,9 @@ function initCyberDataFlowCanvas() {
     });
   }
 
-  // 2. Data Packet Pulses
+  // 2. Fiber-Optic Data Packet Pulses
   const packets = [];
-  const maxPackets = 24;
+  const maxPackets = 25;
 
   function spawnPacket(n1, n2) {
     if (packets.length >= maxPackets) return;
@@ -147,44 +148,49 @@ function initCyberDataFlowCanvas() {
 
   // 3. Floating Programming Code & Data Stream Tokens
   const codeSnippets = [
-    "<code/>",
-    "01001011",
-    "const data = await sync();",
-    "01110010",
-    "if (passed === true) { score++ }",
-    "{ status: 200, online: true }",
-    "import { Firebase } from 'realtime'",
-    "Cloudinary.upload(compressedImage)",
-    "git commit -m 'Release v6.5'",
-    "for (let i = 0; i < students.length; i++)",
-    "01010101",
-    "SELECT * FROM Classroom_DB",
-    "new Promise((resolve) => { ... })",
-    "11001100",
-    "console.log('Classroom Online 24/7')",
-    "function classroom() { return success; }",
-    "01101001",
-    "01101111",
-    "01110101"
+    "const classroom = new OnlineSystem();",
+    "<code data-stream=\"active\" />",
+    "async function syncFirebaseRealtime() {",
+    "01001011 01110010 01110101 01101110 01101001",
+    "Cloudinary.upload(compressedImage, { quality: 'auto' });",
+    "if (student.quizScore >= passScore) { status = 'PASSED'; }",
+    "import { realtimeDB, auth } from '@firebase/app';",
+    "01010100 01100101 01100011 01101000 01101110",
+    "git commit -m 'Release classroom v6.7' && git push",
+    "SELECT student_id, name, score FROM exam_matrix;",
+    "const token = await generateSecureAuthToken();",
+    "while (connection.status === 'CONNECTED') { stream(); }",
+    "11001010 10101100 01010101 11110000",
+    "console.log('🚀 Realtime Classroom Ready 100%');",
+    "01000011 01101111 01100100 01101001 01101110 01100111",
+    "function gradeEvaluation(score, total) { return (score/total)*100; }",
+    "{ status: 200, latency: '12ms', sync: 'LIVE' }",
+    "addEventListener('DOMContentLoaded', () => initApp());",
+    "01110011 01110101 01100011 01100011 01100101 01110011 01110011",
+    "<div class=\"live-education-platform\">",
+    "return new Promise((resolve) => resolve({ connected: true }));"
   ];
 
   const floatingCodes = [];
-  const codeCount = Math.min(Math.floor(width / 90), 18);
+  const codeCount = Math.min(Math.floor(window.innerWidth / 70), 24);
 
   for (let i = 0; i < codeCount; i++) {
     floatingCodes.push({
       text: codeSnippets[Math.floor(Math.random() * codeSnippets.length)],
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vy: -(Math.random() * 0.45 + 0.25),
-      alpha: Math.random() * 0.45 + 0.2,
-      size: Math.floor(Math.random() * 3) + 11,
-      color: colors[Math.floor(Math.random() * colors.length)]
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      vy: -(Math.random() * 0.5 + 0.3),
+      alpha: Math.random() * 0.4 + 0.45,
+      size: Math.floor(Math.random() * 3) + 12,
+      color: neonColors[Math.floor(Math.random() * neonColors.length)]
     });
   }
 
   function render() {
-    // Only animate if login screen is visible
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Check if login screen is active
     const loginScreen = document.getElementById('login-screen');
     if (loginScreen && loginScreen.style.display === 'none') {
       requestAnimationFrame(render);
@@ -193,26 +199,26 @@ function initCyberDataFlowCanvas() {
 
     ctx.clearRect(0, 0, width, height);
 
-    // --- A. Draw & Update Floating Code Stream ---
+    // --- A. Draw & Update Floating Code Streams ---
     ctx.textBaseline = 'middle';
     floatingCodes.forEach((fc) => {
       fc.y += fc.vy;
       if (fc.y < -30) {
         fc.y = height + 30;
-        fc.x = Math.random() * width;
+        fc.x = Math.random() * (width - 150) + 20;
         fc.text = codeSnippets[Math.floor(Math.random() * codeSnippets.length)];
       }
 
-      ctx.font = `600 ${fc.size}px 'Courier New', 'Consolas', monospace`;
+      ctx.font = `600 ${fc.size}px 'Consolas', 'Fira Code', monospace`;
       ctx.fillStyle = `rgba(${fc.color.r}, ${fc.color.g}, ${fc.color.b}, ${fc.alpha})`;
-      ctx.shadowColor = `rgba(${fc.color.r}, ${fc.color.g}, ${fc.color.b}, 0.5)`;
-      ctx.shadowBlur = 6;
+      ctx.shadowColor = `rgba(${fc.color.r}, ${fc.color.g}, ${fc.color.b}, 0.75)`;
+      ctx.shadowBlur = 8;
       ctx.fillText(fc.text, fc.x, fc.y);
       ctx.shadowBlur = 0;
     });
 
     // --- B. Update & Draw Connected Cyber Network ---
-    const connectionDist = 125;
+    const connectionDist = 135;
 
     for (let i = 0; i < nodes.length; i++) {
       const n1 = nodes[i];
@@ -237,9 +243,9 @@ function initCyberDataFlowCanvas() {
           n1.y += dy * force;
 
           // Connection to mouse
-          const mAlpha = (1 - dist / mouse.maxDist) * 0.4;
+          const mAlpha = (1 - dist / mouse.maxDist) * 0.45;
           ctx.strokeStyle = `rgba(56, 189, 248, ${mAlpha})`;
-          ctx.lineWidth = 1.1;
+          ctx.lineWidth = 1.2;
           ctx.beginPath();
           ctx.moveTo(n1.x, n1.y);
           ctx.lineTo(mouse.x, mouse.y);
@@ -255,25 +261,25 @@ function initCyberDataFlowCanvas() {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < connectionDist) {
-          const alpha = (1 - dist / connectionDist) * 0.28;
+          const alpha = (1 - dist / connectionDist) * 0.32;
           ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
-          ctx.lineWidth = 0.85;
+          ctx.lineWidth = 0.9;
           ctx.beginPath();
           ctx.moveTo(n1.x, n1.y);
           ctx.lineTo(n2.x, n2.y);
           ctx.stroke();
 
           // Occasionally spawn a data packet
-          if (Math.random() < 0.0018) {
+          if (Math.random() < 0.002) {
             spawnPacket(n1, n2);
           }
         }
       }
 
       // Draw node circle with glowing aura
-      const currentRadius = n1.radius + Math.sin(n1.pulse) * 0.55;
-      ctx.fillStyle = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.85)`;
-      ctx.shadowColor = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.9)`;
+      const currentRadius = n1.radius + Math.sin(n1.pulse) * 0.6;
+      ctx.fillStyle = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.9)`;
+      ctx.shadowColor = `rgba(${n1.color.r}, ${n1.color.g}, ${n1.color.b}, 0.95)`;
       ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.arc(n1.x, n1.y, Math.max(currentRadius, 1), 0, Math.PI * 2);
