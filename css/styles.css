@@ -367,9 +367,9 @@ a {
 }
 
 .brand-logo-image {
-  max-width: 240px;
+  max-width: 195px;
   width: 100%;
-  max-height: 175px;
+  max-height: 195px;
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.55));
