@@ -15,7 +15,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=7.1.0">
+  <link rel="stylesheet" href="css/styles.css?v=7.2.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -102,7 +102,7 @@
 
         <div class="brand-footer">
           <span>© 2026 Krunoii Classroom System</span>
-          <span class="ver-tag"><span class="ver-dot"></span> v2.9</span>
+          <span class="ver-tag"><span class="ver-dot"></span> v3.0</span>
         </div>
       </div>
 
@@ -251,60 +251,72 @@
 
         <!-- VIEW 1: DASHBOARD -->
         <section id="view-dashboard" class="app-view active">
-          <!-- Banner Announcement -->
-          <div class="announcement-box">
-            <div class="announcement-title">
-              <i class="fa-solid fa-bullhorn"></i>
-              <span id="announcement-heading">ประกาศจากห้องเรียน</span>
-              <button class="btn btn-sm btn-secondary teacher-only" onclick="openAnnouncementModal()" style="margin-left: auto; font-size:0.85rem;">
+          <!-- Modern High-Tech Announcement Banner with Light Shimmer -->
+          <div class="announcement-box banner-cyber-glow">
+            <span class="banner-shimmer-sweep"></span>
+            <div class="announcement-header-row">
+              <div class="announcement-title">
+                <div class="announcement-badge-icon">
+                  <i class="fa-solid fa-bullhorn"></i>
+                </div>
+                <div>
+                  <span id="announcement-heading" class="announcement-heading-text">ยินดีต้อนรับสู่ระบบห้องเรียนออนไลน์ Krunoii Classroom</span>
+                  <div class="announcement-sub">ระบบจัดการการเรียนรู้และรายงานผลคะแนนแบบ Real-Time 24 ชม.</div>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-banner-edit teacher-only" onclick="openAnnouncementModal()">
                 <i class="fa-solid fa-pen-to-square"></i> แก้ไขประกาศ
               </button>
             </div>
             <div class="announcement-content" id="announcement-body">
-              ยินดีต้อนรับสู่ระบบห้องเรียนออนไลน์ Myclassroom สามารถเข้าทำแบบทดสอบ ส่งการบ้าน และตรวจเช็คคะแนนได้สดเรียลไทม์
+              ขอให้นักเรียนทุกคนเข้าตรวจสอบรายวิชา การบ้าน และแบบทดสอบล่าสุดผ่านหน้าแดชบอร์ด ข้อมูลทุกอย่างจะอัปเดตสดแบบ Real-Time
             </div>
           </div>
 
-          <!-- Stat Cards Grid -->
+          <!-- Modern Stat Cards Grid with Sweeping Shimmer Beams -->
           <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon blue">
-                <i class="fa-solid fa-user-graduate"></i>
-              </div>
+            <div class="stat-card card-stat-shimmer stat-cyan" style="--card-accent: #38bdf8; --shimmer-delay: 0s;">
               <div class="stat-info">
                 <span class="stat-value" id="stat-students-count">0</span>
                 <span class="stat-label">นักเรียนในระบบ (คน)</span>
               </div>
+              <div class="stat-icon blue">
+                <i class="fa-solid fa-user-graduate"></i>
+              </div>
+              <span class="stat-shimmer-beam"></span>
             </div>
 
-            <div class="stat-card">
-              <div class="stat-icon green">
-                <i class="fa-solid fa-book-bookmark"></i>
-              </div>
+            <div class="stat-card card-stat-shimmer stat-emerald" style="--card-accent: #10b981; --shimmer-delay: 1.2s;">
               <div class="stat-info">
                 <span class="stat-value" id="stat-courses-count">0</span>
                 <span class="stat-label">รายวิชาทั้งหมด</span>
               </div>
+              <div class="stat-icon green">
+                <i class="fa-solid fa-book-bookmark"></i>
+              </div>
+              <span class="stat-shimmer-beam"></span>
             </div>
 
-            <div class="stat-card">
-              <div class="stat-icon purple">
-                <i class="fa-solid fa-file-pen"></i>
-              </div>
+            <div class="stat-card card-stat-shimmer stat-purple" style="--card-accent: #a855f7; --shimmer-delay: 2.4s;">
               <div class="stat-info">
                 <span class="stat-value" id="stat-homework-count">0</span>
                 <span class="stat-label">การบ้านที่สั่งแล้ว</span>
               </div>
+              <div class="stat-icon purple">
+                <i class="fa-solid fa-file-pen"></i>
+              </div>
+              <span class="stat-shimmer-beam"></span>
             </div>
 
-            <div class="stat-card">
-              <div class="stat-icon amber">
-                <i class="fa-solid fa-stopwatch"></i>
-              </div>
+            <div class="stat-card card-stat-shimmer stat-amber" style="--card-accent: #f59e0b; --shimmer-delay: 3.6s;">
               <div class="stat-info">
                 <span class="stat-value" id="stat-quizzes-count">0</span>
                 <span class="stat-label">แบบทดสอบที่สร้าง</span>
               </div>
+              <div class="stat-icon amber">
+                <i class="fa-solid fa-stopwatch"></i>
+              </div>
+              <span class="stat-shimmer-beam"></span>
             </div>
           </div>
 
@@ -1415,8 +1427,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=7.1.0"></script>
-  <script src="js/cloudinary.js?v=7.1.0"></script>
-  <script src="js/app.js?v=7.1.0"></script>
+  <script src="js/firebase-config.js?v=7.2.0"></script>
+  <script src="js/cloudinary.js?v=7.2.0"></script>
+  <script src="js/app.js?v=7.2.0"></script>
 </body>
 </html>
