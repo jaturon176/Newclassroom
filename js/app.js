@@ -1027,11 +1027,21 @@ function updateClassFilterDropdowns() {
     }
   }
 
-  let repOptions = `<option value="">-- ทุกระดับชั้น --</option>`;
+  let repOptions = '';
   sortedClasses.forEach(c => {
-    repOptions += `<option value="${c}">${c}</option>`;
+    repOptions += `<option value="${c}">ห้อง ${c}</option>`;
   });
-  if (repFilter) repFilter.innerHTML = repOptions;
+  repOptions += `<option value="all">-- แสดงทุกห้องเรียน (${sortedClasses.length} ห้อง) --</option>`;
+
+  if (repFilter) {
+    const currentVal = repFilter.value;
+    repFilter.innerHTML = repOptions;
+    if (currentVal && (sortedClasses.includes(currentVal) || currentVal === 'all')) {
+      repFilter.value = currentVal;
+    } else if (defaultRoom) {
+      repFilter.value = defaultRoom;
+    }
+  }
 }
 
 function renderStudentsTable() {
@@ -3491,16 +3501,44 @@ function resetStudentQuizAttempt(quizId, studentId, studentName) {
 
 
 /* -------------------------------------------------------------
-   8. SCORE REPORT MATRIX
+   8. SCORE REPORT MATRIX WITH ROOM FILTER & STUDENT SEARCH
 ------------------------------------------------------------- */
+function resetReportFilters() {
+  const repFilter = document.getElementById('report-class-filter');
+  const courseFilter = document.getElementById('report-course-filter');
+  const searchInput = document.getElementById('report-student-search-input');
+  
+  if (searchInput) searchInput.value = '';
+  if (courseFilter) courseFilter.value = '';
+  
+  // Set default back to ม.1/1 if available
+  const classSet = new Set();
+  Object.values(studentsData).forEach(s => {
+    if (s.classLevel && s.classLevel.trim()) classSet.add(s.classLevel.trim().replace(/^"|"$/g, ''));
+  });
+  const sortedClasses = Array.from(classSet).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+  if (repFilter) {
+    if (sortedClasses.includes('ม.1/1')) {
+      repFilter.value = 'ม.1/1';
+    } else if (sortedClasses.length > 0) {
+      repFilter.value = sortedClasses[0];
+    } else {
+      repFilter.value = 'all';
+    }
+  }
+  
+  renderScoreReports();
+}
+
 function renderScoreReports() {
   const tbody = document.getElementById('reports-table-body');
   if (!tbody) return;
   const classFilter = document.getElementById('report-class-filter')?.value;
   const courseFilter = document.getElementById('report-course-filter')?.value;
+  const searchQuery = document.getElementById('report-student-search-input')?.value.toLowerCase().trim() || '';
 
-  const stdKeys = Object.keys(studentsData);
-  if (stdKeys.length === 0) {
+  const allStudents = Object.values(studentsData);
+  if (allStudents.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px;" class="text-muted">ยังไม่มีข้อมูลนักเรียน</td></tr>`;
     return;
   }
@@ -3518,11 +3556,40 @@ function renderScoreReports() {
 
   const totalPossible = totalHwPossible + totalQuizPossible;
 
+  // Filter students by classroom and search query
+  let filteredStudents = allStudents.filter(std => {
+    const sClass = (std.classLevel || '').trim().replace(/^"|"$/g, '');
+    if (classFilter && classFilter !== 'all' && sClass !== classFilter) {
+      return false;
+    }
+
+    if (searchQuery) {
+      const sNo = String(std.no || '').toLowerCase();
+      const sId = String(std.studentId || '').toLowerCase();
+      const sName = String(std.name || '').toLowerCase();
+      if (!sNo.includes(searchQuery) && !sId.includes(searchQuery) && !sName.includes(searchQuery)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (filteredStudents.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:35px 20px;" class="text-muted"><i class="fa-solid fa-magnifying-glass fa-2x" style="margin-bottom:8px; display:block; color:#94a3b8;"></i>ไม่พบข้อมูลคะแนนตามเงื่อนไขที่เลือก</td></tr>`;
+    return;
+  }
+
+  // Sort by student number (no) ascending, then studentId
+  filteredStudents.sort((a, b) => {
+    const noA = parseInt(a.no) || 9999;
+    const noB = parseInt(b.no) || 9999;
+    if (noA !== noB) return noA - noB;
+    return (a.studentId || '').localeCompare(b.studentId || '', 'th');
+  });
+
   let html = '';
-  for (let i = 0; i < stdKeys.length; i++) {
-    const studentId = stdKeys[i];
-    const std = studentsData[studentId];
-    if (classFilter && std.classLevel !== classFilter) continue;
+  filteredStudents.forEach(std => {
+    const studentId = std.studentId;
 
     let totalHwEarned = 0;
     for (let h = 0; h < activeHws.length; h++) {
@@ -3547,18 +3614,21 @@ function renderScoreReports() {
 
     html += `
       <tr>
-        <td><strong>${std.no || '-'}</strong></td>
-        <td><code>${std.studentId}</code></td>
+        <td style="text-align:center; font-weight:700; color:#64748b;">${std.no || '-'}</td>
+        <td><code style="font-weight:700; font-size:0.9rem;">${std.studentId}</code></td>
         <td><strong>${std.name}</strong></td>
-        <td><span class="badge badge-blue">${std.classLevel || '-'}</span></td>
-        <td>${totalHwEarned} / ${totalHwPossible}</td>
-        <td>${totalQuizEarned} / ${totalQuizPossible}</td>
-        <td><strong style="color:var(--primary); font-size:1.05rem;">${totalEarned} / ${totalPossible}</strong> <span class="badge badge-purple" style="margin-left:4px;">${percent}%</span></td>
+        <td style="text-align:center;"><span class="badge badge-yellow" style="font-weight:700;">ห้อง ${std.classLevel || '-'}</span></td>
+        <td style="text-align:center; font-weight:600;">${totalHwEarned} <span style="font-size:0.8rem; color:#64748b;">/ ${totalHwPossible}</span></td>
+        <td style="text-align:center; font-weight:600;">${totalQuizEarned} <span style="font-size:0.8rem; color:#64748b;">/ ${totalQuizPossible}</span></td>
+        <td style="text-align:center;">
+          <strong style="color:var(--primary); font-size:1.05rem;">${totalEarned} / ${totalPossible}</strong> 
+          <span class="badge ${percent >= 50 ? 'badge-green' : 'badge-red'}" style="margin-left:6px; font-weight:800;">${percent}%</span>
+        </td>
       </tr>
     `;
-  }
+  });
 
-  tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center; padding:30px;" class="text-muted">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+  tbody.innerHTML = html;
 }
 
 
