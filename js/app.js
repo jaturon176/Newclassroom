@@ -656,8 +656,80 @@ function toggleSidebar() {
 
 
 /* -------------------------------------------------------------
-   4. DASHBOARD RENDERERS
+   4. DASHBOARD RENDERERS & STUDENT ELIGIBILITY FILTER
 ------------------------------------------------------------- */
+function isStudentEligibleForCourse(studentClass, course) {
+  if (!studentClass || !course) return true;
+  const sClass = studentClass.trim().replace(/^"|"$/g, '');
+  const sBase = sClass.includes('/') ? sClass.split('/')[0].trim() : sClass;
+
+  if (!course.level || course.level === 'all') return true;
+  const cLevel = course.level.trim().replace(/^"|"$/g, '');
+  const cBase = cLevel.includes('/') ? cLevel.split('/')[0].trim() : cLevel;
+
+  return cLevel === sClass || cLevel === sBase || sClass.startsWith(cLevel) || cLevel.startsWith(sBase);
+}
+
+function isStudentEligibleForHomework(studentClass, hw) {
+  if (!studentClass || !hw) return true;
+  const sClass = studentClass.trim().replace(/^"|"$/g, '');
+  const sBase = sClass.includes('/') ? sClass.split('/')[0].trim() : sClass;
+
+  // 1. Must belong to an existing course that matches student's grade level
+  if (hw.courseId && coursesData[hw.courseId]) {
+    const course = coursesData[hw.courseId];
+    if (!isStudentEligibleForCourse(sClass, course)) {
+      return false;
+    }
+  } else if (hw.courseId && !coursesData[hw.courseId]) {
+    return false;
+  } else if (!hw.courseId) {
+    // If no courseId is attached, only allow if targets explicitly specified student's room
+    const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+    if (targets.includes('all')) return false;
+  }
+
+  // 2. Must match targetClasses
+  const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
+  if (!targets.includes('all') && targets.length > 0) {
+    const match = targets.some(t => {
+      const cleanT = t.trim().replace(/^"|"$/g, '');
+      return cleanT === sClass || cleanT === sBase || sClass.startsWith(cleanT);
+    });
+    if (!match) return false;
+  }
+
+  return true;
+}
+
+function isStudentEligibleForQuiz(studentClass, quiz) {
+  if (!studentClass || !quiz) return true;
+  const sClass = studentClass.trim().replace(/^"|"$/g, '');
+  const sBase = sClass.includes('/') ? sClass.split('/')[0].trim() : sClass;
+
+  // 1. Must belong to an existing course that matches student's grade level
+  if (quiz.courseId && coursesData[quiz.courseId]) {
+    const course = coursesData[quiz.courseId];
+    if (!isStudentEligibleForCourse(sClass, course)) {
+      return false;
+    }
+  } else if (quiz.courseId && !coursesData[quiz.courseId]) {
+    return false;
+  }
+
+  // 2. Must match targetClasses
+  const targets = quiz.targetClasses || (quiz.targetClass ? quiz.targetClass.split(',').map(s => s.trim()) : ['all']);
+  if (!targets.includes('all') && targets.length > 0) {
+    const match = targets.some(t => {
+      const cleanT = t.trim().replace(/^"|"$/g, '');
+      return cleanT === sClass || cleanT === sBase || sClass.startsWith(cleanT);
+    });
+    if (!match) return false;
+  }
+
+  return true;
+}
+
 function updateDashboardStats() {
   const isStudent = currentUser && currentUser.role === 'student';
   const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
@@ -667,28 +739,36 @@ function updateDashboardStats() {
   const quizCount = Object.keys(quizzesData).length;
 
   if (isStudent) {
-    // Filter homework for this student's class
+    // Filter courses for this student's grade level
+    const myCourseKeys = Object.keys(coursesData).filter(id => {
+      return isStudentEligibleForCourse(studentClass, coursesData[id]);
+    });
+
+    // Filter homework for this student's grade level and target classes
     const myHwKeys = Object.keys(homeworkData).filter(id => {
-      const hw = homeworkData[id];
-      const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
-      return targets.includes('all') || targets.length === 0 || targets.includes(studentClass);
+      return isStudentEligibleForHomework(studentClass, homeworkData[id]);
+    });
+
+    // Filter quizzes for this student's grade level and target classes
+    const myQuizKeys = Object.keys(quizzesData).filter(id => {
+      return isStudentEligibleForQuiz(studentClass, quizzesData[id]);
     });
 
     document.getElementById('stat-students-count').innerText = studentClass || 'นักเรียน';
     const lbl1 = document.querySelector('#stat-students-count + .stat-label');
     if (lbl1) lbl1.innerText = 'ห้องเรียนของฉัน';
 
-    document.getElementById('stat-courses-count').innerText = courseCount;
+    document.getElementById('stat-courses-count').innerText = myCourseKeys.length;
     const lbl2 = document.querySelector('#stat-courses-count + .stat-label');
-    if (lbl2) lbl2.innerText = 'รายวิชาทั้งหมด';
+    if (lbl2) lbl2.innerText = 'รายวิชาของฉัน';
 
     document.getElementById('stat-homework-count').innerText = myHwKeys.length;
     const lbl3 = document.querySelector('#stat-homework-count + .stat-label');
     if (lbl3) lbl3.innerText = 'การบ้านห้องของฉัน';
 
-    document.getElementById('stat-quizzes-count').innerText = quizCount;
+    document.getElementById('stat-quizzes-count').innerText = myQuizKeys.length;
     const lbl4 = document.querySelector('#stat-quizzes-count + .stat-label');
-    if (lbl4) lbl4.innerText = 'แบบทดสอบที่เปิดทำ';
+    if (lbl4) lbl4.innerText = 'แบบทดสอบห้องของฉัน';
   } else {
     const homeworkCount = Object.keys(homeworkData).length;
 
@@ -751,9 +831,7 @@ function renderDashboardHomeworkSummary() {
 
   if (isStudent) {
     hwKeys = hwKeys.filter(id => {
-      const hw = homeworkData[id];
-      const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
-      return targets.includes('all') || targets.length === 0 || targets.includes(studentClass);
+      return isStudentEligibleForHomework(studentClass, homeworkData[id]);
     });
   }
 
@@ -798,10 +876,18 @@ function renderDashboardHomeworkSummary() {
 
 function renderDashboardQuizSummary() {
   const container = document.getElementById('dashboard-quiz-summary');
-  const qKeys = Object.keys(quizzesData);
+  let qKeys = Object.keys(quizzesData);
+  const isStudent = currentUser && currentUser.role === 'student';
+  const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
+
+  if (isStudent) {
+    qKeys = qKeys.filter(id => {
+      return isStudentEligibleForQuiz(studentClass, quizzesData[id]);
+    });
+  }
 
   if (qKeys.length === 0) {
-    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีแบบทดสอบ</p>`;
+    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีแบบทดสอบ (หรือไม่มีแบบทดสอบสำหรับห้องของคุณ)</p>`;
     return;
   }
 
@@ -1710,7 +1796,15 @@ async function saveHomeworkForm(e) {
 
 function renderCoursesList() {
   const container = document.getElementById('courses-list-container');
-  const courseKeys = Object.keys(coursesData);
+  let courseKeys = Object.keys(coursesData);
+  const isStudent = currentUser && currentUser.role === 'student';
+  const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
+
+  if (isStudent) {
+    courseKeys = courseKeys.filter(courseId => {
+      return isStudentEligibleForCourse(studentClass, coursesData[courseId]);
+    });
+  }
 
   if (courseKeys.length === 0) {
     container.innerHTML = `
@@ -1718,8 +1812,8 @@ function renderCoursesList() {
         <div style="width:64px; height:64px; border-radius:50%; background:#eff6ff; color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">
           <i class="fa-solid fa-folder-open"></i>
         </div>
-        <h4 style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:6px;">ยังไม่มีรายวิชาในระบบ</h4>
-        <p style="color:#64748b; font-size:0.9rem; margin-bottom:18px;">คุณครูสามารถสร้างรายวิชาและมอบหมายการบ้านเพื่อเริ่มต้นการเรียนการสอนได้ทันที</p>
+        <h4 style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:6px;">${isStudent ? 'ยังไม่มีรายวิชาสำหรับห้องเรียนของคุณ' : 'ยังไม่มีรายวิชาในระบบ'}</h4>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:18px;">${isStudent ? 'เมื่อคุณครูเพิ่มรายวิชาสำหรับระดับชั้นของคุณ รายวิชาจะปรากฏที่นี่โดยอัตโนมัติ' : 'คุณครูสามารถสร้างรายวิชาและมอบหมายการบ้านเพื่อเริ่มต้นการเรียนการสอนได้ทันที'}</p>
         ${(currentUser && currentUser.role !== 'student') ? `
           <button class="btn btn-primary" onclick="openAddCourseModal()" style="border-radius:10px; font-weight:700;">
             <i class="fa-solid fa-plus-circle"></i> สร้างรายวิชาแรก
@@ -1743,12 +1837,8 @@ function renderCoursesList() {
         if (hw.courseId !== courseId) return false;
 
         // Target classroom visibility filter for students
-        if (currentUser && currentUser.role === 'student') {
-          const studentClass = (currentUser.classLevel || '').trim();
-          const targets = hw.targetClasses || (hw.targetClass ? hw.targetClass.split(',').map(s => s.trim()) : ['all']);
-          if (!targets.includes('all') && targets.length > 0 && !targets.includes(studentClass)) {
-            return false;
-          }
+        if (isStudent) {
+          return isStudentEligibleForHomework(studentClass, hw);
         }
         return true;
       })
@@ -2666,26 +2756,24 @@ function saveEditQuizForm(e) {
 
 function renderQuizzesList() {
   const container = document.getElementById('quizzes-list-container');
-  const quizKeys = Object.keys(quizzesData);
+  let quizKeys = Object.keys(quizzesData);
+  const isStudent = currentUser && currentUser.role === 'student';
+  const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
+
+  if (isStudent) {
+    quizKeys = quizKeys.filter(quizId => {
+      return isStudentEligibleForQuiz(studentClass, quizzesData[quizId]);
+    });
+  }
 
   if (quizKeys.length === 0) {
-    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:30px;">ยังไม่มีแบบทดสอบในระบบ</p>`;
+    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:30px;">${isStudent ? 'ยังไม่มีแบบทดสอบสำหรับห้องเรียนของคุณ' : 'ยังไม่มีแบบทดสอบในระบบ'}</p>`;
     return;
   }
 
   let html = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(310px, 1fr)); gap:20px;">`;
   quizKeys.forEach(quizId => {
     const q = quizzesData[quizId];
-    
-    // Student target classroom check
-    if (currentUser && currentUser.role === 'student') {
-      const studentClass = (currentUser.classLevel || '').trim().replace(/^"|"$/g, '');
-      const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
-      if (!targets.includes('all') && targets.length > 0 && !targets.includes(studentClass)) {
-        return;
-      }
-    }
-
     const course = coursesData[q.courseId] || { name: 'วิชาทั่วไป' };
     const qCount = q.questions ? q.questions.length : 0;
     const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
