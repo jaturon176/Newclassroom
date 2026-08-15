@@ -837,6 +837,7 @@ a {
 #nav-students i { color: #38bdf8 !important; }  /* Sky Blue */
 #nav-courses i { color: #34d399 !important; }   /* Emerald Green */
 #nav-quizzes i { color: #c084fc !important; }   /* Violet Purple */
+#nav-tower i { color: #f59e0b !important; }     /* Gold Castle */
 #nav-reports i { color: #fb7185 !important; }   /* Rose Pink */
 #nav-users i { color: #fb923c !important; }     /* Vibrant Orange */
 
@@ -2545,8 +2546,672 @@ body.role-student #nav-users {
 }
 
 /* ==========================================================================
-   12. RESPONSIVE BREAKPOINTS (TABLET & MOBILE ARCHITECTURE)
+   12. TOWER OF WISDOM FANTASY RPG & CO-OP RAID UI
    ========================================================================== */
+.tower-hub-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Top Hero Character Sheet */
+.tower-hero-sheet {
+  background: linear-gradient(135deg, #071330 0%, #0f172a 60%, #1e293b 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  border-radius: 20px;
+  padding: 18px 24px;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.35);
+}
+
+.hero-sheet-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 220px;
+}
+
+.hero-avatar-box {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  flex-shrink: 0;
+}
+
+.hero-class-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.hero-level-badge {
+  position: absolute;
+  bottom: -6px;
+  background: #f59e0b;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1.5px solid #ffffff;
+}
+
+.hero-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero-student-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0;
+  color: #ffffff;
+}
+
+.hero-cap-badge {
+  font-size: 0.72rem;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(252, 211, 77, 0.35);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.hero-exp-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 180px;
+}
+
+.hero-exp-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hero-exp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.hero-exp-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* Stats HUD */
+.hero-stats-hud {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stat-pill-box {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-pill-box.stat-atk i { color: #f87171; }
+.stat-pill-box.stat-def i { color: #60a5fa; }
+.stat-pill-box.stat-hp i { color: #34d399; }
+
+.stat-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-lbl {
+  font-size: 0.64rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.stat-val {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+/* Gear Slots */
+.hero-gear-slots {
+  display: flex;
+  gap: 8px;
+}
+
+.gear-slot-item {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px dashed rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gear-slot-item .slot-icon { font-size: 1.2rem; }
+.gear-slot-item.equipped { border-style: solid; }
+.gear-slot-item.common { border-color: #cbd5e1; background: rgba(255,255,255,0.1); color: #fff; }
+.gear-slot-item.rare { border-color: #38bdf8; background: rgba(56, 189, 248, 0.15); color: #93c5fd; }
+.gear-slot-item.epic { border-color: #c084fc; background: rgba(192, 132, 252, 0.15); color: #e9d5ff; }
+.gear-slot-item.legendary { border-color: #fbbf24; background: rgba(251, 191, 36, 0.2); color: #fef08a; box-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
+
+/* Skills Tray */
+.tower-skills-tray {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.skills-tray-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.skills-chips-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.skill-chip-tag {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tower 10-Floor Map */
+.tower-map-section {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 20px 24px;
+}
+
+.tower-map-header {
+  margin-bottom: 16px;
+}
+
+.tower-map-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tower-map-header p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+.tower-floors-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tower-floor-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.25s ease;
+}
+
+.tower-floor-card.unlocked {
+  background: #ffffff;
+  border-color: #bfdbfe;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05);
+}
+
+.tower-floor-card.cleared {
+  border-color: #86efac;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+}
+
+.tower-floor-card.locked {
+  opacity: 0.6;
+  filter: grayscale(0.8);
+}
+
+.floor-badge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 56px;
+}
+
+.floor-num-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #1e293b;
+  color: #38bdf8;
+  font-weight: 900;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tower-floor-card.cleared .floor-num-badge {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.floor-level-limit {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.floor-main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.floor-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.floor-name-text {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.floor-status-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.status-cleared { background: #dcfce7; color: #166534; }
+.status-active { background: #dbeafe; color: #1e40af; }
+.status-locked { background: #f1f5f9; color: #64748b; }
+
+.floor-theme-sub {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.floor-subquests-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.subquest-counter-text {
+  font-size: 0.76rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.subquests-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.sq-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.sq-dot.done {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.floor-boss-col {
+  display: flex;
+  align-items: center;
+}
+
+.floor-boss-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.boss-emoji { font-size: 1.5rem; line-height: 1; }
+.boss-lvl-tag {
+  position: absolute;
+  bottom: -4px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.floor-actions-col {
+  display: flex;
+  align-items: center;
+}
+
+.floor-btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-primary-gradient {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-danger-glow {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  border: none;
+  font-weight: 800;
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  animation: raidGlow 1.8s infinite alternate;
+}
+
+@keyframes raidGlow {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.03); box-shadow: 0 0 18px rgba(239, 68, 68, 0.6); }
+}
+
+.btn-secondary-disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: not-allowed;
+}
+
+.locked-floor-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* Modals for SubQuests & Puzzles */
+.modal-tower-subquest { max-width: 600px; border-radius: 20px; }
+.subquests-room-grid { display: flex; flex-direction: column; gap: 12px; }
+.subquest-room-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.subquest-room-card.cleared { border-color: #86efac; background: #f0fdf4; }
+.room-card-header { display: flex; align-items: center; gap: 12px; }
+.room-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.room-title-box h4 { margin: 0 0 2px; font-size: 0.96rem; font-weight: 700; color: #0f172a; }
+.room-reward-tag { font-size: 0.75rem; color: #059669; font-weight: 600; }
+.room-card-footer { display: flex; justify-content: space-between; align-items: center; }
+.room-cleared-badge { font-size: 0.78rem; color: #166534; font-weight: 700; }
+
+/* Puzzle Challenge Box */
+.modal-puzzle-box { max-width: 520px; border-radius: 20px; }
+.puzzle-q-box { background: #f1f5f9; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+.puzzle-badge { font-size: 0.7rem; font-weight: 800; background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; }
+.puzzle-question-text { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 8px 0 0; line-height: 1.45; }
+.puzzle-options-list { display: flex; flex-direction: column; gap: 8px; }
+.puzzle-opt-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: left;
+}
+.puzzle-opt-btn:hover { border-color: #2563eb; background: #eff6ff; }
+.opt-letter {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+/* Loot Drop Alert */
+.loot-drop-alert {
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  margin: 12px 0;
+}
+.loot-drop-alert.common { background: #f1f5f9; border: 1px solid #cbd5e1; }
+.loot-drop-alert.rare { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
+.loot-drop-alert.epic { background: #faf5ff; border: 1px solid #d8b4fe; color: #6b21a8; }
+.loot-drop-alert.legendary { background: #fefce8; border: 1.5px solid #facc15; color: #854d0e; box-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
+.level-up-banner {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.88rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+/* Raid Boss Arena */
+.modal-raid-arena { max-width: 780px; width: 95vw; border-radius: 22px; background: #0f172a; color: #ffffff; }
+.raid-header-bar {
+  padding: 14px 20px;
+  background: #090e1a;
+  border-bottom: 2px solid #ef4444;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.raid-tag { font-size: 0.7rem; font-weight: 900; color: #f87171; letter-spacing: 0.5px; }
+.raid-boss-name { font-size: 1.25rem; font-weight: 800; color: #ffffff; margin: 2px 0 0; }
+.raid-boss-stage {
+  padding: 16px 20px;
+  background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.boss-giant-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 2px solid #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  flex-shrink: 0;
+}
+.boss-big-emoji { font-size: 2.4rem; }
+.boss-hp-wrapper { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.boss-hp-info { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; color: #fca5a5; }
+.boss-hp-track { height: 12px; background: rgba(255,255,255,0.15); border-radius: 999px; overflow: hidden; }
+.boss-hp-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #dc2626); border-radius: 999px; transition: width 0.25s ease; }
+.raid-combat-feed {
+  max-height: 70px;
+  overflow-y: auto;
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.3);
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.combat-feed-item { margin-bottom: 2px; }
+.raid-combat-station { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.raid-q-box { background: rgba(255,255,255,0.06); border-radius: 12px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.1); }
+.q-badge { font-size: 0.7rem; font-weight: 800; color: #38bdf8; background: rgba(56, 189, 248, 0.2); padding: 2px 6px; border-radius: 4px; }
+.player-stat-quick { font-size: 0.76rem; color: #94a3b8; }
+.raid-q-text { font-size: 1.05rem; font-weight: 700; color: #ffffff; margin: 6px 0 0; line-height: 1.45; }
+.raid-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.raid-opt-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+.raid-opt-btn:hover { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; }
+.opt-num { width: 24px; height: 24px; border-radius: 50%; background: #38bdf8; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+.raid-skills-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.raid-skill-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-skill-cast {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(252, 211, 77, 0.4);
+  color: #fde047;
+  font-weight: 700;
+  font-size: 0.76rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-skill-cast:hover { background: #f59e0b; color: #000; }
+
+/* Grand Victory & Death Modals */
+.modal-grand-victory { max-width: 480px; text-align: center; padding: 24px; border-radius: 22px; background: #ffffff; }
+.victory-crown-hero { font-size: 3rem; margin-bottom: 6px; }
+.victory-title { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin: 0 0 6px; }
+.victory-desc { font-size: 0.86rem; color: #64748b; margin: 0 0 14px; }
+.victory-rewards-box { display: flex; flex-direction: column; gap: 8px; text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+.v-reward-item { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; }
+.v-reward-item .v-icon { font-size: 1.3rem; }
+
+.modal-death-screen { max-width: 450px; text-align: center; padding: 24px; border-radius: 22px; background: #0f172a; color: #fff; }
+.death-skull-icon { font-size: 3.2rem; margin-bottom: 6px; }
+.death-title { font-size: 1.3rem; font-weight: 800; color: #f87171; margin: 0 0 6px; }
+.death-desc { font-size: 0.85rem; color: #94a3b8; margin: 0 0 14px; }
+.death-retention-box { display: flex; flex-direction: column; gap: 6px; text-align: left; background: rgba(255,255,255,0.06); border-radius: 12px; padding: 12px; font-size: 0.8rem; }
+.retention-item.kept { color: #34d399; }
+.retention-item.lost { color: #f87171; }
+.btn-danger-large {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  font-weight: 800;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
 /* Sidebar Mobile Dark Backdrop */
 .sidebar-backdrop {
   display: none;
@@ -2948,6 +3613,65 @@ body.role-student #nav-users {
     align-items: center !important;
     justify-content: center !important;
     gap: 6px !important;
+  }
+
+  /* -------------------------------------------------------------
+     TOWER OF WISDOM MOBILE RESPONSIVE UI
+  ------------------------------------------------------------- */
+  .tower-hero-sheet {
+    padding: 14px 14px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .hero-sheet-left {
+    min-width: 0 !important;
+  }
+  .hero-stats-hud {
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+  .stat-pill-box {
+    flex: 1 !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    justify-content: center !important;
+  }
+  .hero-gear-slots {
+    justify-content: center !important;
+  }
+  .tower-map-section {
+    padding: 14px 12px !important;
+  }
+  .tower-floor-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+  }
+  .floor-badge-col {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+  .floor-btn-group {
+    width: 100% !important;
+  }
+  .floor-btn-group button {
+    flex: 1 !important;
+    justify-content: center !important;
+  }
+  .raid-options-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .raid-boss-stage {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 10px !important;
+  }
+  .boss-hp-wrapper {
+    width: 100% !important;
   }
 }
 

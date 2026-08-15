@@ -675,6 +675,7 @@ function switchNav(viewName) {
     students: "รายชื่อนักเรียนในระบบ",
     courses: "รายวิชาและการบ้าน",
     quizzes: "คลังแบบทดสอบและข้อสอบ",
+    tower: "หอคอยแห่งปัญญา 10 ชั้น (Tower of Wisdom)",
     reports: "สรุปรายงานคะแนนเก็บและคะแนนสอบ",
     users: "จัดการผู้ใช้งานในระบบ"
   };
@@ -687,6 +688,9 @@ function switchNav(viewName) {
   if (viewName === 'quizzes') renderQuizzesList();
   if (viewName === 'reports') renderScoreReports();
   if (viewName === 'users') renderUsersTable();
+  if (viewName === 'tower') {
+    if (typeof initTowerGameModule === 'function') initTowerGameModule();
+  }
 
   // Close sidebar on mobile
   const sidebar = document.getElementById('sidebar');
