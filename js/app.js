@@ -3563,40 +3563,206 @@ function renderScoreReports() {
 
 
 /* -------------------------------------------------------------
-   9. USER MANAGEMENT
+   9. USER MANAGEMENT (SEARCH & 10-PER-PAGE PAGINATION)
 ------------------------------------------------------------- */
+let userManagementCurrentPage = 1;
+const USERS_PER_PAGE = 10;
+
+function onUserSearchInput() {
+  userManagementCurrentPage = 1;
+  renderUsersTable();
+}
+
+function onUserFilterChange() {
+  userManagementCurrentPage = 1;
+  renderUsersTable();
+}
+
+function resetUserFilters() {
+  const searchInput = document.getElementById('user-search-input');
+  const roleFilter = document.getElementById('user-role-filter');
+  if (searchInput) searchInput.value = '';
+  if (roleFilter) roleFilter.value = 'all';
+  userManagementCurrentPage = 1;
+  renderUsersTable();
+}
+
+function changeUsersPage(page) {
+  userManagementCurrentPage = page;
+  renderUsersTable();
+}
+
 function renderUsersTable() {
   const tbody = document.getElementById('users-table-body');
-  const userKeys = Object.keys(usersData);
+  const paginationInfo = document.getElementById('users-pagination-info');
+  const paginationControls = document.getElementById('users-pagination-controls');
+  if (!tbody) return;
+
+  const searchInput = document.getElementById('user-search-input');
+  const roleFilter = document.getElementById('user-role-filter');
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const selectedRole = roleFilter ? roleFilter.value : 'all';
+
+  let userKeys = Object.keys(usersData);
 
   if (userKeys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px;" class="text-muted">กำลังโหลดข้อมูล...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px;" class="text-muted">กำลังโหลดข้อมูลผู้ใช้...</td></tr>`;
+    if (paginationInfo) paginationInfo.innerText = `แสดง 0 - 0 จากทั้งหมด 0 คน`;
+    if (paginationControls) paginationControls.innerHTML = '';
     return;
   }
 
+  // Filter users by search term and role
+  const filteredUsers = userKeys
+    .map(username => usersData[username])
+    .filter(u => {
+      if (!u) return false;
+
+      // Role filter
+      if (selectedRole !== 'all') {
+        const uRole = u.role || 'teacher';
+        if (selectedRole === 'teacher' && uRole !== 'teacher') return false;
+        if (selectedRole === 'admin' && uRole !== 'admin') return false;
+        if (selectedRole === 'student' && uRole !== 'student') return false;
+      }
+
+      // Text search filter
+      if (query) {
+        const username = (u.username || '').toLowerCase();
+        const name = (u.name || '').toLowerCase();
+        const studentId = (u.studentId || '').toLowerCase();
+        const classLevel = (u.classLevel || '').toLowerCase();
+        const role = (u.role || '').toLowerCase();
+        const roleTh = role === 'admin' ? 'ผู้ดูแลระบบ' : (role === 'student' ? 'นักเรียน' : 'ครู บุคลากร');
+
+        const match = username.includes(query) || 
+                      name.includes(query) || 
+                      studentId.includes(query) || 
+                      classLevel.includes(query) || 
+                      roleTh.includes(query);
+        if (!match) return false;
+      }
+
+      return true;
+    });
+
+  const totalFiltered = filteredUsers.length;
+  const totalPages = Math.ceil(totalFiltered / USERS_PER_PAGE) || 1;
+
+  // Boundary check
+  if (userManagementCurrentPage > totalPages) {
+    userManagementCurrentPage = totalPages;
+  }
+  if (userManagementCurrentPage < 1) {
+    userManagementCurrentPage = 1;
+  }
+
+  // Slice items for current page (10 per page)
+  const startIndex = (userManagementCurrentPage - 1) * USERS_PER_PAGE;
+  const endIndex = Math.min(startIndex + USERS_PER_PAGE, totalFiltered);
+  const pageItems = filteredUsers.slice(startIndex, endIndex);
+
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; padding:35px 20px;" class="text-muted">
+          <i class="fa-solid fa-user-slash" style="font-size:2rem; margin-bottom:8px; display:block; color:#94a3b8;"></i>
+          ไม่พบผู้ใช้งานที่ตรงกับเงื่อนไขการค้นหา "${query}"
+        </td>
+      </tr>
+    `;
+    if (paginationInfo) paginationInfo.innerText = `ไม่พบข้อมูลผู้ใช้งาน`;
+    if (paginationControls) paginationControls.innerHTML = '';
+    return;
+  }
+
+  // Render table rows
   let html = '';
-  userKeys.forEach(username => {
-    const u = usersData[username];
-    let roleBadge = `<span class="badge badge-blue">ครู / บุคลากร</span>`;
-    if (u.role === 'admin') roleBadge = `<span class="badge badge-purple">ผู้ดูแลระบบ</span>`;
-    if (u.role === 'student') roleBadge = `<span class="badge badge-green">นักเรียน</span>`;
+  pageItems.forEach((u, index) => {
+    const rowNumber = startIndex + index + 1;
+    let roleBadge = `<span class="badge badge-blue"><i class="fa-solid fa-chalkboard-user"></i> ครู / บุคลากร</span>`;
+    if (u.role === 'admin') roleBadge = `<span class="badge badge-purple"><i class="fa-solid fa-shield-halved"></i> ผู้ดูแลระบบ</span>`;
+    if (u.role === 'student') roleBadge = `<span class="badge badge-green"><i class="fa-solid fa-user-graduate"></i> นักเรียน</span>`;
 
     html += `
       <tr>
-        <td><code style="font-weight:bold;">${u.username}</code></td>
+        <td style="text-align:center; font-weight:700; color:#64748b;">${rowNumber}</td>
+        <td><code style="font-weight:700; font-size:0.92rem; color:#1d4ed8; background:#eff6ff; padding:2px 8px; border-radius:6px; border:1px solid #bfdbfe;">${u.username}</code></td>
         <td><strong>${u.name}</strong></td>
-        <td>${roleBadge}</td>
-        <td>${u.classLevel ? 'ระดับชั้น ' + u.classLevel : (u.studentId ? 'รหัส ' + u.studentId : '-')}</td>
+        <td style="text-align:center;">${roleBadge}</td>
+        <td>
+          ${u.classLevel ? `<span class="badge badge-yellow" style="font-weight:700;">ระดับชั้น ${u.classLevel}</span>` : ''}
+          ${u.studentId ? `<span class="badge badge-blue" style="font-family:monospace; margin-left:4px;">รหัส ${u.studentId}</span>` : ''}
+          ${!u.classLevel && !u.studentId ? '<span style="color:#94a3b8;">-</span>' : ''}
+        </td>
         <td style="text-align:center;">
-          <button class="btn btn-sm btn-secondary" onclick="openChangePasswordModal('${u.username}')" title="เปลี่ยนรหัสผ่าน">
+          <button class="btn btn-sm btn-secondary" onclick="openChangePasswordModal('${u.username}')" style="border-radius:8px; font-weight:600; padding:5px 10px;" title="เปลี่ยนรหัสผ่าน">
             <i class="fa-solid fa-key"></i> เปลี่ยนรหัส
           </button>
         </td>
       </tr>
     `;
   });
-
   tbody.innerHTML = html;
+
+  // Render pagination info
+  if (paginationInfo) {
+    paginationInfo.innerHTML = `แสดง <strong>${startIndex + 1} - ${endIndex}</strong> จากทั้งหมด <strong>${totalFiltered}</strong> คน (หน้า ${userManagementCurrentPage}/${totalPages})`;
+  }
+
+  // Render pagination buttons (Page 1, 2, 3, 4, 5... Previous, Next)
+  if (paginationControls) {
+    let pagesHtml = '';
+
+    // First & Previous Buttons
+    pagesHtml += `
+      <button class="page-btn" onclick="changeUsersPage(1)" ${userManagementCurrentPage === 1 ? 'disabled' : ''} title="หน้าแรก">
+        <i class="fa-solid fa-angles-left"></i>
+      </button>
+      <button class="page-btn" onclick="changeUsersPage(${userManagementCurrentPage - 1})" ${userManagementCurrentPage === 1 ? 'disabled' : ''} title="ก่อนหน้า">
+        <i class="fa-solid fa-angle-left"></i>
+      </button>
+    `;
+
+    // Smart Page Numbers (show up to 5 adjacent pages with dots)
+    const maxVisibleButtons = 5;
+    let startPage = Math.max(1, userManagementCurrentPage - Math.floor(maxVisibleButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisibleButtons - 1);
+
+    if (endPage - startPage + 1 < maxVisibleButtons) {
+      startPage = Math.max(1, endPage - maxVisibleButtons + 1);
+    }
+
+    if (startPage > 1) {
+      pagesHtml += `<button class="page-btn" onclick="changeUsersPage(1)">1</button>`;
+      if (startPage > 2) pagesHtml += `<span class="page-dots">...</span>`;
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      pagesHtml += `
+        <button class="page-btn ${p === userManagementCurrentPage ? 'active' : ''}" onclick="changeUsersPage(${p})">
+          ${p}
+        </button>
+      `;
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) pagesHtml += `<span class="page-dots">...</span>`;
+      pagesHtml += `<button class="page-btn" onclick="changeUsersPage(${totalPages})">${totalPages}</button>`;
+    }
+
+    // Next & Last Buttons
+    pagesHtml += `
+      <button class="page-btn" onclick="changeUsersPage(${userManagementCurrentPage + 1})" ${userManagementCurrentPage === totalPages ? 'disabled' : ''} title="ถัดไป">
+        <i class="fa-solid fa-angle-right"></i>
+      </button>
+      <button class="page-btn" onclick="changeUsersPage(${totalPages})" ${userManagementCurrentPage === totalPages ? 'disabled' : ''} title="หน้าสุดท้าย">
+        <i class="fa-solid fa-angles-right"></i>
+      </button>
+    `;
+
+    paginationControls.innerHTML = pagesHtml;
+  }
 }
 
 function openAddUserModal() {

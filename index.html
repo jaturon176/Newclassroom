@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=7.9.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.0.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -103,7 +103,7 @@
 
         <div class="brand-footer">
           <span>© 2026 Krunoii Classroom System</span>
-          <span class="ver-tag"><span class="ver-dot"></span> v3.7</span>
+          <span class="ver-tag"><span class="ver-dot"></span> v3.8</span>
         </div>
       </div>
 
@@ -541,34 +541,79 @@
         </section>
 
 
-        <!-- VIEW 6: USER MANAGEMENT -->
+        <!-- VIEW 6: USER MANAGEMENT WITH SEARCH & PAGINATION -->
         <section id="view-users" class="app-view" style="display: none;">
-          <div class="card">
-            <div class="card-title">
-              <span><i class="fa-solid fa-user-gear"></i> จัดการผู้ใช้งานในระบบ</span>
-              <button class="btn btn-primary" onclick="openAddUserModal()">
+          <div class="card" style="border-radius:18px; border:1px solid var(--border); box-shadow:var(--shadow-sm);">
+            <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, #2563eb, #3b82f6); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.15rem; box-shadow:0 3px 8px rgba(37,99,235,0.3);">
+                  <i class="fa-solid fa-user-gear"></i>
+                </div>
+                <div>
+                  <h3 style="font-size:1.3rem; font-weight:800; color:#0f172a; margin:0;">จัดการผู้ใช้งานในระบบ</h3>
+                  <span style="font-size:0.83rem; color:var(--text-muted);">จัดการบัญชีผู้ใช้งาน สิทธิ์การเข้าถึง และรีเซ็ตรหัสผ่าน</span>
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="openAddUserModal()" style="border-radius:10px; font-weight:600;">
                 <i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้งาน
               </button>
             </div>
 
-            <div class="table-responsive">
-              <table class="table">
-                <thead>
+            <!-- Search & Filters Toolbar -->
+            <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; align-items:center; background:#f8fafc; padding:12px 16px; border-radius:14px; border:1px solid #e2e8f0;">
+              
+              <!-- Search Input -->
+              <div style="flex:1; min-width:240px;" class="input-with-icon">
+                <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                <input type="text" id="user-search-input" class="form-control" placeholder="ค้นหา ชื่อผู้ใช้ (Username), ชื่อ-สกุล หรือระดับชั้น..." oninput="onUserSearchInput()" style="border-radius:10px;">
+              </div>
+
+              <!-- Role Filter -->
+              <div style="width:190px;">
+                <select id="user-role-filter" class="form-control" onchange="onUserFilterChange()" style="padding-left:14px; font-weight:700; border-radius:10px; border-color:#cbd5e1; color:#0f172a;">
+                  <option value="all">-- ทุกบทบาท/สิทธิ์ --</option>
+                  <option value="teacher">ครู / บุคลากร</option>
+                  <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                  <option value="student">นักเรียน (Student)</option>
+                </select>
+              </div>
+
+              <button class="btn btn-secondary" onclick="resetUserFilters()" style="border-radius:10px;" title="ล้างการค้นหา">
+                <i class="fa-solid fa-rotate-left"></i> ล้างค้นหา
+              </button>
+            </div>
+
+            <!-- Users Table -->
+            <div class="table-responsive" style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(15,23,42,0.03);">
+              <table class="table" style="margin:0;">
+                <thead style="background:#f1f5f9;">
                   <tr>
+                    <th style="width: 60px; text-align:center;">ลำดับ</th>
                     <th>ชื่อผู้ใช้งาน (Username)</th>
                     <th>ชื่อ - สกุล</th>
-                    <th>สิทธิ์ / บทบาท</th>
-                    <th>รหัสประจำตัว / ข้อมูล</th>
+                    <th style="text-align:center;">สิทธิ์ / บทบาท</th>
+                    <th>รหัสประจำตัว / ข้อมูลห้อง</th>
                     <th style="width: 140px; text-align:center;">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody id="users-table-body">
                   <tr>
-                    <td colspan="5" style="text-align:center; padding:30px;" class="text-muted">กำลังโหลดข้อมูลผู้ใช้...</td>
+                    <td colspan="6" style="text-align:center; padding:30px;" class="text-muted">กำลังโหลดข้อมูลผู้ใช้...</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
+            <!-- Users Pagination Bar -->
+            <div class="pagination-wrapper" id="users-pagination-wrapper">
+              <div class="pagination-info" id="users-pagination-info">
+                แสดง 0 - 0 จากทั้งหมด 0 คน
+              </div>
+              <div class="pagination-controls" id="users-pagination-controls">
+                <!-- Pagination buttons rendered here -->
+              </div>
+            </div>
+
           </div>
         </section>
 
@@ -1468,8 +1513,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=7.9.0"></script>
-  <script src="js/cloudinary.js?v=7.9.0"></script>
-  <script src="js/app.js?v=7.9.0"></script>
+  <script src="js/firebase-config.js?v=8.0.0"></script>
+  <script src="js/cloudinary.js?v=8.0.0"></script>
+  <script src="js/app.js?v=8.0.0"></script>
 </body>
 </html>

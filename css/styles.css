@@ -2044,6 +2044,79 @@ a {
 }
 
 /* ==========================================================================
+   8.1 MODERN PAGINATION CONTROLS
+   ========================================================================== */
+.pagination-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.pagination-info {
+  font-size: 0.86rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.page-btn.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+.page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.page-dots {
+  padding: 0 4px;
+  color: #94a3b8;
+  font-weight: 800;
+  user-select: none;
+}
+
+/* ==========================================================================
    9. ROLE-BASED SECURITY DISPLAY RULES
    ========================================================================== */
 body.role-student .teacher-only,
