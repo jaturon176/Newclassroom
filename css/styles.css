@@ -1938,6 +1938,265 @@ a {
 }
 
 /* ==========================================================================
+   5.5 QUIZ & EXAM CARDS MODERN SUITE (Vibrant & Interactive)
+   ========================================================================== */
+.quiz-grid-modern {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 22px;
+  margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .quiz-grid-modern {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.quiz-card-modern {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.quiz-card-modern:hover {
+  transform: translateY(-4px);
+  border-color: #cbd5e1;
+  box-shadow: 0 16px 32px -6px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(99, 102, 241, 0.15);
+}
+
+/* Quiz Hero Banners - Vibrant 5 Themes */
+.quiz-hero-banner {
+  padding: 20px 22px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quiz-hero-banner::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 70%);
+  pointer-events: none;
+}
+
+.quiz-hero-banner::before {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: 20%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%);
+  pointer-events: none;
+}
+
+/* Theme 1: Violet Purple */
+.quiz-theme-violet {
+  background: linear-gradient(135deg, #6d28d9 0%, #8b5cf6 50%, #a855f7 100%);
+}
+
+/* Theme 2: Rose Pink */
+.quiz-theme-rose {
+  background: linear-gradient(135deg, #be123c 0%, #e11d48 50%, #fb7185 100%);
+}
+
+/* Theme 3: Ocean Blue */
+.quiz-theme-blue {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #38bdf8 100%);
+}
+
+/* Theme 4: Emerald Teal */
+.quiz-theme-emerald {
+  background: linear-gradient(135deg, #047857 0%, #059669 50%, #34d399 100%);
+}
+
+/* Theme 5: Amber Sunset */
+.quiz-theme-amber {
+  background: linear-gradient(135deg, #c2410c 0%, #ea580c 50%, #fbbf24 100%);
+}
+
+.quiz-meta-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.quiz-pill-course {
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 4px 11px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quiz-pill-target {
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fef08a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.quiz-title-text {
+  font-size: 1.34rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 2px 0 0;
+  line-height: 1.35;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.18);
+  position: relative;
+  z-index: 1;
+}
+
+.quiz-creator-info {
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Quiz Card Body */
+.quiz-card-body {
+  padding: 18px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
+}
+
+.quiz-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quiz-stat-pill {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 6px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.2s ease;
+}
+
+.quiz-stat-pill:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.quiz-stat-label {
+  font-size: 0.74rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.quiz-stat-val {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Quiz Card Footer & Actions */
+.quiz-card-footer {
+  padding-top: 14px;
+  border-top: 1.5px dashed #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.quiz-btn-start {
+  width: 100%;
+  border-radius: 12px;
+  font-weight: 800;
+  padding: 11px 18px;
+  font-size: 0.96rem;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quiz-btn-start:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.45);
+}
+
+.quiz-result-ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  gap: 8px;
+}
+
+.quiz-result-passed {
+  background: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
+}
+
+.quiz-result-failed {
+  background: #fff1f2;
+  border: 1.5px solid #fecdd3;
+}
+
+/* ==========================================================================
    6. QUIZ RUNNER & TIMER
    ========================================================================== */
 .quiz-runner-container {

@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.3.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.4.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -103,7 +103,7 @@
 
         <div class="brand-footer">
           <span>© 2026 Krunoii Classroom System</span>
-          <span class="ver-tag"><span class="ver-dot"></span> v4.1</span>
+          <span class="ver-tag"><span class="ver-dot"></span> v4.2</span>
         </div>
       </div>
 
@@ -491,18 +491,51 @@
         </section>
 
 
-        <!-- VIEW 4: QUIZZES -->
+        <!-- VIEW 4: QUIZZES & EXAMS REPOSITORY -->
         <section id="view-quizzes" class="app-view" style="display: none;">
-          <div class="card">
-            <div class="card-title">
-              <span><i class="fa-solid fa-list-check"></i> คลังแบบทดสอบและข้อสอบ</span>
-              <button class="btn btn-primary teacher-only" onclick="openCreateQuizModal()">
-                <i class="fa-solid fa-square-plus"></i> สร้างแบบทดสอบใหม่
+          <div class="card" style="border-radius:20px; border:1px solid var(--border); box-shadow:var(--shadow-sm); padding:24px;">
+            <!-- Header Bar -->
+            <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; margin-bottom:22px;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:46px; height:46px; border-radius:14px; background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.35rem; box-shadow:0 4px 14px rgba(139,92,246,0.35);">
+                  <i class="fa-solid fa-file-signature"></i>
+                </div>
+                <div>
+                  <h3 style="font-size:1.35rem; font-weight:800; color:#0f172a; margin:0; line-height:1.2;">คลังแบบทดสอบและข้อสอบ</h3>
+                  <span style="font-size:0.84rem; color:var(--text-muted);">จัดการแบบทดสอบออนไลน์ ปรนัย 4-5 ตัวเลือก พร้อมระบบจับเวลาและตรวจคะแนนอัตโนมัติ</span>
+                </div>
+              </div>
+              <div class="teacher-only" style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="openCreateQuizModal()" style="border-radius:12px; font-weight:700; padding:10px 20px; box-shadow:0 4px 12px rgba(37,99,235,0.3);">
+                  <i class="fa-solid fa-square-plus"></i> สร้างแบบทดสอบใหม่
+                </button>
+              </div>
+            </div>
+
+            <!-- Toolbar: Quick Search & Course/Class Filter -->
+            <div class="no-print" style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center; background:#f8fafc; padding:12px 16px; border-radius:14px; border:1px solid #e2e8f0;">
+              <div style="flex:1; min-width:240px;" class="input-with-icon">
+                <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                <input type="text" id="quiz-search-input" class="form-control" placeholder="ค้นหา ชื่อแบบทดสอบ หรือ รายวิชา..." oninput="renderQuizzesList()" style="border-radius:10px;">
+              </div>
+              <div style="width:200px;">
+                <select id="quiz-course-filter" class="form-control" onchange="renderQuizzesList()" style="padding-left:12px; font-weight:700; border-radius:10px; border-color:#cbd5e1; color:#0f172a;">
+                  <option value="all">-- ทุกรายวิชา --</option>
+                </select>
+              </div>
+              <div style="width:170px;">
+                <select id="quiz-class-filter" class="form-control" onchange="renderQuizzesList()" style="padding-left:12px; font-weight:700; border-radius:10px; border-color:#cbd5e1; color:#0f172a;">
+                  <option value="all">-- ทุกห้องเรียน --</option>
+                </select>
+              </div>
+              <button class="btn btn-secondary" onclick="resetQuizFilters()" style="border-radius:10px; padding:8px 14px;" title="ล้างตัวกรอง">
+                <i class="fa-solid fa-rotate-left"></i> ล้างค้นหา
               </button>
             </div>
 
+            <!-- Quiz Cards Grid Container -->
             <div id="quizzes-list-container">
-              <p class="text-muted" style="text-align:center; padding:30px;">ยังไม่มีแบบทดสอบในระบบ</p>
+              <p class="text-muted" style="text-align:center; padding:30px;">กำลังโหลดแบบทดสอบ...</p>
             </div>
           </div>
         </section>
@@ -1601,8 +1634,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.3.0"></script>
-  <script src="js/cloudinary.js?v=8.3.0"></script>
-  <script src="js/app.js?v=8.3.0"></script>
+  <script src="js/firebase-config.js?v=8.4.0"></script>
+  <script src="js/cloudinary.js?v=8.4.0"></script>
+  <script src="js/app.js?v=8.4.0"></script>
 </body>
 </html>

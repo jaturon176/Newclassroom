@@ -3026,81 +3026,222 @@ function saveEditQuizForm(e) {
   });
 }
 
+function resetQuizFilters() {
+  const searchInput = document.getElementById('quiz-search-input');
+  const courseFilter = document.getElementById('quiz-course-filter');
+  const classFilter = document.getElementById('quiz-class-filter');
+  if (searchInput) searchInput.value = '';
+  if (courseFilter) courseFilter.value = 'all';
+  if (classFilter) classFilter.value = 'all';
+  renderQuizzesList();
+}
+
 function renderQuizzesList() {
   const container = document.getElementById('quizzes-list-container');
+  if (!container) return;
+
+  const searchInput = document.getElementById('quiz-search-input');
+  const courseFilter = document.getElementById('quiz-course-filter');
+  const classFilter = document.getElementById('quiz-class-filter');
+
+  const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const selectedCourse = courseFilter ? courseFilter.value : 'all';
+  const selectedClass = classFilter ? classFilter.value : 'all';
+
   let quizKeys = Object.keys(quizzesData);
   const isStudent = currentUser && currentUser.role === 'student';
   const studentClass = (currentUser && currentUser.classLevel) ? currentUser.classLevel.trim() : '';
 
+  // Populate course dropdown if needed
+  if (courseFilter && courseFilter.options.length <= 1) {
+    let courseOpts = `<option value="all">-- ทุกรายวิชา --</option>`;
+    Object.keys(coursesData).forEach(cId => {
+      const c = coursesData[cId];
+      courseOpts += `<option value="${cId}">${c.code || ''} ${c.name || ''}</option>`;
+    });
+    courseFilter.innerHTML = courseOpts;
+  }
+
+  // Populate classroom dropdown if needed
+  if (classFilter && classFilter.options.length <= 1) {
+    const classSet = new Set();
+    Object.values(studentsData).forEach(s => {
+      if (s.classLevel && s.classLevel.trim()) classSet.add(s.classLevel.trim());
+    });
+    const sortedClasses = Array.from(classSet).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+    let classOpts = `<option value="all">-- ทุกห้องเรียน --</option>`;
+    sortedClasses.forEach(cls => {
+      classOpts += `<option value="${cls}">ห้อง ${cls}</option>`;
+    });
+    classFilter.innerHTML = classOpts;
+  }
+
+  // Filter for student eligibility
   if (isStudent) {
     quizKeys = quizKeys.filter(quizId => {
       return isStudentEligibleForQuiz(studentClass, quizzesData[quizId]);
     });
   }
 
+  // Course filter
+  if (selectedCourse !== 'all') {
+    quizKeys = quizKeys.filter(quizId => {
+      const q = quizzesData[quizId];
+      return q.courseId === selectedCourse;
+    });
+  }
+
+  // Classroom filter
+  if (selectedClass !== 'all') {
+    quizKeys = quizKeys.filter(quizId => {
+      const q = quizzesData[quizId];
+      const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
+      return targets.includes('all') || targets.includes(selectedClass);
+    });
+  }
+
+  // Search filter
+  if (searchQuery) {
+    quizKeys = quizKeys.filter(quizId => {
+      const q = quizzesData[quizId];
+      const course = coursesData[q.courseId] || { name: '', code: '' };
+      return (q.title || '').toLowerCase().includes(searchQuery) ||
+             (course.name || '').toLowerCase().includes(searchQuery) ||
+             (course.code || '').toLowerCase().includes(searchQuery);
+    });
+  }
+
   if (quizKeys.length === 0) {
-    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:30px;">${isStudent ? 'ยังไม่มีแบบทดสอบสำหรับห้องเรียนของคุณ' : 'ยังไม่มีแบบทดสอบในระบบ'}</p>`;
+    container.innerHTML = `
+      <div style="text-align:center; padding:48px 20px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:18px; margin:10px 0;">
+        <div style="width:64px; height:64px; border-radius:50%; background:#fdf2f8; color:#db2777; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">
+          <i class="fa-solid fa-file-circle-question"></i>
+        </div>
+        <h4 style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:6px;">${searchQuery ? 'ไม่พบแบบทดสอบที่ค้นหา' : (isStudent ? 'ยังไม่มีแบบทดสอบสำหรับห้องเรียนของคุณ' : 'ยังไม่มีแบบทดสอบในระบบ')}</h4>
+        <p style="color:#64748b; font-size:0.9rem; margin-bottom:18px;">${searchQuery ? `ไม่พบข้อมูลที่ตรงกับคำค้นหา "${searchQuery}"` : (isStudent ? 'เมื่อคุณครูเปิดระบบแบบทดสอบ จะปรากฏที่นี่โดยอัตโนมัติ' : 'คุณครูสามารถสร้างแบบทดสอบออนไลน์ ปรนัย 4-5 ตัวเลือก ได้ทันที')}</p>
+        ${(currentUser && currentUser.role !== 'student' && !searchQuery) ? `
+          <button class="btn btn-primary" onclick="openCreateQuizModal()" style="border-radius:10px; font-weight:700;">
+            <i class="fa-solid fa-square-plus"></i> สร้างแบบทดสอบแรก
+          </button>
+        ` : ''}
+      </div>
+    `;
     return;
   }
 
-  let html = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(310px, 1fr)); gap:20px;">`;
-  quizKeys.forEach(quizId => {
+  const quizThemes = [
+    { cls: 'quiz-theme-violet', accent: '#7c3aed', icon: 'fa-solid fa-graduation-cap' },
+    { cls: 'quiz-theme-rose', accent: '#e11d48', icon: 'fa-solid fa-award' },
+    { cls: 'quiz-theme-blue', accent: '#2563eb', icon: 'fa-solid fa-brain' },
+    { cls: 'quiz-theme-emerald', accent: '#059669', icon: 'fa-solid fa-lightbulb' },
+    { cls: 'quiz-theme-amber', accent: '#d97706', icon: 'fa-solid fa-fire' }
+  ];
+
+  let html = `<div class="quiz-grid-modern">`;
+  quizKeys.forEach((quizId, index) => {
     const q = quizzesData[quizId];
-    const course = coursesData[q.courseId] || { name: 'วิชาทั่วไป' };
+    const theme = quizThemes[index % quizThemes.length];
+    const course = coursesData[q.courseId] || { name: 'วิชาทั่วไป', code: '-' };
     const qCount = q.questions ? q.questions.length : 0;
+    const choiceType = q.type ? `${q.type} ตัวเลือก` : '4 ตัวเลือก';
     const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
     const isTargetAll = targets.includes('all') || targets.length === 0;
     const targetLabel = isTargetAll ? 'ทุกห้องเรียน' : 'ห้อง ' + targets.join(', ');
 
-    // Student Quiz attempt check (quiz_results/{quizId}/{studentId})
-    const studentResult = (quizResultsData[quizId] && currentUser.studentId) 
+    // Student Quiz attempt check
+    const studentResult = (quizResultsData[quizId] && currentUser && currentUser.studentId) 
       ? quizResultsData[quizId][currentUser.studentId]
       : null;
 
+    const completedCount = quizResultsData[quizId] ? Object.keys(quizResultsData[quizId]).length : 0;
+
     html += `
-      <div style="background:#ffffff; border:1.5px solid #e2e8f0; border-radius:18px; padding:20px; box-shadow:0 4px 14px rgba(15,23,42,0.05); display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s, box-shadow 0.2s;">
-        <div>
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;">
-            <span class="badge badge-purple" style="font-size:0.84rem; font-weight:700; padding:4px 10px; border-radius:8px;">${course.name}</span>
-            <span class="badge ${isTargetAll ? 'badge-purple' : 'badge-yellow'}" style="font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:8px;">
+      <div class="quiz-card-modern">
+        <!-- Vibrant Hero Banner -->
+        <div class="quiz-hero-banner ${theme.cls}">
+          <div class="quiz-meta-pills">
+            <span class="quiz-pill-course">
+              <i class="${theme.icon}"></i> ${course.name}
+            </span>
+            <span class="quiz-pill-target">
               <i class="${isTargetAll ? 'fa-solid fa-globe' : 'fa-solid fa-chalkboard'}"></i> ${targetLabel}
             </span>
+            <span class="quiz-pill-course" style="font-size:0.75rem; background:rgba(0,0,0,0.2);">
+              <i class="fa-solid fa-check-to-slot"></i> ${choiceType}
+            </span>
           </div>
-          <h4 style="font-size:1.25rem; font-weight:800; color:#0f172a; margin:12px 0 8px; line-height:1.35;">${q.title}</h4>
-          
-          <div style="display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; font-size:0.86rem; color:#64748b; font-weight:600;">
-            <span style="background:#f8fafc; padding:3px 8px; border-radius:6px; border:1px solid #e2e8f0;"><i class="fa-solid fa-list-ol" style="color:var(--primary);"></i> ${qCount} ข้อ</span>
-            <span style="background:#f8fafc; padding:3px 8px; border-radius:6px; border:1px solid #e2e8f0;"><i class="fa-solid fa-clock" style="color:#eab308;"></i> ${q.duration} นาที</span>
-            <span style="background:#f8fafc; padding:3px 8px; border-radius:6px; border:1px solid #e2e8f0;"><i class="fa-solid fa-bullseye" style="color:#10b981;"></i> ผ่านเกณฑ์ ${q.passScore}%</span>
-          </div>
+
+          <h4 class="quiz-title-text">${q.title}</h4>
+          ${q.createdBy ? `
+            <div class="quiz-creator-info">
+              <i class="fa-solid fa-user-pen"></i> ครูผู้สร้าง: <span style="font-weight:700;">${q.createdBy}</span>
+            </div>
+          ` : ''}
         </div>
 
-        <div style="margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          ${currentUser.role === 'student' ? `
-            ${studentResult ? `
-              <div style="display:flex; align-items:center; gap:8px; width:100%; justify-content:space-between;">
-                <span class="badge ${studentResult.passed ? 'badge-green' : 'badge-red'}" style="font-size:0.84rem; padding:5px 12px; font-weight:700;">
-                  ${studentResult.score}/${studentResult.totalScore} คะแนน (${studentResult.percentage}%)
-                </span>
-                <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')" style="border-radius:8px; font-weight:600;">
-                  <i class="fa-solid fa-chart-simple"></i> ดูผลคะแนน
+        <!-- Quiz Body & Stats Grid -->
+        <div class="quiz-card-body">
+          <div class="quiz-stats-grid">
+            <div class="quiz-stat-pill">
+              <span class="quiz-stat-label">จำนวนข้อ</span>
+              <span class="quiz-stat-val" style="color:${theme.accent};">
+                <i class="fa-solid fa-list-ol"></i> ${qCount} ข้อ
+              </span>
+            </div>
+            <div class="quiz-stat-pill">
+              <span class="quiz-stat-label">เวลาสอบ</span>
+              <span class="quiz-stat-val" style="color:#d97706;">
+                <i class="fa-solid fa-clock"></i> ${q.duration} นาที
+              </span>
+            </div>
+            <div class="quiz-stat-pill">
+              <span class="quiz-stat-label">เกณฑ์ผ่าน</span>
+              <span class="quiz-stat-val" style="color:#059669;">
+                <i class="fa-solid fa-bullseye"></i> ${q.passScore}%
+              </span>
+            </div>
+          </div>
+
+          <!-- Footer & Action Buttons -->
+          <div class="quiz-card-footer">
+            ${(currentUser && currentUser.role === 'student') ? `
+              ${studentResult ? `
+                <div class="quiz-result-ribbon ${studentResult.passed ? 'quiz-result-passed' : 'quiz-result-failed'}">
+                  <div>
+                    <div style="font-weight:800; font-size:0.92rem; color:${studentResult.passed ? '#059669' : '#e11d48'};">
+                      <i class="${studentResult.passed ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i>
+                      ${studentResult.passed ? 'สอบผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
+                    </div>
+                    <div style="font-size:0.8rem; color:#475569; font-weight:700;">
+                      ได้ ${studentResult.score}/${studentResult.totalScore} คะแนน (${studentResult.percentage}%)
+                    </div>
+                  </div>
+                  <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')" style="border-radius:10px; font-weight:700; padding:6px 12px;">
+                    <i class="fa-solid fa-chart-simple"></i> ดูเฉลย
+                  </button>
+                </div>
+              ` : `
+                <button class="quiz-btn-start" onclick="startQuizRunner('${quizId}')">
+                  <i class="fa-solid fa-circle-play"></i> เริ่มทำข้อสอบทันที
+                </button>
+              `}
+            ` : `
+              <span class="badge badge-purple" style="font-size:0.84rem; font-weight:700; padding:6px 12px; border-radius:10px; cursor:pointer;" onclick="openQuizScoresModal('${quizId}')" title="คลิกเพื่อดูคะแนนนักเรียน">
+                <i class="fa-solid fa-user-check"></i> ทำแล้ว ${completedCount} คน
+              </span>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-sm btn-primary" onclick="openQuizScoresModal('${quizId}')" style="border-radius:10px; font-weight:700; padding:7px 14px; box-shadow:0 2px 8px rgba(37,99,235,0.25);" title="ดูรายงานคะแนนสอบนักเรียนทุกคน">
+                  <i class="fa-solid fa-square-poll-vertical"></i> ดูคะแนน
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="openEditQuizModal('${quizId}')" style="border-radius:10px; padding:7px 10px;" title="แก้ไขแบบทดสอบ">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteQuiz('${quizId}')" style="border-radius:10px; padding:7px 10px;" title="ลบแบบทดสอบ">
+                  <i class="fa-solid fa-trash-can"></i>
                 </button>
               </div>
-            ` : `
-              <button class="btn btn-primary" onclick="startQuizRunner('${quizId}')" style="width:100%; border-radius:10px; font-weight:700; padding:9px 14px; background:linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow:0 3px 8px rgba(37,99,235,0.25);">
-                <i class="fa-solid fa-play"></i> เริ่มทำข้อสอบ
-              </button>
             `}
-          ` : `
-            <span class="badge badge-blue" style="font-size:0.82rem; font-weight:700; padding:5px 10px; border-radius:8px; cursor:pointer;" onclick="openQuizScoresModal('${quizId}')" title="คลิกเพื่อดูคะแนนนักเรียน">
-              <i class="fa-solid fa-user-check"></i> ทำแล้ว ${quizResultsData[quizId] ? Object.keys(quizResultsData[quizId]).length : 0} คน
-            </span>
-            <div style="display:flex; gap:6px;">
-              <button class="btn btn-sm btn-primary" onclick="openQuizScoresModal('${quizId}')" style="border-radius:8px; font-weight:600; padding:5px 10px;" title="ดูรายงานคะแนนสอบนักเรียนทุกคน"><i class="fa-solid fa-square-poll-vertical"></i> ดูคะแนน</button>
-              <button class="btn btn-sm btn-outline-primary" onclick="openEditQuizModal('${quizId}')" style="border-radius:8px; padding:5px 8px;" title="แก้ไขแบบทดสอบ"><i class="fa-solid fa-pen-to-square"></i></button>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteQuiz('${quizId}')" style="border-radius:8px; padding:5px 8px;" title="ลบแบบทดสอบ"><i class="fa-solid fa-trash-can"></i></button>
-            </div>
-          `}
+          </div>
         </div>
       </div>
     `;
