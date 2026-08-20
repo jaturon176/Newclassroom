@@ -2682,9 +2682,14 @@ function renderGradeSubmissionsTable() {
           <input type="text" id="grade-comment-${hwId}-${studentId}" class="form-control" style="padding:6px 10px; border-radius:8px; font-size:0.88rem;" placeholder="ข้อเสนอแนะ..." value="${currentComment}">
         </td>
         <td style="text-align:center;">
-          <button type="button" class="btn btn-sm ${isGraded ? 'btn-success' : 'btn-primary'}" style="border-radius:8px; font-weight:700; padding:6px 12px;" onclick="saveSubmissionGrade('${hwId}', '${studentId}')" title="บันทึกผลการตรวจ">
-            <i class="fa-solid fa-check"></i> บันทึก
-          </button>
+          <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+            <button type="button" class="btn btn-sm ${isGraded ? 'btn-success' : 'btn-primary'}" style="border-radius:8px; font-weight:700; padding:6px 10px;" onclick="saveSubmissionGrade('${hwId}', '${studentId}')" title="บันทึกผลการตรวจ">
+              <i class="fa-solid fa-check"></i> บันทึก
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius:8px; padding:6px 9px;" onclick="deleteStudentSubmission('${hwId}', '${studentId}', '${(sub.studentName || 'นักเรียน').replace(/'/g, "\\'")}')" title="ลบงานนี้เพื่อให้นักเรียนส่งใหม่">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
         </td>
       </tr>
     `;
@@ -2721,6 +2726,37 @@ function saveSubmissionGrade(hwId, studentId) {
     }
     showPopupSuccess("บันทึกคะแนนเรียบร้อย", "บันทึกผลการตรวจชิ้นงานเรียบร้อยแล้ว");
     renderGradeSubmissionsTable();
+  });
+}
+
+function deleteStudentSubmission(hwId, studentId, studentName = 'นักเรียน') {
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์ลบประวัติการส่งงาน");
+    return;
+  }
+
+  showPopupConfirm(
+    "ยืนยันลบการส่งงาน",
+    `คุณต้องการลบงานที่ส่งของ "${studentName}" ใช่หรือไม่?\n\n(เมื่อลบแล้ว นักเรียนจะสามารถกดส่งงานชิ้นนี้ใหม่ได้ทันที)`,
+    "ลบงานและให้ส่งใหม่",
+    "warning"
+  ).then((confirmed) => {
+    if (confirmed) {
+      deleteData(`homework_submissions/${hwId}/${studentId}`).then(() => {
+        // Remove from local memory
+        if (submissionsData[hwId] && submissionsData[hwId][studentId]) {
+          delete submissionsData[hwId][studentId];
+        }
+
+        showPopupSuccess("ลบงานสำเร็จ!", `ลบประวัติการส่งงานของ ${studentName} เรียบร้อยแล้ว (นักเรียนสามารถส่งงานใหม่ได้ทันที)`);
+        logActivity(`ลบงานส่งของนักเรียน: ${studentName} (รหัส ${studentId}) เพื่อให้ส่งใหม่`);
+
+        // Re-render grading table, courses list, and dashboard
+        renderGradeSubmissionsTable();
+        renderCoursesList();
+        renderDashboard();
+      });
+    }
   });
 }
 
