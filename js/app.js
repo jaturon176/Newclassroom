@@ -946,15 +946,37 @@ function renderDashboardQuizSummary() {
     const q = quizzesData[id];
     const course = coursesData[q.courseId] || { name: 'วิชา' };
     const doneCount = quizResultsData[id] ? Object.keys(quizResultsData[id]).length : 0;
+    const isOpen = q.isOpen !== false;
+
+    let badgeHtml = '';
+    if (isStudent) {
+      const myResult = (quizResultsData[id] && currentUser.studentId) ? quizResultsData[id][currentUser.studentId] : null;
+      if (myResult) {
+        badgeHtml = `<span class="badge ${myResult.passed ? 'badge-green' : 'badge-red'}"><i class="${myResult.passed ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ทำแล้ว (${myResult.score}/${myResult.totalScore})</span>`;
+      } else if (isOpen) {
+        badgeHtml = `<button class="btn btn-sm btn-primary" onclick="switchNav('quizzes')"><i class="fa-solid fa-play"></i> เริ่มสอบ</button>`;
+      } else {
+        badgeHtml = `<span class="badge badge-red" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecdd3;"><i class="fa-solid fa-lock"></i> ปิดสอบ</span>`;
+      }
+    } else {
+      badgeHtml = `
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+          <span class="badge ${isOpen ? 'badge-green' : 'badge-red'}" style="font-weight:700;">
+            <i class="${isOpen ? 'fa-solid fa-circle-check' : 'fa-solid fa-lock'}"></i> ${isOpen ? 'เปิดสอบ' : 'ปิดสอบ'}
+          </span>
+          <span class="badge badge-blue">ทำแล้ว ${doneCount} คน</span>
+        </div>
+      `;
+    }
 
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border-radius:12px; border:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border-radius:12px; border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
         <div>
           <div style="font-weight:700; color:#0f172a;">${q.title}</div>
           <div style="font-size:0.85rem; color:var(--text-muted);">${course.name} | ${q.type} ตัวเลือก | เวลา ${q.duration} นาที</div>
         </div>
         <div>
-          <span class="badge badge-green">ทำแล้ว ${doneCount} คน</span>
+          ${badgeHtml}
         </div>
       </div>
     `;
@@ -2886,6 +2908,7 @@ function saveQuizForm(e) {
     duration,
     passScore,
     questions: compiledQuestions,
+    isOpen: true,
     createdAt: new Date().toISOString(),
     createdBy: currentUser.name
   }).then(() => {
@@ -3045,6 +3068,9 @@ function saveEditQuizForm(e) {
     });
   }
 
+  const existingQuiz = quizzesData[quizId] || {};
+  const currentIsOpen = existingQuiz.isOpen !== undefined ? existingQuiz.isOpen : true;
+
   updateData(`quizzes/${quizId}`, {
     courseId,
     targetClasses,
@@ -3054,6 +3080,7 @@ function saveEditQuizForm(e) {
     duration,
     passScore,
     questions: compiledQuestions,
+    isOpen: currentIsOpen,
     updatedAt: new Date().toISOString()
   }).then(() => {
     closeModal('modal-edit-quiz');
@@ -3183,6 +3210,7 @@ function renderQuizzesList() {
     const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
     const isTargetAll = targets.includes('all') || targets.length === 0;
     const targetLabel = isTargetAll ? 'ทุกห้องเรียน' : 'ห้อง ' + targets.join(', ');
+    const isOpen = q.isOpen !== false;
 
     // Student Quiz attempt check
     const studentResult = (quizResultsData[quizId] && currentUser && currentUser.studentId) 
@@ -3192,9 +3220,9 @@ function renderQuizzesList() {
     const completedCount = quizResultsData[quizId] ? Object.keys(quizResultsData[quizId]).length : 0;
 
     html += `
-      <div class="quiz-card-modern">
+      <div class="quiz-card-modern ${!isOpen ? 'quiz-card-closed' : ''}">
         <!-- Vibrant Hero Banner -->
-        <div class="quiz-hero-banner ${theme.cls}">
+        <div class="quiz-hero-banner ${theme.cls}" style="${!isOpen ? 'filter: saturate(0.85);' : ''}">
           <div class="quiz-meta-pills">
             <span class="quiz-pill-course">
               <i class="${theme.icon}"></i> ${course.name}
@@ -3204,6 +3232,9 @@ function renderQuizzesList() {
             </span>
             <span class="quiz-pill-course" style="font-size:0.75rem; background:rgba(0,0,0,0.2);">
               <i class="fa-solid fa-check-to-slot"></i> ${choiceType}
+            </span>
+            <span class="quiz-pill-course" style="font-size:0.75rem; font-weight:800; background:${isOpen ? 'rgba(16, 185, 129, 0.45)' : 'rgba(239, 68, 68, 0.55)'}; border-color:${isOpen ? '#6ee7b7' : '#fca5a5'};">
+              <i class="${isOpen ? 'fa-solid fa-circle-check' : 'fa-solid fa-lock'}"></i> ${isOpen ? 'เปิดสอบ' : 'ปิดสอบ'}
             </span>
           </div>
 
@@ -3257,18 +3288,33 @@ function renderQuizzesList() {
                   </button>
                 </div>
               ` : `
-                <button class="quiz-btn-start" onclick="startQuizRunner('${quizId}')">
-                  <i class="fa-solid fa-circle-play"></i> เริ่มทำข้อสอบทันที
-                </button>
+                ${isOpen ? `
+                  <button class="quiz-btn-start" onclick="startQuizRunner('${quizId}')">
+                    <i class="fa-solid fa-circle-play"></i> เริ่มทำข้อสอบทันที
+                  </button>
+                ` : `
+                  <div style="background:#fff1f2; border:1.5px dashed #fecdd3; border-radius:12px; padding:10px 14px; text-align:center; width:100%; color:#e11d48; font-weight:700; font-size:0.88rem;">
+                    <i class="fa-solid fa-lock" style="margin-right:4px;"></i> ปิดรับการทำแบบทดสอบแล้ว
+                  </div>
+                `}
               `}
             ` : `
               <span class="badge badge-purple" style="font-size:0.84rem; font-weight:700; padding:6px 12px; border-radius:10px; cursor:pointer;" onclick="openQuizScoresModal('${quizId}')" title="คลิกเพื่อดูคะแนนนักเรียน">
                 <i class="fa-solid fa-user-check"></i> ทำแล้ว ${completedCount} คน
               </span>
-              <div style="display:flex; gap:6px;">
-                <button class="btn btn-sm btn-primary" onclick="openQuizScoresModal('${quizId}')" style="border-radius:10px; font-weight:700; padding:7px 14px; box-shadow:0 2px 8px rgba(37,99,235,0.25);" title="ดูรายงานคะแนนสอบนักเรียนทุกคน">
+              <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                <button class="btn btn-sm btn-primary" onclick="openQuizScoresModal('${quizId}')" style="border-radius:10px; font-weight:700; padding:7px 12px; box-shadow:0 2px 8px rgba(37,99,235,0.25);" title="ดูรายงานคะแนนสอบนักเรียนทุกคน">
                   <i class="fa-solid fa-square-poll-vertical"></i> ดูคะแนน
                 </button>
+                ${isOpen ? `
+                  <button class="btn btn-sm btn-outline-danger" onclick="toggleQuizStatus('${quizId}', false)" title="คลิกเพื่อปิดรับการทำแบบทดสอบ" style="border-radius:10px; font-weight:700; padding:7px 11px;">
+                    <i class="fa-solid fa-lock"></i> ปิดสอบ
+                  </button>
+                ` : `
+                  <button class="btn btn-sm btn-success" onclick="toggleQuizStatus('${quizId}', true)" title="คลิกเพื่อเปิดรับการทำแบบทดสอบ" style="border-radius:10px; font-weight:700; padding:7px 11px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
+                    <i class="fa-solid fa-lock-open"></i> เปิดสอบ
+                  </button>
+                `}
                 <button class="btn btn-sm btn-outline-primary" onclick="openEditQuizModal('${quizId}')" style="border-radius:10px; padding:7px 10px;" title="แก้ไขแบบทดสอบ">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
@@ -3286,6 +3332,42 @@ function renderQuizzesList() {
   container.innerHTML = html;
 }
 
+function toggleQuizStatus(quizId, newStatus) {
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์เปิด/ปิดแบบทดสอบ");
+    return;
+  }
+
+  const quiz = quizzesData[quizId];
+  const title = quiz ? quiz.title : 'แบบทดสอบ';
+  const actionText = newStatus ? 'เปิดรับการทำแบบทดสอบ' : 'ปิดรับการทำแบบทดสอบ';
+
+  showPopupConfirm(
+    `ยืนยัน${actionText}`,
+    `คุณต้องการ ${actionText} "${title}" ใช่หรือไม่?`,
+    actionText,
+    newStatus ? 'info' : 'warning'
+  ).then((confirmed) => {
+    if (confirmed) {
+      updateData(`quizzes/${quizId}`, {
+        isOpen: newStatus,
+        updatedAt: new Date().toISOString()
+      }).then(() => {
+        if (quizzesData[quizId]) {
+          quizzesData[quizId].isOpen = newStatus;
+        }
+        showPopupSuccess(
+          `${actionText}สำเร็จ!`,
+          `แบบทดสอบ "${title}" ${newStatus ? 'เปิดให้นักเรียนเข้าทำข้อสอบได้แล้ว' : 'ปิดรับการทำข้อสอบเรียบร้อยแล้ว'}`
+        );
+        logActivity(`${actionText}: ${title}`);
+        renderQuizzesList();
+        renderDashboardQuizSummary();
+      });
+    }
+  });
+}
+
 function deleteQuiz(quizId) {
   showPopupConfirm("ยืนยันลบแบบทดสอบ", "คุณต้องการลบแบบทดสอบนี้ใช่หรือไม่?", "ลบข้อสอบ", "warning").then((confirmed) => {
     if (confirmed) {
@@ -3300,6 +3382,11 @@ function deleteQuiz(quizId) {
 function startQuizRunner(quizId) {
   const quiz = quizzesData[quizId];
   if (!quiz || !quiz.questions) return;
+
+  if (quiz.isOpen === false && currentUser && currentUser.role === 'student') {
+    showPopupWarning("แบบทดสอบปิดแล้ว", "คุณครูปิดรับการทำแบบทดสอบชุดนี้แล้ว ไม่สามารถเริ่มทำข้อสอบได้");
+    return;
+  }
 
   activeQuizData = { ...quiz, id: quizId };
   quizRemainingSeconds = quiz.duration * 60;
