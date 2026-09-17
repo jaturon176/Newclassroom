@@ -2786,6 +2786,70 @@ function deleteStudentSubmission(hwId, studentId, studentName = 'นักเร
 /* -------------------------------------------------------------
    7. QUIZ / EXAM BUILDER & RUNNER
 ------------------------------------------------------------- */
+function isPdfUrlOrFile(urlOrName) {
+  if (!urlOrName || typeof urlOrName !== 'string') return false;
+  return urlOrName.includes('application/pdf') || 
+         urlOrName.toLowerCase().endsWith('.pdf') || 
+         urlOrName.toLowerCase().includes('.pdf?') ||
+         urlOrName.startsWith('data:application/pdf');
+}
+
+function getQuestionAttachmentItems(q) {
+  if (!q) return [];
+  if (Array.isArray(q.attachmentItems)) {
+    return q.attachmentItems;
+  }
+  
+  const list = [];
+  // 1. Check attachments array
+  if (Array.isArray(q.attachments)) {
+    q.attachments.forEach(att => {
+      if (typeof att === 'string' && att.trim()) {
+        list.push({ url: att.trim(), type: isPdfUrlOrFile(att) ? 'pdf' : 'image', name: isPdfUrlOrFile(att) ? 'เอกสาร PDF ประกอบโจทย์' : 'รูปภาพประกอบโจทย์', file: null });
+      } else if (att && typeof att === 'object' && att.url && att.url.trim()) {
+        list.push({
+          url: att.url.trim(),
+          type: att.type || (isPdfUrlOrFile(att.url) ? 'pdf' : 'image'),
+          name: att.name || (isPdfUrlOrFile(att.url) ? 'เอกสาร PDF ประกอบโจทย์' : 'รูปภาพประกอบโจทย์'),
+          file: null
+        });
+      }
+    });
+  }
+
+  // 2. Check imageUrls array
+  if (Array.isArray(q.imageUrls)) {
+    q.imageUrls.forEach(u => {
+      if (u && typeof u === 'string' && u.trim()) {
+        const cleanUrl = u.trim();
+        if (!list.some(it => it.url === cleanUrl)) {
+          list.push({ url: cleanUrl, type: isPdfUrlOrFile(cleanUrl) ? 'pdf' : 'image', name: '', file: null });
+        }
+      }
+    });
+  } else if (q.imageUrl && typeof q.imageUrl === 'string' && q.imageUrl.trim()) {
+    const cleanUrl = q.imageUrl.trim();
+    if (!list.some(it => it.url === cleanUrl)) {
+      list.push({ url: cleanUrl, type: isPdfUrlOrFile(cleanUrl) ? 'pdf' : 'image', name: '', file: null });
+    }
+  }
+
+  // 3. Check pdfUrl string
+  if (q.pdfUrl && typeof q.pdfUrl === 'string' && q.pdfUrl.trim()) {
+    const cleanPdf = q.pdfUrl.trim();
+    if (!list.some(it => it.url === cleanPdf)) {
+      list.push({ url: cleanPdf, type: 'pdf', name: 'เอกสาร PDF ประกอบโจทย์', file: null });
+    }
+  }
+
+  return list;
+}
+
+// Backward-compatibility alias
+function getQuestionImageItems(q) {
+  return getQuestionAttachmentItems(q);
+}
+
 function syncQuestionBuilderState(isEdit = false) {
   const prefix = isEdit ? 'edit-builder' : 'builder';
   const list = isEdit ? editQuizQuestionsList : quizQuestionsList;
@@ -2833,22 +2897,39 @@ function onQuestionTypeChange(qIndex, newType, isEdit = false) {
   }
 }
 
-function onQuestionImageSelected(qIndex, inputEl, isEdit = false) {
-  if (!inputEl.files || !inputEl.files[0]) return;
-  const file = inputEl.files[0];
-  if (!file.type.startsWith('image/')) {
-    showPopupWarning("กรุณาเลือกไฟล์รูปภาพ", "ระบบรองรับไฟล์รูปภาพ เช่น JPG, PNG, WebP เท่านั้น");
-    inputEl.value = '';
-    return;
-  }
+function onQuestionFilesSelected(qIndex, inputEl, isEdit = false) {
+  if (!inputEl.files || inputEl.files.length === 0) return;
 
   syncQuestionBuilderState(isEdit);
   const list = isEdit ? editQuizQuestionsList : quizQuestionsList;
-  if (list[qIndex]) {
-    list[qIndex]._pendingFile = file;
-    const previewUrl = URL.createObjectURL(file);
-    list[qIndex].imageUrl = previewUrl;
+  const q = list[qIndex];
+  if (!q) return;
+  if (!Array.isArray(q.attachmentItems)) {
+    q.attachmentItems = getQuestionAttachmentItems(q);
   }
+
+  let validAdded = 0;
+  Array.from(inputEl.files).forEach(file => {
+    const isImage = file.type && file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    if (isImage || isPdf) {
+      const previewUrl = URL.createObjectURL(file);
+      q.attachmentItems.push({
+        url: previewUrl,
+        type: isPdf ? 'pdf' : 'image',
+        name: file.name,
+        file: file
+      });
+      validAdded++;
+    }
+  });
+
+  if (validAdded === 0) {
+    showPopupWarning("ประเภทไฟล์ไม่ถูกต้อง", "ระบบรองรับเฉพาะไฟล์รูปภาพ (JPG, PNG, WebP) หรือเอกสาร PDF เท่านั้น");
+  }
+
+  inputEl.value = '';
 
   if (isEdit) {
     renderEditQuizQuestionsBuilder();
@@ -2857,19 +2938,32 @@ function onQuestionImageSelected(qIndex, inputEl, isEdit = false) {
   }
 }
 
-function removeQuestionImage(qIndex, isEdit = false) {
+// Backward-compatibility alias
+function onQuestionImagesSelected(qIndex, inputEl, isEdit = false) {
+  onQuestionFilesSelected(qIndex, inputEl, isEdit);
+}
+
+function removeQuestionAttachmentItem(qIndex, attIndex, isEdit = false) {
   syncQuestionBuilderState(isEdit);
   const list = isEdit ? editQuizQuestionsList : quizQuestionsList;
-  if (list[qIndex]) {
-    delete list[qIndex]._pendingFile;
-    list[qIndex].imageUrl = '';
+  const q = list[qIndex];
+  if (!q) return;
+  if (!Array.isArray(q.attachmentItems)) {
+    q.attachmentItems = getQuestionAttachmentItems(q);
   }
+
+  q.attachmentItems.splice(attIndex, 1);
 
   if (isEdit) {
     renderEditQuizQuestionsBuilder();
   } else {
     renderQuizQuestionsBuilder();
   }
+}
+
+// Backward-compatibility alias
+function removeQuestionImageItem(qIndex, imgIndex, isEdit = false) {
+  removeQuestionAttachmentItem(qIndex, imgIndex, isEdit);
 }
 
 function renderQuestionBuilderCard(q, qIndex, isEdit = false) {
@@ -2886,7 +2980,10 @@ function renderQuestionBuilderCard(q, qIndex, isEdit = false) {
 
   const choiceCount = overallQuizType === '5' ? 5 : 4;
   const choiceLabels = choiceCount === 5 ? ['ก', 'ข', 'ค', 'ง', 'จ'] : ['ก', 'ข', 'ค', 'ง'];
-  const hasImage = !!(q.imageUrl && q.imageUrl.trim());
+
+  const attachmentItems = getQuestionAttachmentItems(q);
+  q.attachmentItems = attachmentItems;
+  const attCount = attachmentItems.length;
 
   return `
     <div class="quiz-question-card" id="${prefix}-qcard-${qIndex}">
@@ -2910,33 +3007,90 @@ function renderQuestionBuilderCard(q, qIndex, isEdit = false) {
         <textarea id="${prefix}-question-${qIndex}" class="form-control" style="padding:10px 14px; min-height:60px;" required placeholder="กรอกข้อความคำถาม...">${q.question ? q.question.replace(/"/g, '&quot;') : ''}</textarea>
       </div>
 
-      <!-- Question Image Attachment UI -->
+      <!-- Question Multi-Attachment UI (Images & PDF Documents) -->
       <div class="form-group" style="margin-bottom:14px;">
-        <input type="file" id="${prefix}-img-${qIndex}" accept="image/*" style="display:none;" onchange="onQuestionImageSelected(${qIndex}, this, ${isEdit})">
+        <input type="file" id="${prefix}-att-${qIndex}" accept="image/*,application/pdf,.pdf" multiple style="display:none;" onchange="onQuestionFilesSelected(${qIndex}, this, ${isEdit})">
         
-        ${hasImage ? `
-          <div class="builder-image-preview-box">
-            <img src="${q.imageUrl}" class="builder-image-thumb" alt="รูปประกอบโจทย์ข้อที่ ${qIndex + 1}" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพโจทย์ข้อที่ ${qIndex + 1}')" title="คลิกเพื่อดูรูปขนาดเต็ม">
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:700; font-size:0.85rem; color:#1e293b; display:flex; align-items:center; gap:6px;">
-                <i class="fa-solid fa-image" style="color:var(--primary);"></i> มีรูปภาพแนบในโจทย์ข้อนี้
-              </div>
-              <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
-                <button type="button" class="btn btn-sm btn-outline-primary" style="padding:3px 8px; font-size:0.78rem; border-radius:6px;" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพโจทย์ข้อที่ ${qIndex + 1}')">
-                  <i class="fa-solid fa-magnifying-glass-plus"></i> ดูภาพขนาดใหญ่
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-danger" style="padding:3px 8px; font-size:0.78rem; border-radius:6px;" onclick="removeQuestionImage(${qIndex}, ${isEdit})">
-                  <i class="fa-solid fa-trash-can"></i> ลบรูป
-                </button>
-              </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+          <label class="form-label" style="font-size:0.85rem; font-weight:700; color:#334155; margin-bottom:0;">
+            <i class="fa-solid fa-paperclip" style="color:var(--primary);"></i> ไฟล์แนบประกอบโจทย์ ${attCount > 0 ? `(${attCount} ไฟล์ - รูปภาพ / PDF)` : '(ไม่บังคับ - รูปภาพ หรือ PDF)'}
+          </label>
+          ${attCount > 0 ? `
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('${prefix}-att-${qIndex}').click()" style="border-radius:8px; font-weight:700; font-size:0.78rem; padding:3px 10px; display:inline-flex; align-items:center; gap:5px;">
+              <i class="fa-solid fa-plus"></i> เพิ่มไฟล์รูป/PDF อีก
+            </button>
+          ` : ''}
+        </div>
+
+        ${attCount > 0 ? `
+          <div class="builder-attachments-gallery-grid">
+            ${attachmentItems.map((item, aIdx) => {
+              const isPdf = item.type === 'pdf' || isPdfUrlOrFile(item.url) || (item.name && item.name.toLowerCase().endsWith('.pdf'));
+              const fileDisplayName = item.name || (isPdf ? `เอกสาร PDF #${aIdx + 1}` : `รูปภาพ #${aIdx + 1}`);
+
+              if (isPdf) {
+                return `
+                  <div class="builder-pdf-card">
+                    <div class="builder-pdf-card-top" onclick="showPDFPreviewModal('${item.url}', '${fileDisplayName.replace(/'/g, "\\'")}')" title="คลิกเพื่อเปิดอ่านเอกสาร PDF">
+                      <div class="builder-pdf-icon-wrap">
+                        <i class="fa-solid fa-file-pdf"></i>
+                      </div>
+                      <div class="builder-pdf-name-text">${fileDisplayName}</div>
+                      <span class="builder-att-badge-pdf"><i class="fa-solid fa-file-pdf"></i> PDF</span>
+                    </div>
+                    <div class="builder-attachment-card-footer">
+                      <button type="button" class="btn-builder-att-action btn-zoom" onclick="showPDFPreviewModal('${item.url}', '${fileDisplayName.replace(/'/g, "\\'")}')" title="เปิดอ่าน PDF">
+                        <i class="fa-solid fa-book-open"></i> เปิดอ่าน
+                      </button>
+                      <button type="button" class="btn-builder-att-action btn-del" onclick="removeQuestionAttachmentItem(${qIndex}, ${aIdx}, ${isEdit})" title="ลบไฟล์นี้">
+                        <i class="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              } else {
+                return `
+                  <div class="builder-image-card">
+                    <div class="builder-image-thumb-wrap">
+                      <img src="${item.url}" class="builder-image-thumb-grid" alt="รูปที่ ${aIdx + 1}" onclick="showPDFPreviewModal('${item.url}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qIndex + 1} (รูปที่ ${aIdx + 1}/${attCount})')" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                      <span class="builder-img-number-badge">${aIdx + 1}</span>
+                    </div>
+                    <div class="builder-attachment-card-footer">
+                      <button type="button" class="btn-builder-att-action btn-zoom" onclick="showPDFPreviewModal('${item.url}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qIndex + 1} (รูปที่ ${aIdx + 1}/${attCount})')" title="ดูภาพขยาย">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                      </button>
+                      <button type="button" class="btn-builder-att-action btn-del" onclick="removeQuestionAttachmentItem(${qIndex}, ${aIdx}, ${isEdit})" title="ลบรูปนี้">
+                        <i class="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }
+            }).join('')}
+
+            <div class="builder-image-add-card" onclick="document.getElementById('${prefix}-att-${qIndex}').click()" title="เพิ่มรูปภาพหรือไฟล์ PDF เพิ่มเติม">
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size:1.3rem; color:#3b82f6;"></i>
+              <span style="font-size:0.76rem; font-weight:700; color:#1d4ed8; margin-top:4px;">+ เพิ่มรูป/PDF</span>
             </div>
           </div>
         ` : `
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('${prefix}-img-${qIndex}').click()" style="border-radius:8px; font-weight:600; font-size:0.82rem; padding:5px 12px; display:inline-flex; align-items:center; gap:6px;">
-              <i class="fa-solid fa-image"></i> แนบรูปภาพในโจทย์ (ไม่บังคับ)
+          <div class="builder-image-empty-dropzone" onclick="document.getElementById('${prefix}-att-${qIndex}').click()">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <div class="empty-dropzone-icon">
+                <i class="fa-solid fa-file-circle-plus"></i>
+              </div>
+              <div>
+                <div style="font-weight:700; font-size:0.86rem; color:#1e293b;">
+                  คลิกเพื่อแนบไฟล์ประกอบโจทย์ (รูปภาพ หรือ เอกสาร PDF)
+                </div>
+                <div style="font-size:0.76rem; color:#64748b; margin-top:2px;">
+                  รองรับไฟล์ PDF (เอกสาร/โจทย์ยาว) และรูปภาพ JPG, PNG (แผนผัง, Code, กราฟ)
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" style="border-radius:8px; font-weight:700; font-size:0.8rem; padding:4px 12px; pointer-events:none;">
+              <i class="fa-solid fa-upload"></i> เลือกไฟล์
             </button>
-            <span style="font-size:0.78rem; color:#64748b;">(เช่น แผนภาพ, ภาพโจทย์คณิต/วิทย์, กราฟ, ตาราง)</span>
           </div>
         `}
       </div>
@@ -2989,7 +3143,7 @@ function addQuizQuestionItem() {
   syncQuestionBuilderState(false);
   const overallType = document.getElementById('quiz-type') ? document.getElementById('quiz-type').value : '4';
   const defaultQType = (overallType === 'subjective') ? 'subjective' : 'choice';
-  quizQuestionsList.push({ qType: defaultQType, question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
+  quizQuestionsList.push({ qType: defaultQType, question: '', attachmentItems: [], options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
   renderQuizQuestionsBuilder();
 }
 
@@ -3004,7 +3158,7 @@ function openCreateQuizModal() {
   const typeSelect = document.getElementById('quiz-type');
   if (typeSelect) typeSelect.value = defaultType;
 
-  quizQuestionsList = [{ qType: 'choice', question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
+  quizQuestionsList = [{ qType: 'choice', question: '', attachmentItems: [], options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
   document.getElementById('quiz-title').value = '';
   document.getElementById('quiz-duration').value = 15;
   document.getElementById('quiz-pass-score').value = 50;
@@ -3027,12 +3181,19 @@ async function saveQuizForm(e) {
   const duration = parseInt(document.getElementById('quiz-duration').value) || 15;
   const passScore = parseInt(document.getElementById('quiz-pass-score').value) || 50;
 
-  // Show loading indicator if pending images exist
-  const hasPendingImages = quizQuestionsList.some(q => q && q._pendingFile);
-  if (hasPendingImages && typeof Swal !== 'undefined') {
+  // Count pending files to upload
+  let totalPendingFiles = 0;
+  quizQuestionsList.forEach(q => {
+    const items = getQuestionAttachmentItems(q);
+    items.forEach(item => {
+      if (item.file) totalPendingFiles++;
+    });
+  });
+
+  if (totalPendingFiles > 0 && typeof Swal !== 'undefined') {
     Swal.fire({
-      title: 'กำลังอัปโหลดรูปภาพ...',
-      text: 'ระบบกำลังบีบอัดและอัปโหลดรูปภาพประกอบโจทย์ขึ้นระบบ Cloud',
+      title: 'กำลังอัปโหลดไฟล์แนบ...',
+      text: `ระบบกำลังบีบอัดและอัปโหลดไฟล์แนบประกอบโจทย์ (${totalPendingFiles} ไฟล์) ขึ้นระบบ Cloud`,
       allowOutsideClick: false,
       didOpen: () => { Swal.showLoading(); }
     });
@@ -3046,15 +3207,41 @@ async function saveQuizForm(e) {
     const qText = document.getElementById(`builder-question-${i}`).value.trim();
     const expText = document.getElementById(`builder-explanation-${i}`) ? document.getElementById(`builder-explanation-${i}`).value.trim() : '';
 
-    let qImageUrl = quizQuestionsList[i] ? (quizQuestionsList[i].imageUrl || '') : '';
-    if (quizQuestionsList[i] && quizQuestionsList[i]._pendingFile) {
-      try {
-        const uploadedUrl = await uploadImageFile(quizQuestionsList[i]._pendingFile);
-        if (uploadedUrl) qImageUrl = uploadedUrl;
-      } catch (err) {
-        console.error("Error uploading question image:", err);
+    const items = getQuestionAttachmentItems(quizQuestionsList[i]);
+    const finalAttachments = [];
+    const finalImageUrls = [];
+    let firstPdfUrl = '';
+
+    for (const item of items) {
+      let finalUrl = '';
+      if (item.file) {
+        try {
+          finalUrl = await uploadImageFile(item.file);
+        } catch (err) {
+          console.error("Error uploading question attachment file:", err);
+        }
+      } else if (item.url && (item.url.startsWith('http') || item.url.startsWith('data:'))) {
+        finalUrl = item.url;
+      }
+
+      if (finalUrl) {
+        const isPdf = item.type === 'pdf' || isPdfUrlOrFile(finalUrl) || (item.name && item.name.toLowerCase().endsWith('.pdf'));
+        const attObj = {
+          url: finalUrl,
+          type: isPdf ? 'pdf' : 'image',
+          name: item.name || (isPdf ? 'เอกสาร PDF ประกอบโจทย์' : 'รูปภาพประกอบโจทย์')
+        };
+        finalAttachments.push(attObj);
+
+        if (isPdf) {
+          if (!firstPdfUrl) firstPdfUrl = finalUrl;
+        } else {
+          finalImageUrls.push(finalUrl);
+        }
       }
     }
+
+    const firstImageUrl = finalImageUrls[0] || '';
 
     if (qType === 'subjective') {
       const sampleAns = document.getElementById(`builder-sample-answer-${i}`) ? document.getElementById(`builder-sample-answer-${i}`).value.trim() : '';
@@ -3062,7 +3249,10 @@ async function saveQuizForm(e) {
         id: i + 1,
         qType: 'subjective',
         question: qText,
-        imageUrl: qImageUrl,
+        imageUrl: firstImageUrl,
+        imageUrls: finalImageUrls,
+        pdfUrl: firstPdfUrl,
+        attachments: finalAttachments,
         sampleAnswer: sampleAns,
         explanation: expText || sampleAns,
         points: 1
@@ -3085,7 +3275,10 @@ async function saveQuizForm(e) {
         id: i + 1,
         qType: 'choice',
         question: qText,
-        imageUrl: qImageUrl,
+        imageUrl: firstImageUrl,
+        imageUrls: finalImageUrls,
+        pdfUrl: firstPdfUrl,
+        attachments: finalAttachments,
         options: optionsArr,
         correctIndex: selectedCorrectIndex,
         explanation: expText,
@@ -3144,11 +3337,15 @@ function openEditQuizModal(quizId) {
   document.getElementById('edit-quiz-duration').value = quiz.duration || 15;
   document.getElementById('edit-quiz-pass-score').value = quiz.passScore || 50;
 
-  // Load Questions
+  // Load Questions with Multi-Attachment normalization
   if (quiz.questions && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
-    editQuizQuestionsList = JSON.parse(JSON.stringify(quiz.questions));
+    editQuizQuestionsList = quiz.questions.map(q => {
+      const copy = JSON.parse(JSON.stringify(q));
+      copy.attachmentItems = getQuestionAttachmentItems(q);
+      return copy;
+    });
   } else {
-    editQuizQuestionsList = [{ qType: 'choice', question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
+    editQuizQuestionsList = [{ qType: 'choice', question: '', attachmentItems: [], options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
   }
 
   renderEditQuizQuestionsBuilder();
@@ -3171,7 +3368,7 @@ function addEditQuizQuestionItem() {
   syncQuestionBuilderState(true);
   const overallType = document.getElementById('edit-quiz-type') ? document.getElementById('edit-quiz-type').value : '4';
   const defaultQType = (overallType === 'subjective') ? 'subjective' : 'choice';
-  editQuizQuestionsList.push({ qType: defaultQType, question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
+  editQuizQuestionsList.push({ qType: defaultQType, question: '', attachmentItems: [], options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
   renderEditQuizQuestionsBuilder();
 }
 
@@ -3197,12 +3394,19 @@ async function saveEditQuizForm(e) {
   const duration = parseInt(document.getElementById('edit-quiz-duration').value) || 15;
   const passScore = parseInt(document.getElementById('edit-quiz-pass-score').value) || 50;
 
-  // Show loading indicator if pending images exist
-  const hasPendingImages = editQuizQuestionsList.some(q => q && q._pendingFile);
-  if (hasPendingImages && typeof Swal !== 'undefined') {
+  // Count pending files to upload
+  let totalPendingFiles = 0;
+  editQuizQuestionsList.forEach(q => {
+    const items = getQuestionAttachmentItems(q);
+    items.forEach(item => {
+      if (item.file) totalPendingFiles++;
+    });
+  });
+
+  if (totalPendingFiles > 0 && typeof Swal !== 'undefined') {
     Swal.fire({
-      title: 'กำลังอัปโหลดรูปภาพ...',
-      text: 'ระบบกำลังบีบอัดและอัปโหลดรูปภาพประกอบโจทย์ขึ้นระบบ Cloud',
+      title: 'กำลังอัปโหลดไฟล์แนบ...',
+      text: `ระบบกำลังบีบอัดและอัปโหลดไฟล์แนบประกอบโจทย์ (${totalPendingFiles} ไฟล์) ขึ้นระบบ Cloud`,
       allowOutsideClick: false,
       didOpen: () => { Swal.showLoading(); }
     });
@@ -3216,15 +3420,41 @@ async function saveEditQuizForm(e) {
     const qText = document.getElementById(`edit-builder-question-${i}`).value.trim();
     const expText = document.getElementById(`edit-builder-explanation-${i}`) ? document.getElementById(`edit-builder-explanation-${i}`).value.trim() : '';
 
-    let qImageUrl = editQuizQuestionsList[i] ? (editQuizQuestionsList[i].imageUrl || '') : '';
-    if (editQuizQuestionsList[i] && editQuizQuestionsList[i]._pendingFile) {
-      try {
-        const uploadedUrl = await uploadImageFile(editQuizQuestionsList[i]._pendingFile);
-        if (uploadedUrl) qImageUrl = uploadedUrl;
-      } catch (err) {
-        console.error("Error uploading question image:", err);
+    const items = getQuestionAttachmentItems(editQuizQuestionsList[i]);
+    const finalAttachments = [];
+    const finalImageUrls = [];
+    let firstPdfUrl = '';
+
+    for (const item of items) {
+      let finalUrl = '';
+      if (item.file) {
+        try {
+          finalUrl = await uploadImageFile(item.file);
+        } catch (err) {
+          console.error("Error uploading question attachment file:", err);
+        }
+      } else if (item.url && (item.url.startsWith('http') || item.url.startsWith('data:'))) {
+        finalUrl = item.url;
+      }
+
+      if (finalUrl) {
+        const isPdf = item.type === 'pdf' || isPdfUrlOrFile(finalUrl) || (item.name && item.name.toLowerCase().endsWith('.pdf'));
+        const attObj = {
+          url: finalUrl,
+          type: isPdf ? 'pdf' : 'image',
+          name: item.name || (isPdf ? 'เอกสาร PDF ประกอบโจทย์' : 'รูปภาพประกอบโจทย์')
+        };
+        finalAttachments.push(attObj);
+
+        if (isPdf) {
+          if (!firstPdfUrl) firstPdfUrl = finalUrl;
+        } else {
+          finalImageUrls.push(finalUrl);
+        }
       }
     }
+
+    const firstImageUrl = finalImageUrls[0] || '';
 
     if (qType === 'subjective') {
       const sampleAns = document.getElementById(`edit-builder-sample-answer-${i}`) ? document.getElementById(`edit-builder-sample-answer-${i}`).value.trim() : '';
@@ -3232,7 +3462,10 @@ async function saveEditQuizForm(e) {
         id: i + 1,
         qType: 'subjective',
         question: qText,
-        imageUrl: qImageUrl,
+        imageUrl: firstImageUrl,
+        imageUrls: finalImageUrls,
+        pdfUrl: firstPdfUrl,
+        attachments: finalAttachments,
         sampleAnswer: sampleAns,
         explanation: expText || sampleAns,
         points: 1
@@ -3255,7 +3488,10 @@ async function saveEditQuizForm(e) {
         id: i + 1,
         qType: 'choice',
         question: qText,
-        imageUrl: qImageUrl,
+        imageUrl: firstImageUrl,
+        imageUrls: finalImageUrls,
+        pdfUrl: firstPdfUrl,
+        attachments: finalAttachments,
         options: optionsArr,
         correctIndex: selectedCorrectIndex,
         explanation: expText,
@@ -3578,6 +3814,155 @@ function deleteQuiz(quizId) {
   });
 }
 
+// Helper: Render Question Attachments HTML in Exam Runner (Single / Multiple Images & PDF Documents)
+function renderExamQuestionImagesHtml(q, qNum) {
+  return renderExamQuestionAttachmentsHtml(q, qNum);
+}
+
+function renderExamQuestionAttachmentsHtml(q, qNum) {
+  const items = getQuestionAttachmentItems(q);
+  if (!items || items.length === 0) return '';
+
+  const pdfItems = items.filter(it => it.type === 'pdf' || isPdfUrlOrFile(it.url) || (it.name && it.name.toLowerCase().endsWith('.pdf')));
+  const imgItems = items.filter(it => !(it.type === 'pdf' || isPdfUrlOrFile(it.url) || (it.name && it.name.toLowerCase().endsWith('.pdf'))));
+
+  let html = '';
+
+  // 1. Render PDF Document Cards if any
+  if (pdfItems.length > 0) {
+    html += `
+      <div class="exam-q-pdf-attachments-list">
+        ${pdfItems.map((pdf, pIdx) => {
+          const title = pdf.name || (pdfItems.length > 1 ? `เอกสาร PDF ประกอบโจทย์ชุดที่ ${pIdx + 1}` : 'เอกสาร PDF ประกอบโจทย์');
+          const safeTitle = title.replace(/'/g, "\\'");
+          return `
+            <div class="exam-q-pdf-action-card" onclick="showPDFPreviewModal('${pdf.url}', '${safeTitle}')">
+              <div class="exam-q-pdf-action-icon">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+              <div class="exam-q-pdf-action-info">
+                <div class="exam-q-pdf-action-title">
+                  <i class="fa-solid fa-paperclip"></i> ${title}
+                </div>
+                <div class="exam-q-pdf-action-sub">
+                  คลิกเพื่อเปิดอ่านเอกสาร PDF เต็มหน้าจอ (ซูม/เลื่อนหน้าได้)
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-exam-pdf-open" onclick="event.stopPropagation(); showPDFPreviewModal('${pdf.url}', '${safeTitle}')">
+                <i class="fa-solid fa-book-open"></i> เปิดอ่าน PDF
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // 2. Render Images (Single or Multi-Grid) if any
+  if (imgItems.length === 1) {
+    const singleUrl = imgItems[0].url;
+    html += `
+      <div class="exam-q-image-container">
+        <div class="exam-q-single-image-wrap">
+          <img src="${singleUrl}" class="exam-q-image" alt="รูปประกอบโจทย์ข้อที่ ${qNum}" onclick="showPDFPreviewModal('${singleUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qNum}')" title="คลิกเพื่อดูภาพขนาดใหญ่">
+        </div>
+        <div class="exam-q-image-hint" onclick="showPDFPreviewModal('${singleUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qNum}')">
+          <i class="fa-solid fa-magnifying-glass-plus"></i> คลิกที่รูปเพื่อขยายภาพขนาดใหญ่
+        </div>
+      </div>
+    `;
+  } else if (imgItems.length > 1) {
+    html += `
+      <div class="exam-q-multi-images-container">
+        <div class="exam-q-images-grid" style="--img-count: ${imgItems.length};">
+          ${imgItems.map((item, uIdx) => `
+            <div class="exam-q-grid-item" onclick="showPDFPreviewModal('${item.url}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qNum} (รูปที่ ${uIdx + 1}/${imgItems.length})')">
+              <img src="${item.url}" class="exam-q-grid-img" alt="รูปที่ ${uIdx + 1}" title="คลิกเพื่อดูรูปที่ ${uIdx + 1} ขนาดใหญ่">
+              <span class="exam-q-img-index-tag"><i class="fa-solid fa-image"></i> รูปที่ ${uIdx + 1}/${imgItems.length}</span>
+              <div class="exam-q-grid-overlay">
+                <i class="fa-solid fa-magnifying-glass-plus"></i> ขยาย
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="exam-q-image-hint" style="margin-top:6px;">
+          <i class="fa-solid fa-magnifying-glass-plus"></i> มีรูปภาพแนบในโจทย์ ${imgItems.length} รูป (คลิกที่รูปเพื่อเปิดดูภาพขนาดใหญ่)
+        </div>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+// Helper: Render Question Attachments HTML in Quiz Review Modal
+function renderReviewQuestionImagesHtml(q, qNum) {
+  return renderReviewQuestionAttachmentsHtml(q, qNum);
+}
+
+function renderReviewQuestionAttachmentsHtml(q, qNum) {
+  const items = getQuestionAttachmentItems(q);
+  if (!items || items.length === 0) return '';
+
+  const pdfItems = items.filter(it => it.type === 'pdf' || isPdfUrlOrFile(it.url) || (it.name && it.name.toLowerCase().endsWith('.pdf')));
+  const imgItems = items.filter(it => !(it.type === 'pdf' || isPdfUrlOrFile(it.url) || (it.name && it.name.toLowerCase().endsWith('.pdf'))));
+
+  let html = '';
+
+  // 1. Render PDF Review Cards if any
+  if (pdfItems.length > 0) {
+    html += `
+      <div style="display:flex; flex-direction:column; gap:6px; margin:8px 0;">
+        ${pdfItems.map((pdf, pIdx) => {
+          const title = pdf.name || (pdfItems.length > 1 ? `เอกสาร PDF ประกอบโจทย์ชุดที่ ${pIdx + 1}` : 'เอกสาร PDF ประกอบโจทย์');
+          const safeTitle = title.replace(/'/g, "\\'");
+          return `
+            <div class="review-q-pdf-card" onclick="showPDFPreviewModal('${pdf.url}', '${safeTitle}')">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden;">
+                <i class="fa-solid fa-file-pdf" style="font-size:1.2rem; color:#ef4444; flex-shrink:0;"></i>
+                <span style="font-weight:700; font-size:0.85rem; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius:6px; font-weight:700; font-size:0.75rem; padding:3px 8px; flex-shrink:0;">
+                <i class="fa-solid fa-book-open"></i> เปิดดู PDF
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // 2. Render Images in Review
+  if (imgItems.length === 1) {
+    html += `
+      <div class="review-q-image-box">
+        <img src="${imgItems[0].url}" class="review-q-img" alt="รูปประกอบโจทย์ข้อที่ ${qNum}" onclick="showPDFPreviewModal('${imgItems[0].url}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qNum}')" title="คลิกเพื่อดูภาพขยาย">
+        <div style="font-size:0.75rem; color:#64748b; margin-top:3px; cursor:pointer;" onclick="showPDFPreviewModal('${imgItems[0].url}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qNum}')">
+          <i class="fa-solid fa-magnifying-glass-plus"></i> คลิกที่รูปเพื่อดูภาพขนาดใหญ่
+        </div>
+      </div>
+    `;
+  } else if (imgItems.length > 1) {
+    html += `
+      <div class="review-q-multi-images-box">
+        <div class="review-q-images-grid">
+          ${imgItems.map((item, uIdx) => `
+            <div class="review-q-grid-item" onclick="showPDFPreviewModal('${item.url}', 'รูปภาพประกอบโจทย์ ข้อที่ ${qNum} (รูปที่ ${uIdx + 1}/${imgItems.length})')">
+              <img src="${item.url}" class="review-q-grid-img" alt="รูปที่ ${uIdx + 1}" title="คลิกเพื่อดูรูปที่ ${uIdx + 1} ขนาดใหญ่">
+              <span class="review-q-img-index-tag">รูปที่ ${uIdx + 1}/${imgItems.length}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">
+          <i class="fa-solid fa-images"></i> รูปภาพประกอบ ${imgItems.length} รูป (คลิกที่รูปเพื่อเปิดดูภาพขนาดใหญ่)
+        </div>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
 // Start Quiz Runner (Official Academic Examination Engine)
 function startQuizRunner(quizId) {
   const quiz = quizzesData[quizId];
@@ -3626,15 +4011,7 @@ function startQuizRunner(quizId) {
 
   quiz.questions.forEach((q, idx) => {
     const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
-
-    const imageHtml = (q.imageUrl && q.imageUrl.trim()) ? `
-      <div class="exam-q-image-container">
-        <img src="${q.imageUrl}" class="exam-q-image" alt="รูปประกอบโจทย์ข้อที่ ${idx + 1}" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')" title="คลิกเพื่อดูภาพขนาดใหญ่">
-        <div class="exam-q-image-hint" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')">
-          <i class="fa-solid fa-magnifying-glass-plus"></i> คลิกที่รูปเพื่อขยายภาพขนาดใหญ่
-        </div>
-      </div>
-    ` : '';
+    const imageHtml = renderExamQuestionImagesHtml(q, idx + 1);
 
     if (isSubjective) {
       html += `
@@ -3895,15 +4272,7 @@ function viewQuizResultModal(quizId, studentId) {
     quiz.questions.forEach((q, idx) => {
       const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
       const userAns = (res.userAnswers && res.userAnswers[idx] !== undefined) ? res.userAnswers[idx] : null;
-
-      const reviewImgHtml = (q.imageUrl && q.imageUrl.trim()) ? `
-        <div class="review-q-image-box">
-          <img src="${q.imageUrl}" class="review-q-img" alt="รูปประกอบโจทย์ข้อที่ ${idx + 1}" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')" title="คลิกเพื่อดูภาพขยาย">
-          <div style="font-size:0.75rem; color:#64748b; margin-top:3px; cursor:pointer;" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')">
-            <i class="fa-solid fa-magnifying-glass-plus"></i> คลิกที่รูปเพื่อดูภาพขนาดใหญ่
-          </div>
-        </div>
-      ` : '';
+      const reviewImgHtml = renderReviewQuestionImagesHtml(q, idx + 1);
 
       if (isSubjective) {
         const typedText = (typeof userAns === 'string') ? userAns : (userAns ? String(userAns) : '');
