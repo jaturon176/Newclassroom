@@ -4017,11 +4017,14 @@ function startQuizRunner(quizId) {
       html += `
         <div class="exam-question-card-modern" id="exam-q-box-${idx}">
           <div class="exam-q-header">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
-              <span class="exam-q-type-pill exam-q-type-subjective"><i class="fa-solid fa-pen-nib"></i> อัตนัย (พิมพ์ตอบ)</span>
+            <div class="exam-q-meta-row">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+                <span class="exam-q-type-pill exam-q-type-subjective"><i class="fa-solid fa-pen-nib"></i> อัตนัย (พิมพ์ตอบ)</span>
+              </div>
+              <span class="badge badge-purple" style="font-weight:700; font-size:0.8rem;"><i class="fa-solid fa-star"></i> ${q.points || 1} คะแนน</span>
             </div>
-            <h4 class="exam-q-title" style="margin-top:8px;">${q.question}</h4>
+            <h4 class="exam-q-title">${q.question}</h4>
             ${imageHtml}
           </div>
           <div class="exam-subjective-box">
@@ -4038,11 +4041,14 @@ function startQuizRunner(quizId) {
       html += `
         <div class="exam-question-card-modern" id="exam-q-box-${idx}">
           <div class="exam-q-header">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
-              <span class="exam-q-type-pill exam-q-type-choice"><i class="fa-solid fa-list-check"></i> ปรนัย (เลือกตอบ)</span>
+            <div class="exam-q-meta-row">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+                <span class="exam-q-type-pill exam-q-type-choice"><i class="fa-solid fa-list-check"></i> ปรนัย (เลือกตอบ)</span>
+              </div>
+              <span class="badge badge-purple" style="font-weight:700; font-size:0.8rem;"><i class="fa-solid fa-star"></i> ${q.points || 1} คะแนน</span>
             </div>
-            <h4 class="exam-q-title" style="margin-top:8px;">${q.question}</h4>
+            <h4 class="exam-q-title">${q.question}</h4>
             ${imageHtml}
           </div>
           <div class="exam-options-grid">
