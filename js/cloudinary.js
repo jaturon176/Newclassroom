@@ -88,6 +88,12 @@ async function compressImageFile(file, maxWidth = 1600, maxHeight = 1600, qualit
 async function uploadImageFile(file) {
   if (!file) return null;
 
+  // For PDF files, convert directly to Base64 Data URL (guarantees 100% offline & canvas PDF.js reader compatibility)
+  const isPdf = (file.type === 'application/pdf') || (file.name && file.name.toLowerCase().endsWith('.pdf'));
+  if (isPdf) {
+    return await convertFileToBase64(file);
+  }
+
   try {
     // Step 1: Auto compress image if it's a photo/image
     let uploadPayload = file;
@@ -108,15 +114,7 @@ async function uploadImageFile(file) {
     if (response.ok) {
       const data = await response.json();
       console.log('Cloudinary upload success:', data.secure_url);
-      
-      let finalUrl = data.secure_url;
-      // If it's a PDF and URL doesn't have .pdf extension, ensure extension
-      if ((file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) && !finalUrl.toLowerCase().endsWith('.pdf')) {
-        if (data.format === 'pdf') {
-          finalUrl = `${finalUrl}.pdf`;
-        }
-      }
-      return finalUrl;
+      return data.secure_url;
     } else {
       console.warn('Cloudinary upload returned non-200 status, converting to Base64 fallback...', response.statusText);
       return await convertFileToBase64(uploadPayload);

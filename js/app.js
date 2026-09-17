@@ -5009,6 +5009,23 @@ function resetPdfZoom() {
   renderPdfPages();
 }
 
+function convertDataURIToBinary(dataURI) {
+  try {
+    const base64Index = dataURI.indexOf(';base64,') + ';base64,'.length;
+    const base64 = dataURI.substring(base64Index);
+    const raw = window.atob(base64);
+    const rawLength = raw.length;
+    const array = new Uint8Array(new ArrayBuffer(rawLength));
+    for (let i = 0; i < rawLength; i++) {
+      array[i] = raw.charCodeAt(i);
+    }
+    return array;
+  } catch (e) {
+    console.error("Error converting DataURI to Binary:", e);
+    return new Uint8Array();
+  }
+}
+
 function openPdfInNewTab() {
   if (!currentActivePdfDataOrUrl) return;
 
@@ -5016,6 +5033,10 @@ function openPdfInNewTab() {
     const blob = getPdfBlob(currentActivePdfDataOrUrl);
     const blobUrl = URL.createObjectURL(blob);
     window.open(blobUrl, '_blank');
+  } else if (currentActivePdfDataOrUrl.includes('res.cloudinary.com') && currentActivePdfDataOrUrl.includes('image/upload')) {
+    // If it's an existing Cloudinary PDF with delivery restrictions, open the JPG/PNG page image render
+    const imgUrl = currentActivePdfDataOrUrl.replace(/\.pdf(\?.*)?$/i, '.jpg');
+    window.open(imgUrl, '_blank');
   } else {
     window.open(currentActivePdfDataOrUrl, '_blank');
   }
@@ -5192,20 +5213,29 @@ async function showPDFPreviewModal(fileUrl, fileTitle = 'เอกสารค�
       if (pageInfo) pageInfo.innerText = '';
       if (zoomControls) zoomControls.style.display = 'none';
 
+      const isCloudinaryPdf = fileUrl.includes('res.cloudinary.com') && fileUrl.includes('image/upload');
+      const fallbackImageUrl = isCloudinaryPdf ? fileUrl.replace(/\.pdf(\?.*)?$/i, '.jpg') : null;
+
       container.innerHTML = `
-        <div style="padding:40px 20px; text-align:center; color:#e2e8f0; max-width:480px; margin:auto;">
-          <div style="width:64px; height:64px; border-radius:50%; background:rgba(239,68,68,0.2); color:#ef4444; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">
-            <i class="fa-solid fa-file-pdf"></i>
-          </div>
-          <h4 style="font-weight:800; color:#ffffff; font-size:1.2rem; margin-bottom:8px;">${fileTitle}</h4>
-          <p style="font-size:0.88rem; color:#cbd5e1; margin-bottom:20px; line-height:1.5;">
-            กดปุ่มด้านล่างเพื่อเปิดอ่านเอกสาร PDF ในแท็บใหม่ หรือดาวน์โหลดลงในโทรศัพท์/ไอแพดของคุณได้ทันที
+        <div style="padding:20px 10px; text-align:center; color:#e2e8f0; width:100%; max-width:800px; margin:auto;">
+          ${fallbackImageUrl ? `
+            <div style="margin-bottom:16px; background:#ffffff; padding:12px; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.25);">
+              <img src="${fallbackImageUrl}" alt="${fileTitle}" style="max-width:100%; max-height:65vh; object-fit:contain; border-radius:8px;" onerror="this.style.display='none'">
+            </div>
+          ` : `
+            <div style="width:64px; height:64px; border-radius:50%; background:rgba(239,68,68,0.2); color:#ef4444; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 16px;">
+              <i class="fa-solid fa-file-pdf"></i>
+            </div>
+          `}
+          <h4 style="font-weight:800; color:#ffffff; font-size:1.15rem; margin-bottom:8px;">${fileTitle}</h4>
+          <p style="font-size:0.86rem; color:#cbd5e1; margin-bottom:16px; line-height:1.5;">
+            ${fallbackImageUrl ? 'แสดงตัวอย่างภาพหน้าแรกของเอกสาร (หรือกดปุ่มด้านล่างเพื่อเปิดอ่าน/ดาวน์โหลด)' : 'กดปุ่มด้านล่างเพื่อเปิดอ่านเอกสาร PDF ในแท็บใหม่ หรือดาวน์โหลดลงในโทรศัพท์/ไอแพดของคุณได้ทันที'}
           </p>
           <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
             <button type="button" class="btn btn-primary" onclick="openPdfInNewTab()" style="border-radius:10px; font-weight:700; padding:10px 18px;">
               <i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูเอกสาร
             </button>
-            <a href="${fileUrl}" download="${fileTitle}.pdf" class="btn btn-success" style="border-radius:10px; font-weight:700; padding:10px 18px;">
+            <a href="${fileUrl.startsWith('data:') ? getPdfBlobUrl(fileUrl) : fileUrl}" download="${fileTitle || 'document'}.pdf" class="btn btn-success" style="border-radius:10px; font-weight:700; padding:10px 18px;">
               <i class="fa-solid fa-download"></i> ดาวน์โหลด PDF
             </a>
           </div>
