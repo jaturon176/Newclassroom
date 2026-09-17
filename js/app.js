@@ -2786,16 +2786,88 @@ function deleteStudentSubmission(hwId, studentId, studentName = 'นักเร
 /* -------------------------------------------------------------
    7. QUIZ / EXAM BUILDER & RUNNER
 ------------------------------------------------------------- */
-function onQuestionTypeChange(qIndex, newType, isEdit = false) {
-  if (isEdit) {
-    if (editQuizQuestionsList[qIndex]) {
-      editQuizQuestionsList[qIndex].qType = newType;
+function syncQuestionBuilderState(isEdit = false) {
+  const prefix = isEdit ? 'edit-builder' : 'builder';
+  const list = isEdit ? editQuizQuestionsList : quizQuestionsList;
+  const typeSelectId = isEdit ? 'edit-quiz-type' : 'quiz-type';
+  const typeSelectEl = document.getElementById(typeSelectId);
+  const overallQuizType = typeSelectEl ? typeSelectEl.value : '4';
+  const choiceCount = overallQuizType === '5' ? 5 : 4;
+
+  list.forEach((q, i) => {
+    const qTypeEl = document.getElementById(`${prefix}-qtype-${i}`);
+    if (qTypeEl) q.qType = qTypeEl.value;
+
+    const qInput = document.getElementById(`${prefix}-question-${i}`);
+    if (qInput) q.question = qInput.value;
+
+    const sampleAnsEl = document.getElementById(`${prefix}-sample-answer-${i}`);
+    if (sampleAnsEl) q.sampleAnswer = sampleAnsEl.value;
+
+    const expEl = document.getElementById(`${prefix}-explanation-${i}`);
+    if (expEl) q.explanation = expEl.value;
+
+    const correctRadios = document.getElementsByName(`${prefix}-correct-${i}`);
+    correctRadios.forEach((r, idx) => {
+      if (r.checked) q.correctIndex = idx;
+    });
+
+    if (!q.options) q.options = [];
+    for (let c = 0; c < choiceCount; c++) {
+      const optEl = document.getElementById(`${prefix}-option-${i}-${c}`);
+      if (optEl) q.options[c] = optEl.value;
     }
+  });
+}
+
+function onQuestionTypeChange(qIndex, newType, isEdit = false) {
+  syncQuestionBuilderState(isEdit);
+  const list = isEdit ? editQuizQuestionsList : quizQuestionsList;
+  if (list[qIndex]) {
+    list[qIndex].qType = newType;
+  }
+  if (isEdit) {
     renderEditQuizQuestionsBuilder();
   } else {
-    if (quizQuestionsList[qIndex]) {
-      quizQuestionsList[qIndex].qType = newType;
-    }
+    renderQuizQuestionsBuilder();
+  }
+}
+
+function onQuestionImageSelected(qIndex, inputEl, isEdit = false) {
+  if (!inputEl.files || !inputEl.files[0]) return;
+  const file = inputEl.files[0];
+  if (!file.type.startsWith('image/')) {
+    showPopupWarning("กรุณาเลือกไฟล์รูปภาพ", "ระบบรองรับไฟล์รูปภาพ เช่น JPG, PNG, WebP เท่านั้น");
+    inputEl.value = '';
+    return;
+  }
+
+  syncQuestionBuilderState(isEdit);
+  const list = isEdit ? editQuizQuestionsList : quizQuestionsList;
+  if (list[qIndex]) {
+    list[qIndex]._pendingFile = file;
+    const previewUrl = URL.createObjectURL(file);
+    list[qIndex].imageUrl = previewUrl;
+  }
+
+  if (isEdit) {
+    renderEditQuizQuestionsBuilder();
+  } else {
+    renderQuizQuestionsBuilder();
+  }
+}
+
+function removeQuestionImage(qIndex, isEdit = false) {
+  syncQuestionBuilderState(isEdit);
+  const list = isEdit ? editQuizQuestionsList : quizQuestionsList;
+  if (list[qIndex]) {
+    delete list[qIndex]._pendingFile;
+    list[qIndex].imageUrl = '';
+  }
+
+  if (isEdit) {
+    renderEditQuizQuestionsBuilder();
+  } else {
     renderQuizQuestionsBuilder();
   }
 }
@@ -2814,6 +2886,7 @@ function renderQuestionBuilderCard(q, qIndex, isEdit = false) {
 
   const choiceCount = overallQuizType === '5' ? 5 : 4;
   const choiceLabels = choiceCount === 5 ? ['ก', 'ข', 'ค', 'ง', 'จ'] : ['ก', 'ข', 'ค', 'ง'];
+  const hasImage = !!(q.imageUrl && q.imageUrl.trim());
 
   return `
     <div class="quiz-question-card" id="${prefix}-qcard-${qIndex}">
@@ -2832,9 +2905,40 @@ function renderQuestionBuilderCard(q, qIndex, isEdit = false) {
         ` : ''}
       </div>
 
-      <div class="form-group">
+      <div class="form-group" style="margin-bottom:10px;">
         <label class="form-label">คำถาม ข้อที่ ${qIndex + 1} *</label>
         <textarea id="${prefix}-question-${qIndex}" class="form-control" style="padding:10px 14px; min-height:60px;" required placeholder="กรอกข้อความคำถาม...">${q.question ? q.question.replace(/"/g, '&quot;') : ''}</textarea>
+      </div>
+
+      <!-- Question Image Attachment UI -->
+      <div class="form-group" style="margin-bottom:14px;">
+        <input type="file" id="${prefix}-img-${qIndex}" accept="image/*" style="display:none;" onchange="onQuestionImageSelected(${qIndex}, this, ${isEdit})">
+        
+        ${hasImage ? `
+          <div class="builder-image-preview-box">
+            <img src="${q.imageUrl}" class="builder-image-thumb" alt="รูปประกอบโจทย์ข้อที่ ${qIndex + 1}" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพโจทย์ข้อที่ ${qIndex + 1}')" title="คลิกเพื่อดูรูปขนาดเต็ม">
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:700; font-size:0.85rem; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                <i class="fa-solid fa-image" style="color:var(--primary);"></i> มีรูปภาพแนบในโจทย์ข้อนี้
+              </div>
+              <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-sm btn-outline-primary" style="padding:3px 8px; font-size:0.78rem; border-radius:6px;" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพโจทย์ข้อที่ ${qIndex + 1}')">
+                  <i class="fa-solid fa-magnifying-glass-plus"></i> ดูภาพขนาดใหญ่
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" style="padding:3px 8px; font-size:0.78rem; border-radius:6px;" onclick="removeQuestionImage(${qIndex}, ${isEdit})">
+                  <i class="fa-solid fa-trash-can"></i> ลบรูป
+                </button>
+              </div>
+            </div>
+          </div>
+        ` : `
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('${prefix}-img-${qIndex}').click()" style="border-radius:8px; font-weight:600; font-size:0.82rem; padding:5px 12px; display:inline-flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-image"></i> แนบรูปภาพในโจทย์ (ไม่บังคับ)
+            </button>
+            <span style="font-size:0.78rem; color:#64748b;">(เช่น แผนภาพ, ภาพโจทย์คณิต/วิทย์, กราฟ, ตาราง)</span>
+          </div>
+        `}
       </div>
 
       ${qType === 'subjective' ? `
@@ -2882,13 +2986,15 @@ function renderQuizQuestionsBuilder() {
 }
 
 function addQuizQuestionItem() {
+  syncQuestionBuilderState(false);
   const overallType = document.getElementById('quiz-type') ? document.getElementById('quiz-type').value : '4';
   const defaultQType = (overallType === 'subjective') ? 'subjective' : 'choice';
-  quizQuestionsList.push({ qType: defaultQType, question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
+  quizQuestionsList.push({ qType: defaultQType, question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
   renderQuizQuestionsBuilder();
 }
 
 function removeQuizQuestionItem(index) {
+  syncQuestionBuilderState(false);
   quizQuestionsList.splice(index, 1);
   renderQuizQuestionsBuilder();
 }
@@ -2898,7 +3004,7 @@ function openCreateQuizModal() {
   const typeSelect = document.getElementById('quiz-type');
   if (typeSelect) typeSelect.value = defaultType;
 
-  quizQuestionsList = [{ qType: 'choice', question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
+  quizQuestionsList = [{ qType: 'choice', question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
   document.getElementById('quiz-title').value = '';
   document.getElementById('quiz-duration').value = 15;
   document.getElementById('quiz-pass-score').value = 50;
@@ -2911,7 +3017,7 @@ function openCreateQuizModal() {
   openModal('modal-create-quiz');
 }
 
-function saveQuizForm(e) {
+async function saveQuizForm(e) {
   e.preventDefault();
   const courseId = document.getElementById('quiz-course-id').value;
   const targetClasses = getSelectedTargetClasses('quiz-target-chips-container');
@@ -2921,6 +3027,17 @@ function saveQuizForm(e) {
   const duration = parseInt(document.getElementById('quiz-duration').value) || 15;
   const passScore = parseInt(document.getElementById('quiz-pass-score').value) || 50;
 
+  // Show loading indicator if pending images exist
+  const hasPendingImages = quizQuestionsList.some(q => q && q._pendingFile);
+  if (hasPendingImages && typeof Swal !== 'undefined') {
+    Swal.fire({
+      title: 'กำลังอัปโหลดรูปภาพ...',
+      text: 'ระบบกำลังบีบอัดและอัปโหลดรูปภาพประกอบโจทย์ขึ้นระบบ Cloud',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+  }
+
   const compiledQuestions = [];
 
   for (let i = 0; i < quizQuestionsList.length; i++) {
@@ -2929,12 +3046,23 @@ function saveQuizForm(e) {
     const qText = document.getElementById(`builder-question-${i}`).value.trim();
     const expText = document.getElementById(`builder-explanation-${i}`) ? document.getElementById(`builder-explanation-${i}`).value.trim() : '';
 
+    let qImageUrl = quizQuestionsList[i] ? (quizQuestionsList[i].imageUrl || '') : '';
+    if (quizQuestionsList[i] && quizQuestionsList[i]._pendingFile) {
+      try {
+        const uploadedUrl = await uploadImageFile(quizQuestionsList[i]._pendingFile);
+        if (uploadedUrl) qImageUrl = uploadedUrl;
+      } catch (err) {
+        console.error("Error uploading question image:", err);
+      }
+    }
+
     if (qType === 'subjective') {
       const sampleAns = document.getElementById(`builder-sample-answer-${i}`) ? document.getElementById(`builder-sample-answer-${i}`).value.trim() : '';
       compiledQuestions.push({
         id: i + 1,
         qType: 'subjective',
         question: qText,
+        imageUrl: qImageUrl,
         sampleAnswer: sampleAns,
         explanation: expText || sampleAns,
         points: 1
@@ -2957,6 +3085,7 @@ function saveQuizForm(e) {
         id: i + 1,
         qType: 'choice',
         question: qText,
+        imageUrl: qImageUrl,
         options: optionsArr,
         correctIndex: selectedCorrectIndex,
         explanation: expText,
@@ -3019,7 +3148,7 @@ function openEditQuizModal(quizId) {
   if (quiz.questions && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
     editQuizQuestionsList = JSON.parse(JSON.stringify(quiz.questions));
   } else {
-    editQuizQuestionsList = [{ qType: 'choice', question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
+    editQuizQuestionsList = [{ qType: 'choice', question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
   }
 
   renderEditQuizQuestionsBuilder();
@@ -3039,18 +3168,20 @@ function renderEditQuizQuestionsBuilder() {
 }
 
 function addEditQuizQuestionItem() {
+  syncQuestionBuilderState(true);
   const overallType = document.getElementById('edit-quiz-type') ? document.getElementById('edit-quiz-type').value : '4';
   const defaultQType = (overallType === 'subjective') ? 'subjective' : 'choice';
-  editQuizQuestionsList.push({ qType: defaultQType, question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
+  editQuizQuestionsList.push({ qType: defaultQType, question: '', imageUrl: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
   renderEditQuizQuestionsBuilder();
 }
 
 function removeEditQuizQuestionItem(index) {
+  syncQuestionBuilderState(true);
   editQuizQuestionsList.splice(index, 1);
   renderEditQuizQuestionsBuilder();
 }
 
-function saveEditQuizForm(e) {
+async function saveEditQuizForm(e) {
   e.preventDefault();
   if (!currentUser || currentUser.role === 'student') {
     showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์แก้ไขแบบทดสอบ");
@@ -3066,6 +3197,17 @@ function saveEditQuizForm(e) {
   const duration = parseInt(document.getElementById('edit-quiz-duration').value) || 15;
   const passScore = parseInt(document.getElementById('edit-quiz-pass-score').value) || 50;
 
+  // Show loading indicator if pending images exist
+  const hasPendingImages = editQuizQuestionsList.some(q => q && q._pendingFile);
+  if (hasPendingImages && typeof Swal !== 'undefined') {
+    Swal.fire({
+      title: 'กำลังอัปโหลดรูปภาพ...',
+      text: 'ระบบกำลังบีบอัดและอัปโหลดรูปภาพประกอบโจทย์ขึ้นระบบ Cloud',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+  }
+
   const compiledQuestions = [];
 
   for (let i = 0; i < editQuizQuestionsList.length; i++) {
@@ -3074,12 +3216,23 @@ function saveEditQuizForm(e) {
     const qText = document.getElementById(`edit-builder-question-${i}`).value.trim();
     const expText = document.getElementById(`edit-builder-explanation-${i}`) ? document.getElementById(`edit-builder-explanation-${i}`).value.trim() : '';
 
+    let qImageUrl = editQuizQuestionsList[i] ? (editQuizQuestionsList[i].imageUrl || '') : '';
+    if (editQuizQuestionsList[i] && editQuizQuestionsList[i]._pendingFile) {
+      try {
+        const uploadedUrl = await uploadImageFile(editQuizQuestionsList[i]._pendingFile);
+        if (uploadedUrl) qImageUrl = uploadedUrl;
+      } catch (err) {
+        console.error("Error uploading question image:", err);
+      }
+    }
+
     if (qType === 'subjective') {
       const sampleAns = document.getElementById(`edit-builder-sample-answer-${i}`) ? document.getElementById(`edit-builder-sample-answer-${i}`).value.trim() : '';
       compiledQuestions.push({
         id: i + 1,
         qType: 'subjective',
         question: qText,
+        imageUrl: qImageUrl,
         sampleAnswer: sampleAns,
         explanation: expText || sampleAns,
         points: 1
@@ -3102,6 +3255,7 @@ function saveEditQuizForm(e) {
         id: i + 1,
         qType: 'choice',
         question: qText,
+        imageUrl: qImageUrl,
         options: optionsArr,
         correctIndex: selectedCorrectIndex,
         explanation: expText,
@@ -3473,6 +3627,15 @@ function startQuizRunner(quizId) {
   quiz.questions.forEach((q, idx) => {
     const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
 
+    const imageHtml = (q.imageUrl && q.imageUrl.trim()) ? `
+      <div class="exam-q-image-container">
+        <img src="${q.imageUrl}" class="exam-q-image" alt="รูปประกอบโจทย์ข้อที่ ${idx + 1}" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')" title="คลิกเพื่อดูภาพขนาดใหญ่">
+        <div class="exam-q-image-hint" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')">
+          <i class="fa-solid fa-magnifying-glass-plus"></i> คลิกที่รูปเพื่อขยายภาพขนาดใหญ่
+        </div>
+      </div>
+    ` : '';
+
     if (isSubjective) {
       html += `
         <div class="exam-question-card-modern" id="exam-q-box-${idx}">
@@ -3482,6 +3645,7 @@ function startQuizRunner(quizId) {
               <span class="exam-q-type-pill exam-q-type-subjective"><i class="fa-solid fa-pen-nib"></i> อัตนัย (พิมพ์ตอบ)</span>
             </div>
             <h4 class="exam-q-title" style="margin-top:8px;">${q.question}</h4>
+            ${imageHtml}
           </div>
           <div class="exam-subjective-box">
             <label class="exam-subjective-label">
@@ -3502,6 +3666,7 @@ function startQuizRunner(quizId) {
               <span class="exam-q-type-pill exam-q-type-choice"><i class="fa-solid fa-list-check"></i> ปรนัย (เลือกตอบ)</span>
             </div>
             <h4 class="exam-q-title" style="margin-top:8px;">${q.question}</h4>
+            ${imageHtml}
           </div>
           <div class="exam-options-grid">
       `;
@@ -3731,6 +3896,15 @@ function viewQuizResultModal(quizId, studentId) {
       const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
       const userAns = (res.userAnswers && res.userAnswers[idx] !== undefined) ? res.userAnswers[idx] : null;
 
+      const reviewImgHtml = (q.imageUrl && q.imageUrl.trim()) ? `
+        <div class="review-q-image-box">
+          <img src="${q.imageUrl}" class="review-q-img" alt="รูปประกอบโจทย์ข้อที่ ${idx + 1}" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')" title="คลิกเพื่อดูภาพขยาย">
+          <div style="font-size:0.75rem; color:#64748b; margin-top:3px; cursor:pointer;" onclick="showPDFPreviewModal('${q.imageUrl}', 'รูปภาพประกอบโจทย์ ข้อที่ ${idx + 1}')">
+            <i class="fa-solid fa-magnifying-glass-plus"></i> คลิกที่รูปเพื่อดูภาพขนาดใหญ่
+          </div>
+        </div>
+      ` : '';
+
       if (isSubjective) {
         const typedText = (typeof userAns === 'string') ? userAns : (userAns ? String(userAns) : '');
         reviewHtml += `
@@ -3743,7 +3917,7 @@ function viewQuizResultModal(quizId, studentId) {
               <span class="badge badge-purple" style="font-weight:700;"><i class="fa-solid fa-star"></i> ${q.points || 1} คะแนน</span>
             </div>
             <div style="font-weight:700; color:#0f172a; font-size:0.95rem; margin-bottom:8px;">${q.question}</div>
-            
+            ${reviewImgHtml}
             <div style="margin-top:10px;">
               <div style="font-weight:700; font-size:0.86rem; color:#475569;"><i class="fa-solid fa-user-pen"></i> คำตอบที่พิมพ์ตอบ:</div>
               <div class="review-student-answer-box">
@@ -3780,7 +3954,7 @@ function viewQuizResultModal(quizId, studentId) {
               </span>
             </div>
             <div style="font-weight:700; color:#0f172a; font-size:0.95rem; margin-bottom:8px;">${q.question}</div>
-            
+            ${reviewImgHtml}
             <div style="font-size:0.88rem; margin:6px 0;">
               <strong>คำตอบของคุณ:</strong> <span style="color:${isCorrect ? '#059669' : '#dc2626'}; font-weight:700;">${studentChoiceText}</span>
             </div>
