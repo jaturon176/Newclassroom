@@ -1842,10 +1842,9 @@ async function saveHomeworkForm(e) {
   let imageUrl = null;
 
   if (imgFile) {
-    // Convert to Base64 Data URL via FileReader (data:application/pdf;base64,...)
-    const base64Data = await readFileAsBase64(imgFile);
-    imageUrl = base64Data;
-    pdfs = [{ name: imgFile.name, url: base64Data, size: imgFile.size }];
+    const uploadedUrl = await uploadImageFile(imgFile);
+    imageUrl = uploadedUrl;
+    pdfs = [{ name: imgFile.name, url: uploadedUrl, size: imgFile.size }];
   }
 
   const newHw = {
@@ -2299,9 +2298,9 @@ async function saveEditHomeworkForm(e) {
   let pdfs = existingHw.pdfs || null;
 
   if (fileInput) {
-    const base64Data = await readFileAsBase64(fileInput);
-    imageUrl = base64Data;
-    pdfs = [{ name: fileInput.name, url: base64Data, size: fileInput.size }];
+    const uploadedUrl = await uploadImageFile(fileInput);
+    imageUrl = uploadedUrl;
+    pdfs = [{ name: fileInput.name, url: uploadedUrl, size: fileInput.size }];
   }
 
   const updatedHw = {
