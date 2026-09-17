@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.11.1">
+  <link rel="stylesheet" href="css/styles.css?v=8.12.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -1506,6 +1506,77 @@
   </div>
 
 
+  <!-- Modal 9.2: Teacher Grade Quiz Submission Modal (ตรวจและให้คะแนนข้อสอบอัตนัย) -->
+  <div class="modal-overlay" id="modal-grade-quiz">
+    <div class="modal-container modal-exam-container" style="max-width:880px; width:96vw;">
+      <div class="modal-header" style="background:#0f172a; color:#ffffff; border-bottom:3px solid #f59e0b; padding:18px 24px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg, #f59e0b, #d97706); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.3rem; box-shadow:0 3px 8px rgba(217,119,6,0.4);">
+            <i class="fa-solid fa-file-circle-check"></i>
+          </div>
+          <div>
+            <h3 class="modal-title" style="color:#ffffff; margin:0; font-size:1.25rem;"><i class="fa-solid fa-square-poll-vertical" style="color:#fbbf24 !important;"></i> ตรวจและให้คะแนนแบบทดสอบ</h3>
+            <span style="font-size:0.82rem; color:#cbd5e1;" id="grade-quiz-subtitle">นักเรียน... • แบบทดสอบ...</span>
+          </div>
+        </div>
+        <button class="btn-close-modal" style="background:rgba(255,255,255,0.1); color:#fff; border:none;" onclick="closeModal('modal-grade-quiz')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body exam-body" style="padding:22px 24px; background:#f8fafc;">
+        <input type="hidden" id="active-grading-quiz-id">
+        <input type="hidden" id="active-grading-student-id">
+
+        <!-- Student Info & Submission Details Banner -->
+        <div id="grade-quiz-student-banner" style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:16px 20px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 6px rgba(15,23,42,0.02);">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Question-by-Question Grading Container -->
+        <div style="margin-bottom:18px;">
+          <h4 style="font-size:1.05rem; font-weight:800; color:#0f172a; margin:0 0 12px; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-list-check" style="color:var(--primary);"></i> ตรวจกระดาษคำตอบรายข้อ
+          </h4>
+          <div id="quiz-grading-questions-container" style="display:flex; flex-direction:column; gap:14px; max-height:50vh; overflow-y:auto; padding-right:4px;">
+            <!-- Rendered question grading cards -->
+          </div>
+        </div>
+
+        <!-- Overall Feedback & Live Score Summary -->
+        <div style="background:#ffffff; border-radius:14px; border:1.5px solid #e2e8f0; padding:18px 20px; box-shadow:0 2px 8px rgba(15,23,42,0.03);">
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label" style="font-weight:700; color:#1e293b; display:flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-comment-dots" style="color:var(--primary);"></i> ข้อเสนอแนะ / คำแนะนำเพิ่มเติมจากครูผู้สอน:
+            </label>
+            <textarea id="teacher-quiz-overall-feedback" class="form-control" rows="2" placeholder="พิมพ์ข้อคิดเห็นหรือคำชี้แนะให้นักเรียนทราบ (แสดงในหน้ารายงานคะแนนของนักเรียน)..."></textarea>
+          </div>
+
+          <!-- Live Total Score Card -->
+          <div style="background:linear-gradient(135deg, #1e293b, #0f172a); color:#ffffff; border-radius:12px; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div>
+              <div style="font-size:0.8rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">คะแนนรวมที่ได้ (Total Score)</div>
+              <div style="display:flex; align-items:baseline; gap:8px; margin-top:2px;">
+                <span id="teacher-grading-live-score" style="font-size:1.8rem; font-weight:900; color:#60a5fa;">0</span>
+                <span style="font-size:1.1rem; color:#94a3b8; font-weight:700;">/ <span id="teacher-grading-live-max">0</span> คะแนน</span>
+                <span id="teacher-grading-live-pct" style="font-size:1rem; font-weight:800; color:#fbbf24; margin-left:8px;">(0%)</span>
+              </div>
+            </div>
+            <div id="teacher-grading-live-status">
+              <!-- Live Pass/Fail Badge -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding:14px 24px; background:#ffffff; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-grade-quiz')" style="border-radius:10px; font-weight:700; padding:8px 18px;">ยกเลิก</button>
+        <button type="button" class="btn btn-primary" onclick="saveTeacherQuizGrading()" style="border-radius:10px; font-weight:800; padding:9px 24px; background:#2563eb; box-shadow:0 4px 12px rgba(37,99,235,0.3);">
+          <i class="fa-solid fa-floppy-disk"></i> บันทึกผลการตรวจให้คะแนน
+        </button>
+      </div>
+    </div>
+  </div>
+
+
   <!-- Modal 10: Announcement Modal -->
   <div class="modal-overlay" id="modal-announcement">
     <div class="modal-container">
@@ -1653,8 +1724,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.11.1"></script>
-  <script src="js/cloudinary.js?v=8.11.1"></script>
-  <script src="js/app.js?v=8.11.1"></script>
+  <script src="js/firebase-config.js?v=8.12.0"></script>
+  <script src="js/cloudinary.js?v=8.12.0"></script>
+  <script src="js/app.js?v=8.12.0"></script>
 </body>
 </html>

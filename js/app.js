@@ -952,7 +952,11 @@ function renderDashboardQuizSummary() {
     if (isStudent) {
       const myResult = (quizResultsData[id] && currentUser.studentId) ? quizResultsData[id][currentUser.studentId] : null;
       if (myResult) {
-        badgeHtml = `<span class="badge ${myResult.passed ? 'badge-green' : 'badge-red'}"><i class="${myResult.passed ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ทำแล้ว (${myResult.score}/${myResult.totalScore})</span>`;
+        if (myResult.isGraded === false || myResult.status === 'pending') {
+          badgeHtml = `<span class="badge badge-amber" style="font-weight:700;"><i class="fa-solid fa-hourglass-half"></i> ส่งแล้ว (รอตรวจ)</span>`;
+        } else {
+          badgeHtml = `<span class="badge ${myResult.passed ? 'badge-green' : 'badge-red'}"><i class="${myResult.passed ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ทำแล้ว (${myResult.score}/${myResult.totalScore})</span>`;
+        }
       } else if (isOpen) {
         badgeHtml = `<button class="btn btn-sm btn-primary" onclick="switchNav('quizzes')"><i class="fa-solid fa-play"></i> เริ่มสอบ</button>`;
       } else {
@@ -3708,20 +3712,36 @@ function renderQuizzesList() {
           <div class="quiz-card-footer">
             ${(currentUser && currentUser.role === 'student') ? `
               ${studentResult ? `
-                <div class="quiz-result-ribbon ${studentResult.passed ? 'quiz-result-passed' : 'quiz-result-failed'}">
-                  <div>
-                    <div style="font-weight:800; font-size:0.92rem; color:${studentResult.passed ? '#059669' : '#e11d48'};">
-                      <i class="${studentResult.passed ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i>
-                      ${studentResult.passed ? 'สอบผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
+                ${(studentResult.isGraded === false || studentResult.status === 'pending') ? `
+                  <div class="quiz-result-ribbon" style="background:#fffbeb; border-color:#fde68a;">
+                    <div>
+                      <div style="font-weight:800; font-size:0.92rem; color:#d97706;">
+                        <i class="fa-solid fa-hourglass-half"></i> ส่งแล้ว (รอครูตรวจให้คะแนน)
+                      </div>
+                      <div style="font-size:0.8rem; color:#64748b; font-weight:700;">
+                        ส่งเมื่อ: ${studentResult.completedAt || studentResult.submittedAt || '-'}
+                      </div>
                     </div>
-                    <div style="font-size:0.8rem; color:#475569; font-weight:700;">
-                      ได้ ${studentResult.score}/${studentResult.totalScore} คะแนน (${studentResult.percentage}%)
-                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')" style="border-radius:10px; font-weight:700; padding:6px 12px;">
+                      <i class="fa-solid fa-file-lines"></i> ดูกระดาษคำตอบ
+                    </button>
                   </div>
-                  <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')" style="border-radius:10px; font-weight:700; padding:6px 12px;">
-                    <i class="fa-solid fa-chart-simple"></i> ดูเฉลย
-                  </button>
-                </div>
+                ` : `
+                  <div class="quiz-result-ribbon ${studentResult.passed ? 'quiz-result-passed' : 'quiz-result-failed'}">
+                    <div>
+                      <div style="font-weight:800; font-size:0.92rem; color:${studentResult.passed ? '#059669' : '#e11d48'};">
+                        <i class="${studentResult.passed ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i>
+                        ${studentResult.passed ? 'สอบผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
+                      </div>
+                      <div style="font-size:0.8rem; color:#475569; font-weight:700;">
+                        ได้ ${studentResult.score}/${studentResult.totalScore} คะแนน (${studentResult.percentage}%)
+                      </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${currentUser.studentId}')" style="border-radius:10px; font-weight:700; padding:6px 12px;">
+                      <i class="fa-solid fa-chart-simple"></i> ดูผลและเฉลย
+                    </button>
+                  </div>
+                `}
               ` : `
                 ${isOpen ? `
                   <button class="quiz-btn-start" onclick="startQuizRunner('${quizId}')">
@@ -4232,21 +4252,24 @@ function submitQuizAnswers(isManual) {
 
   if (!activeQuizData) return;
 
-  const questions = activeQuizData.questions;
+  const questions = activeQuizData.questions || [];
   let earnedScore = 0;
+  let hasSubjective = false;
   const userAnswersArr = [];
+  const questionScoresArr = [];
+  const questionCommentsArr = [];
 
   questions.forEach((q, idx) => {
     const isSubjective = q.qType === 'subjective' || (activeQuizData.type === 'subjective' && q.qType !== 'choice');
 
     if (isSubjective) {
+      hasSubjective = true;
       const ta = document.getElementById(`quiz-subjective-ans-${idx}`);
       const typedText = ta ? ta.value.trim() : '';
       userAnswersArr.push(typedText);
-      // Auto award points if student answered (ready for review)
-      if (typedText.length > 0) {
-        earnedScore += (q.points || 1);
-      }
+      // For subjective questions, score is left for teacher grading (0 initially)
+      questionScoresArr.push(0);
+      questionCommentsArr.push('');
     } else {
       const radios = document.getElementsByName(`quiz-ans-${idx}`);
       let selectedVal = -1;
@@ -4255,15 +4278,19 @@ function submitQuizAnswers(isManual) {
       });
 
       userAnswersArr.push(selectedVal);
-      if (selectedVal === q.correctIndex) {
-        earnedScore += (q.points || 1);
-      }
+      const isCorrect = (selectedVal === q.correctIndex);
+      const pts = isCorrect ? (q.points || 1) : 0;
+      questionScoresArr.push(pts);
+      questionCommentsArr.push('');
+      earnedScore += pts;
     }
   });
 
   const totalScore = questions.reduce((acc, q) => acc + (q.points || 1), 0) || questions.length;
-  const percentage = totalScore > 0 ? Math.round((earnedScore / totalScore) * 100) : 0;
-  const passed = percentage >= activeQuizData.passScore;
+  const isGraded = !hasSubjective;
+  const percentage = (isGraded && totalScore > 0) ? Math.round((earnedScore / totalScore) * 100) : 0;
+  const passed = isGraded ? (percentage >= activeQuizData.passScore) : false;
+  const status = isGraded ? 'graded' : 'pending';
 
   // Save non-colliding path: quiz_results/{quizId}/{studentId}
   const resultPath = `quiz_results/${activeQuizData.id}/${currentUser.studentId}`;
@@ -4276,12 +4303,24 @@ function submitQuizAnswers(isManual) {
     totalScore: totalScore,
     percentage: percentage,
     passed: passed,
+    isGraded: isGraded,
+    status: status,
     userAnswers: userAnswersArr,
+    questionScores: questionScoresArr,
+    questionComments: questionCommentsArr,
+    teacherFeedback: '',
+    submittedAt: new Date().toLocaleString('th-TH'),
     completedAt: new Date().toLocaleString('th-TH')
   }).then(() => {
     closeModal('modal-take-quiz');
+    if (hasSubjective) {
+      showPopupSuccess(
+        "ส่งแบบทดสอบเรียบร้อยแล้ว", 
+        "ระบบได้บันทึกกระดาษคำตอบของคุณแล้ว ขณะนี้อยู่ระหว่าง 'รอครูผู้สอนตรวจให้คะแนน' เมื่อคุณครูตรวจเสร็จจะสามารถดูผลคะแนนได้ทันที"
+      );
+    }
     viewQuizResultModal(activeQuizData.id, currentUser.studentId);
-    logActivity(`นักเรียน ${currentUser.name} ทำแบบทดสอบ ${activeQuizData.title} ได้ ${earnedScore}/${totalScore} คะแนน`);
+    logActivity(`นักเรียน ${currentUser.name} ส่งแบบทดสอบ ${activeQuizData.title} ${hasSubjective ? '(รอครูตรวจให้คะแนน)' : `ได้ ${earnedScore}/${totalScore} คะแนน`}`);
   });
 }
 
@@ -4294,29 +4333,53 @@ function viewQuizResultModal(quizId, studentId) {
 
   if (!quiz || !res) return;
 
-  document.getElementById('res-score-display').innerText = `${res.score} / ${res.totalScore}`;
+  const isPending = (res.isGraded === false || res.status === 'pending');
   const badgeContainer = document.getElementById('res-status-badge');
-  badgeContainer.innerHTML = res.passed 
-    ? `<span class="badge badge-green" style="font-size:0.95rem; font-weight:800; padding:6px 18px; border-radius:10px;"><i class="fa-solid fa-circle-check"></i> ผ่านการทดสอบ (${res.percentage}%)</span>`
-    : `<span class="badge badge-red" style="font-size:0.95rem; font-weight:800; padding:6px 18px; border-radius:10px;"><i class="fa-solid fa-circle-xmark"></i> ไม่ผ่านเกณฑ์ (${res.percentage}%)</span>`;
+
+  if (isPending) {
+    document.getElementById('res-score-display').innerText = `รอตรวจ / ${res.totalScore}`;
+    badgeContainer.innerHTML = `<span class="badge badge-amber" style="font-size:0.95rem; font-weight:800; padding:6px 18px; border-radius:10px;"><i class="fa-solid fa-hourglass-half"></i> ส่งแล้ว (รอครูผู้สอนตรวจให้คะแนน)</span>`;
+  } else {
+    document.getElementById('res-score-display').innerText = `${res.score} / ${res.totalScore}`;
+    badgeContainer.innerHTML = res.passed 
+      ? `<span class="badge badge-green" style="font-size:0.95rem; font-weight:800; padding:6px 18px; border-radius:10px;"><i class="fa-solid fa-circle-check"></i> ผ่านการทดสอบ (${res.percentage}%)</span>`
+      : `<span class="badge badge-red" style="font-size:0.95rem; font-weight:800; padding:6px 18px; border-radius:10px;"><i class="fa-solid fa-circle-xmark"></i> ไม่ผ่านเกณฑ์ (${res.percentage}%)</span>`;
+  }
 
   // Render Stats Summary
   const statsContainer = document.getElementById('res-stats-summary');
   if (statsContainer) {
-    statsContainer.innerHTML = `
-      <div class="exam-stat-card">
-        <div class="val" style="color:${res.passed ? '#059669' : '#dc2626'};">${res.percentage}%</div>
-        <div class="lbl">ร้อยละที่ได้</div>
-      </div>
-      <div class="exam-stat-card">
-        <div class="val" style="color:#2563eb;">${res.score}/${res.totalScore}</div>
-        <div class="lbl">คะแนนที่ได้</div>
-      </div>
-      <div class="exam-stat-card">
-        <div class="val" style="color:#d97706;">${quiz.passScore}%</div>
-        <div class="lbl">เกณฑ์ผ่าน</div>
-      </div>
-    `;
+    if (isPending) {
+      statsContainer.innerHTML = `
+        <div class="exam-stat-card">
+          <div class="val" style="color:#d97706;"><i class="fa-solid fa-hourglass-half"></i></div>
+          <div class="lbl">สถานะ</div>
+        </div>
+        <div class="exam-stat-card">
+          <div class="val" style="color:#2563eb;">รอตรวจ / ${res.totalScore}</div>
+          <div class="lbl">คะแนนเต็ม</div>
+        </div>
+        <div class="exam-stat-card">
+          <div class="val" style="color:#475569;">${quiz.passScore}%</div>
+          <div class="lbl">เกณฑ์ผ่าน</div>
+        </div>
+      `;
+    } else {
+      statsContainer.innerHTML = `
+        <div class="exam-stat-card">
+          <div class="val" style="color:${res.passed ? '#059669' : '#dc2626'};">${res.percentage}%</div>
+          <div class="lbl">ร้อยละที่ได้</div>
+        </div>
+        <div class="exam-stat-card">
+          <div class="val" style="color:#2563eb;">${res.score}/${res.totalScore}</div>
+          <div class="lbl">คะแนนที่ได้</div>
+        </div>
+        <div class="exam-stat-card">
+          <div class="val" style="color:#d97706;">${quiz.passScore}%</div>
+          <div class="lbl">เกณฑ์ผ่าน</div>
+        </div>
+      `;
+    }
   }
 
   // Render Question-by-Question Detailed Review
@@ -4325,21 +4388,41 @@ function viewQuizResultModal(quizId, studentId) {
     const choiceLabels = ['ก', 'ข', 'ค', 'ง', 'จ'];
     let reviewHtml = '';
 
+    // Overall Teacher Feedback if present
+    if (res.teacherFeedback && res.teacherFeedback.trim()) {
+      reviewHtml += `
+        <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:12px; padding:14px 18px; margin-bottom:12px;">
+          <div style="font-weight:800; color:#1e40af; font-size:0.95rem; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-comment-dots"></i> ข้อเสนอแนะจากคุณครูผู้สอน:
+          </div>
+          <div style="font-size:0.92rem; color:#1e3a8a; white-space:pre-wrap;">${res.teacherFeedback}</div>
+          ${res.gradedBy ? `<div style="font-size:0.78rem; color:#64748b; margin-top:6px;">ตรวจโดย: ${res.gradedBy} (${res.gradedAt || ''})</div>` : ''}
+        </div>
+      `;
+    }
+
     quiz.questions.forEach((q, idx) => {
       const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
+      const maxPts = q.points || 1;
       const userAns = (res.userAnswers && res.userAnswers[idx] !== undefined) ? res.userAnswers[idx] : null;
       const reviewImgHtml = renderReviewQuestionImagesHtml(q, idx + 1);
+      const qScore = (res.questionScores && res.questionScores[idx] !== undefined) ? res.questionScores[idx] : 0;
+      const qComment = (res.questionComments && res.questionComments[idx]) ? res.questionComments[idx] : '';
 
       if (isSubjective) {
         const typedText = (typeof userAns === 'string') ? userAns : (userAns ? String(userAns) : '');
         reviewHtml += `
-          <div class="review-q-card subjective-review">
+          <div class="review-q-card subjective-review ${isPending ? 'pending-review' : ''}">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
               <div style="display:flex; align-items:center; gap:8px;">
                 <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
                 <span class="exam-q-type-pill exam-q-type-subjective"><i class="fa-solid fa-pen-nib"></i> อัตนัย (พิมพ์ตอบ)</span>
               </div>
-              <span class="badge badge-purple" style="font-weight:700;"><i class="fa-solid fa-star"></i> ${q.points || 1} คะแนน</span>
+              ${isPending ? `
+                <span class="badge badge-amber" style="font-weight:700;"><i class="fa-solid fa-clock"></i> รอครูตรวจ (${maxPts} คะแนน)</span>
+              ` : `
+                <span class="badge badge-green" style="font-weight:700;"><i class="fa-solid fa-star"></i> ได้ ${qScore} / ${maxPts} คะแนน</span>
+              `}
             </div>
             <div style="font-weight:700; color:#0f172a; font-size:0.95rem; margin-bottom:8px;">${q.question}</div>
             ${reviewImgHtml}
@@ -4349,6 +4432,12 @@ function viewQuizResultModal(quizId, studentId) {
                 ${typedText ? typedText : '<span style="color:#94a3b8; font-style:italic;">(ไม่ได้พิมพ์คำตอบ)</span>'}
               </div>
             </div>
+
+            ${qComment ? `
+              <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 12px; margin-top:8px; font-size:0.86rem; color:#1e40af;">
+                <i class="fa-solid fa-comment-dots"></i> <strong>ข้อเสนอแนะรายข้อ:</strong> ${qComment}
+              </div>
+            ` : ''}
 
             ${(q.sampleAnswer || q.explanation) ? `
               <div class="review-model-answer-box">
@@ -4375,7 +4464,7 @@ function viewQuizResultModal(quizId, studentId) {
                 <span class="exam-q-type-pill exam-q-type-choice"><i class="fa-solid fa-list-check"></i> ปรนัย</span>
               </div>
               <span class="badge ${isCorrect ? 'badge-green' : 'badge-red'}" style="font-weight:800; font-size:0.82rem;">
-                <i class="${isCorrect ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ${isCorrect ? 'ตอบถูก' : 'ตอบผิด'}
+                <i class="${isCorrect ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ${isCorrect ? `ตอบถูก (${maxPts} คะแนน)` : 'ตอบผิด (0 คะแนน)'}
               </span>
             </div>
             <div style="font-weight:700; color:#0f172a; font-size:0.95rem; margin-bottom:8px;">${q.question}</div>
@@ -4386,6 +4475,11 @@ function viewQuizResultModal(quizId, studentId) {
             ${!isCorrect ? `
               <div style="font-size:0.88rem; color:#059669; font-weight:700; margin:4px 0;">
                 <i class="fa-solid fa-circle-check"></i> คำตอบที่ถูกต้อง: ${correctChoiceText}
+              </div>
+            ` : ''}
+            ${qComment ? `
+              <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:8px 12px; margin-top:8px; font-size:0.86rem; color:#1e40af;">
+                <i class="fa-solid fa-comment-dots"></i> <strong>ข้อเสนอแนะรายข้อ:</strong> ${qComment}
               </div>
             ` : ''}
             ${q.explanation ? `
@@ -4495,20 +4589,28 @@ function renderQuizScoresTable() {
 
   // Calculate Statistics
   const totalCount = studentIds.length;
+  let pendingCount = 0;
+  let gradedCount = 0;
   let passedCount = 0;
   let failedCount = 0;
   let totalScoresSum = 0;
 
   studentIds.forEach(sId => {
     const sub = quizSubs[sId];
-    if (sub.passed) passedCount++;
-    else failedCount++;
-    totalScoresSum += (sub.score !== undefined ? sub.score : 0);
+    const isPending = (sub.isGraded === false || sub.status === 'pending');
+    if (isPending) {
+      pendingCount++;
+    } else {
+      gradedCount++;
+      if (sub.passed) passedCount++;
+      else failedCount++;
+      totalScoresSum += (sub.score !== undefined ? sub.score : 0);
+    }
   });
 
   const maxScore = quiz.questions ? quiz.questions.reduce((acc, q) => acc + (q.points || 1), 0) : 0;
-  const avgScore = totalCount > 0 ? (totalScoresSum / totalCount).toFixed(1) : '0';
-  const passRate = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
+  const avgScore = gradedCount > 0 ? (totalScoresSum / gradedCount).toFixed(1) : '0';
+  const passRate = gradedCount > 0 ? Math.round((passedCount / gradedCount) * 100) : 0;
 
   // Render Summary Pills
   if (pillsContainer) {
@@ -4516,8 +4618,13 @@ function renderQuizScoresTable() {
       <span class="badge badge-purple" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
         <i class="fa-solid fa-users"></i> ผู้เข้าสอบ ${totalCount} คน
       </span>
+      ${pendingCount > 0 ? `
+        <span class="badge badge-amber" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
+          <i class="fa-solid fa-hourglass-half"></i> รอตรวจ ${pendingCount} คน
+        </span>
+      ` : ''}
       <span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
-        <i class="fa-solid fa-calculator"></i> เฉลี่ย ${avgScore} / ${maxScore} คะแนน
+        <i class="fa-solid fa-calculator"></i> เฉลี่ย ${avgScore} / ${maxScore} คะแนน (ตรวจแล้ว ${gradedCount})
       </span>
       <span class="badge badge-green" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
         <i class="fa-solid fa-circle-check"></i> ผ่าน ${passedCount} คน (${passRate}%)
@@ -4550,11 +4657,12 @@ function renderQuizScoresTable() {
     const no = std.no ? std.no : idx + 1;
     const studentName = sub.studentName || std.name || '-';
     const classLevel = (sub.classLevel || std.classLevel || '-').trim().replace(/^"|"$/g, '');
+    const isPending = (sub.isGraded === false || sub.status === 'pending');
     const isPassed = sub.passed;
-    const completedAt = sub.completedAt || '-';
+    const completedAt = sub.completedAt || sub.submittedAt || '-';
 
     html += `
-      <tr>
+      <tr style="${isPending ? 'background:#fffdf7;' : ''}">
         <td style="text-align:center; font-weight:600; color:#64748b;">${idx + 1}</td>
         <td style="text-align:center; font-weight:700; color:#1e293b;">${no}</td>
         <td>
@@ -4574,22 +4682,43 @@ function renderQuizScoresTable() {
           ${completedAt}
         </td>
         <td style="text-align:center;">
-          <strong style="font-size:1.05rem; color:${isPassed ? '#059669' : '#dc2626'};">
-            ${sub.score} / ${sub.totalScore || maxScore}
-          </strong>
+          ${isPending ? `
+            <span class="badge badge-amber" style="font-weight:700; font-size:0.82rem;">
+              <i class="fa-solid fa-hourglass-half"></i> รอตรวจ
+            </span>
+          ` : `
+            <strong style="font-size:1.05rem; color:${isPassed ? '#059669' : '#dc2626'};">
+              ${sub.score} / ${sub.totalScore || maxScore}
+            </strong>
+          `}
         </td>
         <td style="text-align:center; font-weight:700; color:#475569; font-size:0.92rem;">
-          ${sub.percentage}%
+          ${isPending ? '<span style="color:#94a3b8;">-</span>' : `${sub.percentage}%`}
         </td>
         <td style="text-align:center;">
-          <span class="badge ${isPassed ? 'badge-green' : 'badge-red'}" style="font-size:0.8rem; font-weight:800; padding:4px 10px; border-radius:8px;">
-            <i class="${isPassed ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i> ${isPassed ? 'ผ่านเกณฑ์' : 'ไม่ผ่าน'}
-          </span>
+          ${isPending ? `
+            <span class="badge badge-amber" style="font-size:0.8rem; font-weight:800; padding:4px 10px; border-radius:8px;">
+              <i class="fa-solid fa-clock"></i> รอตรวจ
+            </span>
+          ` : `
+            <span class="badge ${isPassed ? 'badge-green' : 'badge-red'}" style="font-size:0.8rem; font-weight:800; padding:4px 10px; border-radius:8px;">
+              <i class="${isPassed ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i> ${isPassed ? 'ผ่านเกณฑ์' : 'ไม่ผ่าน'}
+            </span>
+          `}
         </td>
         <td style="text-align:center;">
-          <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${studentId}')" style="border-radius:8px; padding:5px 9px; font-size:0.8rem; font-weight:700;" title="ดูคำตอบและตรวจกระดาษคำตอบ">
-              <i class="fa-solid fa-file-lines"></i> ดูคำตอบ
+          <div style="display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap;">
+            ${isPending ? `
+              <button type="button" class="btn btn-sm btn-warning" onclick="openTeacherGradeQuizModal('${quizId}', '${studentId}')" style="border-radius:8px; padding:5px 10px; font-size:0.8rem; font-weight:700; background:#d97706; border-color:#d97706; color:#ffffff; box-shadow:0 2px 6px rgba(217,119,6,0.3);" title="ตรวจและให้คะแนนข้อสอบ">
+                <i class="fa-solid fa-pen-to-square"></i> ตรวจให้คะแนน
+              </button>
+            ` : `
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="openTeacherGradeQuizModal('${quizId}', '${studentId}')" style="border-radius:8px; padding:5px 9px; font-size:0.8rem; font-weight:700;" title="ตรวจทานหรือแก้ไขคะแนน">
+                <i class="fa-solid fa-pen-to-square"></i> ตรวจ/แก้คะแนน
+              </button>
+            `}
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="viewQuizResultModal('${quizId}', '${studentId}')" style="border-radius:8px; padding:5px 8px; font-size:0.78rem;" title="ดูผลและเฉลย">
+              <i class="fa-solid fa-file-lines"></i>
             </button>
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetStudentQuizAttempt('${quizId}', '${studentId}', '${studentName.replace(/'/g, "\\'")}')" style="border-radius:8px; padding:5px 8px; font-size:0.78rem;" title="ลบคะแนนเพื่อให้นักเรียนสอบใหม่">
               <i class="fa-solid fa-rotate-left"></i>
@@ -4617,6 +4746,351 @@ function resetStudentQuizAttempt(quizId, studentId, studentName) {
         logActivity(`ลบผลคะแนนสอบของนักเรียน: ${studentName}`);
       });
     }
+  });
+}
+
+
+/* -------------------------------------------------------------
+   TEACHER QUIZ SUBMISSION GRADING ENGINE (ข้อสอบอัตนัย & ผสม)
+------------------------------------------------------------- */
+function openTeacherGradeQuizModal(quizId, studentId) {
+  if (!currentUser || currentUser.role === 'student') {
+    showPopupError("ไม่มีสิทธิ์ดำเนินการ", "นักเรียนไม่มีสิทธิ์เข้าถึงฟังก์ชันตรวจข้อสอบ");
+    return;
+  }
+
+  const quiz = quizzesData[quizId];
+  const res = (quizResultsData[quizId] && quizResultsData[quizId][studentId]) 
+    ? quizResultsData[quizId][studentId]
+    : null;
+
+  if (!quiz || !res) {
+    showPopupError("ไม่พบข้อมูล", "ไม่พบข้อมูลกระดาษคำตอบของนักเรียน");
+    return;
+  }
+
+  const std = studentsData[studentId] || {};
+  const studentName = res.studentName || std.name || '-';
+  const classLevel = (res.classLevel || std.classLevel || '-').trim().replace(/^"|"$/g, '');
+  const course = coursesData[quiz.courseId] || { name: 'วิชาทั่วไป', code: '-' };
+
+  document.getElementById('active-grading-quiz-id').value = quizId;
+  document.getElementById('active-grading-student-id').value = studentId;
+
+  document.getElementById('grade-quiz-subtitle').innerHTML = `
+    <span style="color:#60a5fa; font-weight:700;"><i class="fa-solid fa-book"></i> ${course.code || '-'} ${course.name}</span> 
+    • <strong style="color:#ffffff;">${quiz.title}</strong>
+  `;
+
+  // Student Banner
+  const isPending = (res.isGraded === false || res.status === 'pending');
+  const studentBanner = document.getElementById('grade-quiz-student-banner');
+  if (studentBanner) {
+    studentBanner.innerHTML = `
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="width:44px; height:44px; border-radius:12px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:1.3rem;">
+          <i class="fa-solid fa-user-graduate"></i>
+        </div>
+        <div>
+          <div style="font-weight:800; font-size:1.05rem; color:#0f172a;">${studentName} <span class="badge badge-blue" style="font-family:monospace; margin-left:6px;">${studentId}</span></div>
+          <div style="font-size:0.84rem; color:#64748b;">ห้อง ${classLevel} • เลขที่ ${std.no || '-'} • ส่งเมื่อ: <strong>${res.completedAt || res.submittedAt || '-'}</strong></div>
+        </div>
+      </div>
+      <div>
+        <span class="badge ${isPending ? 'badge-amber' : (res.passed ? 'badge-green' : 'badge-red')}" style="font-size:0.85rem; font-weight:800; padding:6px 14px; border-radius:10px;">
+          <i class="${isPending ? 'fa-solid fa-hourglass-half' : (res.passed ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark')}"></i>
+          ${isPending ? 'สถานะ: รอตรวจให้คะแนน' : `ตรวจแล้ว (${res.score}/${res.totalScore} คะแนน)`}
+        </span>
+      </div>
+    `;
+  }
+
+  // Populate overall feedback
+  const feedbackInput = document.getElementById('teacher-quiz-overall-feedback');
+  if (feedbackInput) {
+    feedbackInput.value = res.teacherFeedback || '';
+  }
+
+  // Render question cards for grading
+  const container = document.getElementById('quiz-grading-questions-container');
+  if (container && quiz.questions) {
+    const choiceLabels = ['ก', 'ข', 'ค', 'ง', 'จ'];
+    let html = '';
+
+    quiz.questions.forEach((q, idx) => {
+      const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
+      const maxPts = q.points || 1;
+      const userAns = (res.userAnswers && res.userAnswers[idx] !== undefined) ? res.userAnswers[idx] : null;
+      const reviewImgHtml = renderReviewQuestionImagesHtml(q, idx + 1);
+
+      // Existing saved score or auto-calculated objective score
+      let savedScore = 0;
+      if (res.questionScores && res.questionScores[idx] !== undefined) {
+        savedScore = res.questionScores[idx];
+      } else if (!isSubjective && userAns === q.correctIndex) {
+        savedScore = maxPts;
+      }
+
+      const savedComment = (res.questionComments && res.questionComments[idx]) ? res.questionComments[idx] : '';
+
+      if (isSubjective) {
+        const typedText = (typeof userAns === 'string') ? userAns : (userAns ? String(userAns) : '');
+        html += `
+          <div class="grading-q-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+                <span class="exam-q-type-pill exam-q-type-subjective"><i class="fa-solid fa-pen-nib"></i> อัตนัย (พิมพ์ตอบ)</span>
+              </div>
+              <span class="badge badge-purple" style="font-weight:700;"><i class="fa-solid fa-star"></i> คะแนนเต็ม ${maxPts} คะแนน</span>
+            </div>
+
+            <div style="font-weight:700; color:#0f172a; font-size:0.96rem; margin-bottom:8px; line-height:1.5;">${q.question}</div>
+            ${reviewImgHtml}
+
+            <!-- Student Typed Answer -->
+            <div style="margin-top:10px;">
+              <div style="font-weight:700; font-size:0.86rem; color:#475569; margin-bottom:4px;">
+                <i class="fa-solid fa-user-pen" style="color:var(--primary);"></i> คำตอบที่นักเรียนพิมพ์:
+              </div>
+              <div class="review-student-answer-box" style="white-space:pre-wrap; line-height:1.5; font-size:0.94rem; background:#f8fafc; border:1.5px solid #cbd5e1;">
+                ${typedText ? typedText : '<span style="color:#94a3b8; font-style:italic;">(นักเรียนไม่ได้พิมพ์คำตอบ)</span>'}
+              </div>
+            </div>
+
+            <!-- Model Answer Rubric if available -->
+            ${(q.sampleAnswer || q.explanation) ? `
+              <div class="review-model-answer-box" style="margin-top:8px;">
+                <div style="font-weight:700; font-size:0.86rem; margin-bottom:4px;"><i class="fa-solid fa-lightbulb"></i> แนวคำตอบเฉลย / เกณฑ์การให้คะแนน:</div>
+                <div style="white-space:pre-wrap; line-height:1.4;">${q.sampleAnswer || q.explanation}</div>
+              </div>
+            ` : ''}
+
+            <!-- Teacher Score & Comment Controls -->
+            <div class="grading-teacher-score-row">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <label style="font-weight:700; color:#0f172a; font-size:0.9rem; margin:0;">
+                  <i class="fa-solid fa-pen" style="color:#d97706;"></i> ให้คะแนนข้อนี้:
+                </label>
+                <div style="display:inline-flex; align-items:center; gap:6px;">
+                  <input type="number" 
+                         id="grading-q-score-${idx}" 
+                         class="teacher-q-score-input" 
+                         min="0" 
+                         max="${maxPts}" 
+                         step="0.5" 
+                         value="${savedScore}" 
+                         data-max="${maxPts}" 
+                         oninput="updateTeacherQuizGradingLiveTotal()" 
+                         onchange="validateGradingScoreInput(this, ${maxPts})">
+                  <span style="font-weight:700; color:#64748b; font-size:0.9rem;">/ ${maxPts}</span>
+                </div>
+
+                <!-- Quick Score Buttons -->
+                <div style="display:inline-flex; gap:4px;">
+                  <button type="button" class="quick-score-btn" onclick="setQuickGradingScore(${idx}, 0)">0</button>
+                  ${maxPts > 1 ? `<button type="button" class="quick-score-btn" onclick="setQuickGradingScore(${idx}, ${maxPts / 2})">${maxPts / 2}</button>` : ''}
+                  <button type="button" class="quick-score-btn" onclick="setQuickGradingScore(${idx}, ${maxPts})">เต็ม (${maxPts})</button>
+                </div>
+              </div>
+
+              <!-- Question Comment -->
+              <div style="flex:1; min-width:240px;">
+                <input type="text" id="grading-q-comment-${idx}" class="form-control" placeholder="ข้อเสนอแนะรายข้อ (ถ้ามี)..." value="${savedComment.replace(/"/g, '&quot;')}" style="font-size:0.86rem; border-radius:8px; padding:6px 12px;">
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        const isCorrect = userAns === q.correctIndex;
+        const studentChoiceText = (userAns !== null && userAns >= 0 && q.options && q.options[userAns]) 
+          ? `${choiceLabels[userAns]}. ${q.options[userAns]}` 
+          : '(ไม่ได้ตอบ)';
+        const correctChoiceText = (q.options && q.options[q.correctIndex]) 
+          ? `${choiceLabels[q.correctIndex]}. ${q.options[q.correctIndex]}` 
+          : '-';
+
+        html += `
+          <div class="grading-q-card" style="border-left: 5px solid ${isCorrect ? '#10b981' : '#ef4444'};">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+                <span class="exam-q-type-pill exam-q-type-choice"><i class="fa-solid fa-list-check"></i> ปรนัย</span>
+                <span class="badge ${isCorrect ? 'badge-green' : 'badge-red'}" style="font-weight:800; font-size:0.8rem;">
+                  <i class="${isCorrect ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ${isCorrect ? 'ตอบถูก' : 'ตอบผิด'}
+                </span>
+              </div>
+              <span class="badge badge-purple" style="font-weight:700;"><i class="fa-solid fa-star"></i> คะแนนเต็ม ${maxPts} คะแนน</span>
+            </div>
+
+            <div style="font-weight:700; color:#0f172a; font-size:0.96rem; margin-bottom:8px;">${q.question}</div>
+            ${reviewImgHtml}
+
+            <div style="font-size:0.88rem; margin:6px 0;">
+              <strong>คำตอบของนักเรียน:</strong> <span style="color:${isCorrect ? '#059669' : '#dc2626'}; font-weight:700;">${studentChoiceText}</span>
+            </div>
+            ${!isCorrect ? `
+              <div style="font-size:0.88rem; color:#059669; font-weight:700; margin:4px 0;">
+                <i class="fa-solid fa-circle-check"></i> คำตอบที่ถูกต้อง: ${correctChoiceText}
+              </div>
+            ` : ''}
+
+            <!-- Objective Score Controls (Teacher can still override if needed) -->
+            <div class="grading-teacher-score-row" style="padding:8px 14px; background:#ffffff;">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <label style="font-weight:700; color:#475569; font-size:0.88rem; margin:0;">
+                  คะแนนที่ได้ (ระบบคำนวณ):
+                </label>
+                <div style="display:inline-flex; align-items:center; gap:6px;">
+                  <input type="number" 
+                         id="grading-q-score-${idx}" 
+                         class="teacher-q-score-input" 
+                         min="0" 
+                         max="${maxPts}" 
+                         step="0.5" 
+                         value="${savedScore}" 
+                         data-max="${maxPts}" 
+                         oninput="updateTeacherQuizGradingLiveTotal()" 
+                         onchange="validateGradingScoreInput(this, ${maxPts})">
+                  <span style="font-weight:700; color:#64748b; font-size:0.9rem;">/ ${maxPts}</span>
+                </div>
+              </div>
+              <div style="flex:1; min-width:240px;">
+                <input type="text" id="grading-q-comment-${idx}" class="form-control" placeholder="ข้อเสนอแนะรายข้อ (ถ้ามี)..." value="${savedComment.replace(/"/g, '&quot;')}" style="font-size:0.86rem; border-radius:8px; padding:6px 12px;">
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    container.innerHTML = html;
+  }
+
+  updateTeacherQuizGradingLiveTotal();
+  openModal('modal-grade-quiz');
+}
+
+function setQuickGradingScore(idx, score) {
+  const input = document.getElementById(`grading-q-score-${idx}`);
+  if (input) {
+    input.value = score;
+    updateTeacherQuizGradingLiveTotal();
+  }
+}
+
+function validateGradingScoreInput(inputEl, maxScore) {
+  let val = parseFloat(inputEl.value);
+  if (isNaN(val) || val < 0) {
+    inputEl.value = 0;
+  } else if (val > maxScore) {
+    inputEl.value = maxScore;
+    showPopupWarning("คะแนนเกินกำหนด", `คะแนนข้อนี้สูงสุดไม่เกิน ${maxScore} คะแนน`);
+  }
+  updateTeacherQuizGradingLiveTotal();
+}
+
+function updateTeacherQuizGradingLiveTotal() {
+  const quizId = document.getElementById('active-grading-quiz-id').value;
+  const quiz = quizzesData[quizId];
+  if (!quiz || !quiz.questions) return;
+
+  let totalScore = 0;
+  const maxScore = quiz.questions.reduce((acc, q) => acc + (q.points || 1), 0) || quiz.questions.length;
+
+  quiz.questions.forEach((q, idx) => {
+    const input = document.getElementById(`grading-q-score-${idx}`);
+    if (input) {
+      const val = parseFloat(input.value);
+      if (!isNaN(val) && val >= 0) {
+        totalScore += val;
+      }
+    }
+  });
+
+  // Round to 2 decimal points if needed
+  totalScore = Math.round(totalScore * 10) / 10;
+  const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+  const passScore = quiz.passScore || 50;
+  const isPassed = percentage >= passScore;
+
+  const scoreEl = document.getElementById('teacher-grading-live-score');
+  const maxEl = document.getElementById('teacher-grading-live-max');
+  const pctEl = document.getElementById('teacher-grading-live-pct');
+  const statusEl = document.getElementById('teacher-grading-live-status');
+
+  if (scoreEl) scoreEl.innerText = totalScore;
+  if (maxEl) maxEl.innerText = maxScore;
+  if (pctEl) pctEl.innerText = `(${percentage}%)`;
+  if (statusEl) {
+    statusEl.innerHTML = isPassed 
+      ? `<span class="badge badge-green" style="font-size:0.95rem; font-weight:800; padding:6px 16px; border-radius:10px;"><i class="fa-solid fa-circle-check"></i> ผ่านเกณฑ์ (${passScore}%)</span>`
+      : `<span class="badge badge-red" style="font-size:0.95rem; font-weight:800; padding:6px 16px; border-radius:10px;"><i class="fa-solid fa-circle-xmark"></i> ไม่ผ่านเกณฑ์ (${passScore}%)</span>`;
+  }
+}
+
+function saveTeacherQuizGrading() {
+  const quizId = document.getElementById('active-grading-quiz-id').value;
+  const studentId = document.getElementById('active-grading-student-id').value;
+
+  const quiz = quizzesData[quizId];
+  const existingRes = (quizResultsData[quizId] && quizResultsData[quizId][studentId]) ? quizResultsData[quizId][studentId] : {};
+
+  if (!quiz || !studentId) return;
+
+  const questions = quiz.questions || [];
+  let totalScore = 0;
+  const questionScores = [];
+  const questionComments = [];
+
+  questions.forEach((q, idx) => {
+    const scoreInput = document.getElementById(`grading-q-score-${idx}`);
+    const commentInput = document.getElementById(`grading-q-comment-${idx}`);
+
+    let qScore = scoreInput ? parseFloat(scoreInput.value) : 0;
+    if (isNaN(qScore) || qScore < 0) qScore = 0;
+    const maxPts = q.points || 1;
+    if (qScore > maxPts) qScore = maxPts;
+
+    questionScores.push(qScore);
+    totalScore += qScore;
+    questionComments.push(commentInput ? commentInput.value.trim() : '');
+  });
+
+  totalScore = Math.round(totalScore * 10) / 10;
+  const maxScore = questions.reduce((acc, q) => acc + (q.points || 1), 0) || questions.length;
+  const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+  const passScore = quiz.passScore || 50;
+  const passed = percentage >= passScore;
+  const overallFeedback = document.getElementById('teacher-quiz-overall-feedback')?.value.trim() || '';
+
+  const resultPath = `quiz_results/${quizId}/${studentId}`;
+  
+  const updatedData = {
+    ...existingRes,
+    studentId: studentId,
+    studentName: existingRes.studentName || (studentsData[studentId] ? studentsData[studentId].name : '-'),
+    classLevel: existingRes.classLevel || (studentsData[studentId] ? studentsData[studentId].classLevel : ''),
+    score: totalScore,
+    totalScore: maxScore,
+    percentage: percentage,
+    passed: passed,
+    isGraded: true,
+    status: 'graded',
+    questionScores: questionScores,
+    questionComments: questionComments,
+    teacherFeedback: overallFeedback,
+    gradedAt: new Date().toLocaleString('th-TH'),
+    gradedBy: currentUser ? currentUser.name : 'คุณครู'
+  };
+
+  saveData(resultPath, updatedData).then(() => {
+    closeModal('modal-grade-quiz');
+    showPopupSuccess("บันทึกผลการตรวจเรียบร้อย", `บันทึกคะแนนของ ${updatedData.studentName} (${totalScore}/${maxScore} คะแนน) เรียบร้อยแล้ว`);
+    renderQuizScoresTable();
+    logActivity(`ครูตรวจข้อสอบ ${quiz.title} ให้นักเรียน ${updatedData.studentName}: ได้ ${totalScore}/${maxScore} คะแนน`);
+  }).catch((err) => {
+    showPopupError("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง: " + err.message);
   });
 }
 
@@ -4725,7 +5199,7 @@ function renderScoreReports() {
     for (let q = 0; q < activeQuizzes.length; q++) {
       const quiz = activeQuizzes[q];
       const qRes = quizResultsData[quiz.id]?.[studentId];
-      if (qRes && qRes.score !== undefined) {
+      if (qRes && qRes.isGraded !== false && qRes.score !== undefined) {
         totalQuizEarned += qRes.score;
       }
     }
