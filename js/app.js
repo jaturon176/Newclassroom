@@ -4028,10 +4028,22 @@ function startQuizRunner(quizId) {
           </div>
           <div class="exam-subjective-box">
             <label class="exam-subjective-label">
-              <span><i class="fa-solid fa-keyboard" style="color:var(--primary);"></i> พิมพ์คำตอบของคุณ:</span>
+              <span style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <i class="fa-solid fa-keyboard" style="color:var(--primary);"></i> 
+                <span>พิมพ์คำตอบของคุณ:</span>
+                <span class="badge" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; font-size:0.72rem; font-weight:700; padding:2px 8px; border-radius:6px;">
+                  <i class="fa-solid fa-ban"></i> ไม่อนุญาตให้คัดลอก/วาง (พิมพ์เองเท่านั้น)
+                </span>
+              </span>
               <span style="font-size:0.78rem; color:#64748b;" id="sub-char-cnt-${idx}">0 ตัวอักษร</span>
             </label>
-            <textarea id="quiz-subjective-ans-${idx}" class="exam-subjective-textarea" rows="4" placeholder="พิมพ์คำตอบของคุณที่นี่..." oninput="onSubjectiveAnswerInput(${idx}, this)"></textarea>
+            <textarea id="quiz-subjective-ans-${idx}" class="exam-subjective-textarea" rows="4" 
+              placeholder="พิมพ์คำตอบของคุณที่นี่ (ไม่อนุญาตให้คัดลอกหรือวางข้อความ กรุณาพิมพ์ตอบด้วยตนเอง)..." 
+              oninput="onSubjectiveAnswerInput(${idx}, this)"
+              onpaste="return handleSubjectivePastePrevent(event)"
+              ondrop="return handleSubjectivePastePrevent(event)"
+              onkeydown="handleSubjectiveKeyDown(event)"
+              oncontextmenu="return handleSubjectiveContextMenu(event)"></textarea>
           </div>
         </div>
       `;
@@ -4123,6 +4135,45 @@ function onSubjectiveAnswerInput(idx, textareaEl) {
     cntEl.innerText = `${textareaEl.value.length} ตัวอักษร`;
   }
   calculateExamProgress();
+}
+
+function handleSubjectivePastePrevent(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (typeof Swal !== 'undefined') {
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3500,
+      timerProgressBar: true
+    });
+    Toast.fire({
+      icon: 'warning',
+      title: 'ไม่อนุญาตให้วางข้อความ (Paste)',
+      text: 'ข้อสอบอัตนัยนี้กำหนดให้นักเรียนพิมพ์ตอบด้วยตนเองเท่านั้น'
+    });
+  }
+  return false;
+}
+
+function handleSubjectiveKeyDown(e) {
+  // Block Ctrl+V, Cmd+V, Shift+Insert
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V' || e.keyCode === 86)) {
+    return handleSubjectivePastePrevent(e);
+  }
+  if (e.shiftKey && (e.key === 'Insert' || e.keyCode === 45)) {
+    return handleSubjectivePastePrevent(e);
+  }
+}
+
+function handleSubjectiveContextMenu(e) {
+  if (e) {
+    e.preventDefault();
+  }
+  return handleSubjectivePastePrevent(e);
 }
 
 function selectExamChoiceRadio(cardEl, qIdx, oIdx) {
