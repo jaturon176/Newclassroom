@@ -2786,59 +2786,105 @@ function deleteStudentSubmission(hwId, studentId, studentName = 'นักเร
 /* -------------------------------------------------------------
    7. QUIZ / EXAM BUILDER & RUNNER
 ------------------------------------------------------------- */
+function onQuestionTypeChange(qIndex, newType, isEdit = false) {
+  if (isEdit) {
+    if (editQuizQuestionsList[qIndex]) {
+      editQuizQuestionsList[qIndex].qType = newType;
+    }
+    renderEditQuizQuestionsBuilder();
+  } else {
+    if (quizQuestionsList[qIndex]) {
+      quizQuestionsList[qIndex].qType = newType;
+    }
+    renderQuizQuestionsBuilder();
+  }
+}
+
+function renderQuestionBuilderCard(q, qIndex, isEdit = false) {
+  const prefix = isEdit ? 'edit-builder' : 'builder';
+  const removeFn = isEdit ? `removeEditQuizQuestionItem(${qIndex})` : `removeQuizQuestionItem(${qIndex})`;
+  const typeSelectId = isEdit ? 'edit-quiz-type' : 'quiz-type';
+  const typeSelectEl = document.getElementById(typeSelectId);
+  const overallQuizType = typeSelectEl ? typeSelectEl.value : '4';
+  
+  let qType = q.qType;
+  if (!qType) {
+    qType = (overallQuizType === 'subjective') ? 'subjective' : 'choice';
+  }
+
+  const choiceCount = overallQuizType === '5' ? 5 : 4;
+  const choiceLabels = choiceCount === 5 ? ['ก', 'ข', 'ค', 'ง', 'จ'] : ['ก', 'ข', 'ค', 'ง'];
+
+  return `
+    <div class="quiz-question-card" id="${prefix}-qcard-${qIndex}">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h5 style="font-weight:700; color:var(--primary); margin:0;">ข้อที่ ${qIndex + 1}</h5>
+          <select id="${prefix}-qtype-${qIndex}" class="form-control" style="width:auto; padding:4px 10px; font-size:0.84rem; font-weight:700; border-radius:8px;" onchange="onQuestionTypeChange(${qIndex}, this.value, ${isEdit})">
+            <option value="choice" ${qType === 'choice' ? 'selected' : ''}>ปรนัย (เลือกตอบ)</option>
+            <option value="subjective" ${qType === 'subjective' ? 'selected' : ''}>อัตนัย (เขียน/พิมพ์ตอบ)</option>
+          </select>
+        </div>
+        ${((isEdit ? editQuizQuestionsList : quizQuestionsList).length > 1) ? `
+          <button type="button" class="btn btn-sm btn-danger" onclick="${removeFn}" style="border-radius:8px; padding:4px 10px; font-size:0.82rem;">
+            <i class="fa-solid fa-trash"></i> ลบข้อนี้
+          </button>
+        ` : ''}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">คำถาม ข้อที่ ${qIndex + 1} *</label>
+        <textarea id="${prefix}-question-${qIndex}" class="form-control" style="padding:10px 14px; min-height:60px;" required placeholder="กรอกข้อความคำถาม...">${q.question ? q.question.replace(/"/g, '&quot;') : ''}</textarea>
+      </div>
+
+      ${qType === 'subjective' ? `
+        <!-- Subjective Question Fields -->
+        <div style="background:#fefce8; border:1px solid #fef08a; border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+          <div style="font-weight:700; color:#854d0e; font-size:0.88rem; margin-bottom:6px;">
+            <i class="fa-solid fa-lightbulb"></i> แนวคำตอบเฉลย / ประเด็นสำคัญ (Model Answer):
+          </div>
+          <textarea id="${prefix}-sample-answer-${qIndex}" class="form-control" style="padding:8px 12px; font-size:0.88rem; min-height:60px;" placeholder="กรอกแนวคำตอบที่ถูกต้องหรือคีย์เวิร์ดสำคัญ (สำหรับแสดงในเฉลยให้นักเรียน)...">${q.sampleAnswer ? q.sampleAnswer.replace(/"/g, '&quot;') : (q.explanation ? q.explanation.replace(/"/g, '&quot;') : '')}</textarea>
+        </div>
+      ` : `
+        <!-- Multiple Choice Fields -->
+        <div style="margin-bottom:10px; font-weight:600; font-size:0.92rem; color:#334155;">
+          ตัวเลือกคำตอบ (ทำเครื่องหมาย <i class="fa-solid fa-circle-dot" style="color:var(--primary);"></i> เลือกคำตอบที่ถูกต้อง):
+        </div>
+        ${choiceLabels.map((label, cIndex) => {
+          const isCorrect = (q.correctIndex === cIndex);
+          const choiceVal = (q.options && q.options[cIndex]) ? q.options[cIndex].replace(/"/g, '&quot;') : '';
+          return `
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+              <input type="radio" name="${prefix}-correct-${qIndex}" value="${cIndex}" ${isCorrect ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--primary);">
+              <span style="font-weight:700; width:24px; color:#1e293b;">${label}.</span>
+              <input type="text" id="${prefix}-option-${qIndex}-${cIndex}" class="form-control" style="padding-left:14px;" value="${choiceVal}" placeholder="ข้อความตัวเลือก ${label}" required>
+            </div>
+          `;
+        }).join('')}
+      `}
+
+      <div class="form-group" style="margin-top:10px; margin-bottom:0;">
+        <label class="form-label" style="font-size:0.84rem; color:#64748b;">คำอธิบายเฉลยเพิ่มเติม (Explanation - ไม่บังคับ)</label>
+        <input type="text" id="${prefix}-explanation-${qIndex}" class="form-control" style="padding-left:14px; font-size:0.88rem;" value="${q.explanation ? q.explanation.replace(/"/g, '&quot;') : ''}" placeholder="เหตุผลหรือคำอธิบายเพิ่มเติม...">
+      </div>
+    </div>
+  `;
+}
+
 function renderQuizQuestionsBuilder() {
   const container = document.getElementById('quiz-questions-builder-container');
-  const quizType = document.getElementById('quiz-type').value; // 4 or 5 choices
-  const choiceCount = parseInt(quizType);
-
+  if (!container) return;
   let html = '';
   quizQuestionsList.forEach((q, qIndex) => {
-    html += `
-      <div class="quiz-question-card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h5 style="font-weight:700; color:var(--primary);">ข้อที่ ${qIndex + 1}</h5>
-          ${quizQuestionsList.length > 1 ? `
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeQuizQuestionItem(${qIndex})"><i class="fa-solid fa-trash"></i> ลบข้อนี้</button>
-          ` : ''}
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">คำถาม ข้อที่ ${qIndex + 1} *</label>
-          <input type="text" id="builder-question-${qIndex}" class="form-control" style="padding-left:14px;" value="${q.question || ''}" required placeholder="กรอกคำถาม...">
-        </div>
-
-        <div style="margin-bottom:10px; font-weight:600; font-size:0.95rem; color:#334155;">ตัวเลือกคำตอบ (ทำเครื่องหมายเลือกคำตอบที่ถูกต้อง):</div>
-    `;
-
-    const choiceLabels = choiceCount === 4 ? ['ก', 'ข', 'ค', 'ง'] : ['ก', 'ข', 'ค', 'ง', 'จ'];
-    
-    choiceLabels.forEach((label, cIndex) => {
-      const isCorrect = q.correctIndex === cIndex;
-      const choiceVal = (q.options && q.options[cIndex]) ? q.options[cIndex] : '';
-
-      html += `
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-          <input type="radio" name="builder-correct-${qIndex}" value="${cIndex}" ${isCorrect ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--primary);">
-          <span style="font-weight:700; width:24px;">${label}.</span>
-          <input type="text" id="builder-option-${qIndex}-${cIndex}" class="form-control" style="padding-left:14px;" value="${choiceVal}" placeholder="ข้อความตัวเลือก ${label}" required>
-        </div>
-      `;
-    });
-
-    html += `
-        <div class="form-group" style="margin-top:12px;">
-          <label class="form-label">คำอธิบายเฉลย (Explanation)</label>
-          <input type="text" id="builder-explanation-${qIndex}" class="form-control" style="padding-left:14px;" value="${q.explanation || ''}" placeholder="เหตุผลคำอธิบายคำตอบที่ถูกต้อง...">
-        </div>
-      </div>
-    `;
+    html += renderQuestionBuilderCard(q, qIndex, false);
   });
-
   container.innerHTML = html;
 }
 
 function addQuizQuestionItem() {
-  quizQuestionsList.push({ question: '', options: ['', '', '', '', ''], correctIndex: 0, explanation: '' });
+  const overallType = document.getElementById('quiz-type') ? document.getElementById('quiz-type').value : '4';
+  const defaultQType = (overallType === 'subjective') ? 'subjective' : 'choice';
+  quizQuestionsList.push({ qType: defaultQType, question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
   renderQuizQuestionsBuilder();
 }
 
@@ -2848,7 +2894,11 @@ function removeQuizQuestionItem(index) {
 }
 
 function openCreateQuizModal() {
-  quizQuestionsList = [{ question: '', options: ['', '', '', '', ''], correctIndex: 0, explanation: '' }];
+  const defaultType = '4';
+  const typeSelect = document.getElementById('quiz-type');
+  if (typeSelect) typeSelect.value = defaultType;
+
+  quizQuestionsList = [{ qType: 'choice', question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
   document.getElementById('quiz-title').value = '';
   document.getElementById('quiz-duration').value = 15;
   document.getElementById('quiz-pass-score').value = 50;
@@ -2871,32 +2921,48 @@ function saveQuizForm(e) {
   const duration = parseInt(document.getElementById('quiz-duration').value) || 15;
   const passScore = parseInt(document.getElementById('quiz-pass-score').value) || 50;
 
-  const choiceCount = parseInt(type);
   const compiledQuestions = [];
 
   for (let i = 0; i < quizQuestionsList.length; i++) {
+    const qTypeEl = document.getElementById(`builder-qtype-${i}`);
+    const qType = qTypeEl ? qTypeEl.value : 'choice';
     const qText = document.getElementById(`builder-question-${i}`).value.trim();
-    const expText = document.getElementById(`builder-explanation-${i}`).value.trim();
-    const correctRadios = document.getElementsByName(`builder-correct-${i}`);
-    
-    let selectedCorrectIndex = 0;
-    correctRadios.forEach((r, idx) => {
-      if (r.checked) selectedCorrectIndex = idx;
-    });
+    const expText = document.getElementById(`builder-explanation-${i}`) ? document.getElementById(`builder-explanation-${i}`).value.trim() : '';
 
-    const optionsArr = [];
-    for (let c = 0; c < choiceCount; c++) {
-      const optVal = document.getElementById(`builder-option-${i}-${c}`).value.trim();
-      optionsArr.push(optVal);
+    if (qType === 'subjective') {
+      const sampleAns = document.getElementById(`builder-sample-answer-${i}`) ? document.getElementById(`builder-sample-answer-${i}`).value.trim() : '';
+      compiledQuestions.push({
+        id: i + 1,
+        qType: 'subjective',
+        question: qText,
+        sampleAnswer: sampleAns,
+        explanation: expText || sampleAns,
+        points: 1
+      });
+    } else {
+      const correctRadios = document.getElementsByName(`builder-correct-${i}`);
+      let selectedCorrectIndex = 0;
+      correctRadios.forEach((r, idx) => {
+        if (r.checked) selectedCorrectIndex = idx;
+      });
+
+      const choiceCount = type === '5' ? 5 : 4;
+      const optionsArr = [];
+      for (let c = 0; c < choiceCount; c++) {
+        const optInput = document.getElementById(`builder-option-${i}-${c}`);
+        optionsArr.push(optInput ? optInput.value.trim() : '');
+      }
+
+      compiledQuestions.push({
+        id: i + 1,
+        qType: 'choice',
+        question: qText,
+        options: optionsArr,
+        correctIndex: selectedCorrectIndex,
+        explanation: expText,
+        points: 1
+      });
     }
-
-    compiledQuestions.push({
-      id: i + 1,
-      question: qText,
-      options: optionsArr,
-      correctIndex: selectedCorrectIndex,
-      explanation: expText
-    });
   }
 
   pushData('quizzes', {
@@ -2953,7 +3019,7 @@ function openEditQuizModal(quizId) {
   if (quiz.questions && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
     editQuizQuestionsList = JSON.parse(JSON.stringify(quiz.questions));
   } else {
-    editQuizQuestionsList = [{ question: '', options: ['', '', '', '', ''], correctIndex: 0, explanation: '' }];
+    editQuizQuestionsList = [{ qType: 'choice', question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' }];
   }
 
   renderEditQuizQuestionsBuilder();
@@ -2965,57 +3031,17 @@ let editQuizQuestionsList = [];
 function renderEditQuizQuestionsBuilder() {
   const container = document.getElementById('edit-quiz-questions-builder-container');
   if (!container) return;
-  const quizType = document.getElementById('edit-quiz-type').value; // 4 or 5 choices
-  const choiceCount = parseInt(quizType);
-
   let html = '';
   editQuizQuestionsList.forEach((q, qIndex) => {
-    html += `
-      <div class="quiz-question-card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h5 style="font-weight:700; color:var(--primary);">ข้อที่ ${qIndex + 1}</h5>
-          ${editQuizQuestionsList.length > 1 ? `
-            <button type="button" class="btn btn-sm btn-danger" onclick="removeEditQuizQuestionItem(${qIndex})"><i class="fa-solid fa-trash"></i> ลบข้อนี้</button>
-          ` : ''}
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">คำถาม ข้อที่ ${qIndex + 1} *</label>
-          <input type="text" id="edit-builder-question-${qIndex}" class="form-control" style="padding-left:14px;" value="${q.question ? q.question.replace(/"/g, '&quot;') : ''}" required placeholder="กรอกคำถาม...">
-        </div>
-
-        <div style="margin-bottom:10px; font-weight:600; font-size:0.95rem; color:#334155;">ตัวเลือกคำตอบ (ทำเครื่องหมายเลือกคำตอบที่ถูกต้อง):</div>
-    `;
-
-    const choiceLabels = choiceCount === 4 ? ['ก', 'ข', 'ค', 'ง'] : ['ก', 'ข', 'ค', 'ง', 'จ'];
-    
-    choiceLabels.forEach((label, cIndex) => {
-      const isCorrect = q.correctIndex === cIndex;
-      const choiceVal = (q.options && q.options[cIndex]) ? q.options[cIndex].replace(/"/g, '&quot;') : '';
-
-      html += `
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-          <input type="radio" name="edit-builder-correct-${qIndex}" value="${cIndex}" ${isCorrect ? 'checked' : ''} style="width:20px; height:20px; accent-color:var(--primary);">
-          <span style="font-weight:700; width:24px;">${label}.</span>
-          <input type="text" id="edit-builder-option-${qIndex}-${cIndex}" class="form-control" style="padding-left:14px;" value="${choiceVal}" placeholder="ข้อความตัวเลือก ${label}" required>
-        </div>
-      `;
-    });
-
-    html += `
-        <div class="form-group" style="margin-top:12px;">
-          <label class="form-label">คำอธิบายเฉลย (Explanation)</label>
-          <input type="text" id="edit-builder-explanation-${qIndex}" class="form-control" style="padding-left:14px;" value="${q.explanation ? q.explanation.replace(/"/g, '&quot;') : ''}" placeholder="เหตุผลคำอธิบายคำตอบที่ถูกต้อง...">
-        </div>
-      </div>
-    `;
+    html += renderQuestionBuilderCard(q, qIndex, true);
   });
-
   container.innerHTML = html;
 }
 
 function addEditQuizQuestionItem() {
-  editQuizQuestionsList.push({ question: '', options: ['', '', '', '', ''], correctIndex: 0, explanation: '' });
+  const overallType = document.getElementById('edit-quiz-type') ? document.getElementById('edit-quiz-type').value : '4';
+  const defaultQType = (overallType === 'subjective') ? 'subjective' : 'choice';
+  editQuizQuestionsList.push({ qType: defaultQType, question: '', options: ['', '', '', '', ''], correctIndex: 0, sampleAnswer: '', points: 1, explanation: '' });
   renderEditQuizQuestionsBuilder();
 }
 
@@ -3040,32 +3066,48 @@ function saveEditQuizForm(e) {
   const duration = parseInt(document.getElementById('edit-quiz-duration').value) || 15;
   const passScore = parseInt(document.getElementById('edit-quiz-pass-score').value) || 50;
 
-  const choiceCount = parseInt(type);
   const compiledQuestions = [];
 
   for (let i = 0; i < editQuizQuestionsList.length; i++) {
+    const qTypeEl = document.getElementById(`edit-builder-qtype-${i}`);
+    const qType = qTypeEl ? qTypeEl.value : 'choice';
     const qText = document.getElementById(`edit-builder-question-${i}`).value.trim();
-    const expText = document.getElementById(`edit-builder-explanation-${i}`).value.trim();
-    const correctRadios = document.getElementsByName(`edit-builder-correct-${i}`);
-    
-    let selectedCorrectIndex = 0;
-    correctRadios.forEach((r, idx) => {
-      if (r.checked) selectedCorrectIndex = idx;
-    });
+    const expText = document.getElementById(`edit-builder-explanation-${i}`) ? document.getElementById(`edit-builder-explanation-${i}`).value.trim() : '';
 
-    const optionsArr = [];
-    for (let c = 0; c < choiceCount; c++) {
-      const optVal = document.getElementById(`edit-builder-option-${i}-${c}`).value.trim();
-      optionsArr.push(optVal);
+    if (qType === 'subjective') {
+      const sampleAns = document.getElementById(`edit-builder-sample-answer-${i}`) ? document.getElementById(`edit-builder-sample-answer-${i}`).value.trim() : '';
+      compiledQuestions.push({
+        id: i + 1,
+        qType: 'subjective',
+        question: qText,
+        sampleAnswer: sampleAns,
+        explanation: expText || sampleAns,
+        points: 1
+      });
+    } else {
+      const correctRadios = document.getElementsByName(`edit-builder-correct-${i}`);
+      let selectedCorrectIndex = 0;
+      correctRadios.forEach((r, idx) => {
+        if (r.checked) selectedCorrectIndex = idx;
+      });
+
+      const choiceCount = type === '5' ? 5 : 4;
+      const optionsArr = [];
+      for (let c = 0; c < choiceCount; c++) {
+        const optInput = document.getElementById(`edit-builder-option-${i}-${c}`);
+        optionsArr.push(optInput ? optInput.value.trim() : '');
+      }
+
+      compiledQuestions.push({
+        id: i + 1,
+        qType: 'choice',
+        question: qText,
+        options: optionsArr,
+        correctIndex: selectedCorrectIndex,
+        explanation: expText,
+        points: 1
+      });
     }
-
-    compiledQuestions.push({
-      id: i + 1,
-      question: qText,
-      options: optionsArr,
-      correctIndex: selectedCorrectIndex,
-      explanation: expText
-    });
   }
 
   const existingQuiz = quizzesData[quizId] || {};
@@ -3206,7 +3248,11 @@ function renderQuizzesList() {
     const theme = quizThemes[index % quizThemes.length];
     const course = coursesData[q.courseId] || { name: 'วิชาทั่วไป', code: '-' };
     const qCount = q.questions ? q.questions.length : 0;
-    const choiceType = q.type ? `${q.type} ตัวเลือก` : '4 ตัวเลือก';
+    let choiceType = '4 ตัวเลือก';
+    if (q.type === 'subjective') choiceType = 'อัตนัย (พิมพ์ตอบ)';
+    else if (q.type === 'mixed') choiceType = 'ผสม (ปรนัย+อัตนัย)';
+    else if (q.type === '5') choiceType = '5 ตัวเลือก';
+    else if (q.type === '4') choiceType = '4 ตัวเลือก';
     const targets = q.targetClasses || (q.targetClass ? q.targetClass.split(',').map(s => s.trim()) : ['all']);
     const isTargetAll = targets.includes('all') || targets.length === 0;
     const targetLabel = isTargetAll ? 'ทุกห้องเรียน' : 'ห้อง ' + targets.join(', ');
@@ -3422,33 +3468,60 @@ function startQuizRunner(quizId) {
   const container = document.getElementById('quiz-runner-body');
   let html = '';
   
-  const choiceLabels = parseInt(quiz.type) === 4 ? ['ก', 'ข', 'ค', 'ง'] : ['ก', 'ข', 'ค', 'ง', 'จ'];
+  const choiceLabels = ['ก', 'ข', 'ค', 'ง', 'จ'];
 
   quiz.questions.forEach((q, idx) => {
-    html += `
-      <div class="exam-question-card-modern" id="exam-q-box-${idx}">
-        <div class="exam-q-header">
-          <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
-          <h4 class="exam-q-title">${q.question}</h4>
-        </div>
-        <div class="exam-options-grid">
-    `;
+    const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
 
-    q.options.forEach((opt, oIdx) => {
+    if (isSubjective) {
       html += `
-        <div class="exam-choice-card" onclick="selectExamChoiceRadio(this, ${idx}, ${oIdx})">
-          <input type="radio" name="quiz-ans-${idx}" value="${oIdx}" style="display:none;">
-          <span class="choice-letter-badge">${choiceLabels[oIdx]}</span>
-          <span class="choice-text">${opt}</span>
-          <i class="fa-solid fa-circle-check choice-check-icon"></i>
+        <div class="exam-question-card-modern" id="exam-q-box-${idx}">
+          <div class="exam-q-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+              <span class="exam-q-type-pill exam-q-type-subjective"><i class="fa-solid fa-pen-nib"></i> อัตนัย (พิมพ์ตอบ)</span>
+            </div>
+            <h4 class="exam-q-title" style="margin-top:8px;">${q.question}</h4>
+          </div>
+          <div class="exam-subjective-box">
+            <label class="exam-subjective-label">
+              <span><i class="fa-solid fa-keyboard" style="color:var(--primary);"></i> พิมพ์คำตอบของคุณ:</span>
+              <span style="font-size:0.78rem; color:#64748b;" id="sub-char-cnt-${idx}">0 ตัวอักษร</span>
+            </label>
+            <textarea id="quiz-subjective-ans-${idx}" class="exam-subjective-textarea" rows="4" placeholder="พิมพ์คำตอบของคุณที่นี่..." oninput="onSubjectiveAnswerInput(${idx}, this)"></textarea>
+          </div>
         </div>
       `;
-    });
+    } else {
+      const qOptions = q.options || [];
+      html += `
+        <div class="exam-question-card-modern" id="exam-q-box-${idx}">
+          <div class="exam-q-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+              <span class="exam-q-type-pill exam-q-type-choice"><i class="fa-solid fa-list-check"></i> ปรนัย (เลือกตอบ)</span>
+            </div>
+            <h4 class="exam-q-title" style="margin-top:8px;">${q.question}</h4>
+          </div>
+          <div class="exam-options-grid">
+      `;
 
-    html += `
+      qOptions.forEach((opt, oIdx) => {
+        html += `
+          <div class="exam-choice-card" onclick="selectExamChoiceRadio(this, ${idx}, ${oIdx})">
+            <input type="radio" name="quiz-ans-${idx}" value="${oIdx}" style="display:none;">
+            <span class="choice-letter-badge">${choiceLabels[oIdx] || (oIdx + 1)}</span>
+            <span class="choice-text">${opt}</span>
+            <i class="fa-solid fa-circle-check choice-check-icon"></i>
+          </div>
+        `;
+      });
+
+      html += `
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
   });
 
   container.innerHTML = html;
@@ -3471,6 +3544,40 @@ function startQuizRunner(quizId) {
   openModal('modal-take-quiz');
 }
 
+function calculateExamProgress() {
+  if (!activeQuizData || !activeQuizData.questions) return;
+  let answered = 0;
+  activeQuizData.questions.forEach((q, i) => {
+    const isSubjective = q.qType === 'subjective' || (activeQuizData.type === 'subjective' && q.qType !== 'choice');
+    if (isSubjective) {
+      const ta = document.getElementById(`quiz-subjective-ans-${i}`);
+      if (ta && ta.value.trim().length > 0) answered++;
+    } else {
+      const radios = document.getElementsByName(`quiz-ans-${i}`);
+      const isAns = Array.from(radios).some(r => r.checked);
+      if (isAns) answered++;
+    }
+  });
+
+  const total = activeQuizData.questions.length;
+  const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+  const answeredCountEl = document.getElementById('exam-answered-count');
+  const progressPctEl = document.getElementById('exam-progress-percent');
+  const progressFillEl = document.getElementById('exam-progress-fill');
+
+  if (answeredCountEl) answeredCountEl.innerText = answered;
+  if (progressPctEl) progressPctEl.innerText = `${pct}%`;
+  if (progressFillEl) progressFillEl.style.width = `${pct}%`;
+}
+
+function onSubjectiveAnswerInput(idx, textareaEl) {
+  const cntEl = document.getElementById(`sub-char-cnt-${idx}`);
+  if (cntEl) {
+    cntEl.innerText = `${textareaEl.value.length} ตัวอักษร`;
+  }
+  calculateExamProgress();
+}
+
 function selectExamChoiceRadio(cardEl, qIdx, oIdx) {
   const container = cardEl.closest('.exam-options-grid');
   if (!container) return;
@@ -3487,25 +3594,7 @@ function selectExamChoiceRadio(cardEl, qIdx, oIdx) {
   const radio = cardEl.querySelector('input[type="radio"]');
   if (radio) radio.checked = true;
 
-  // Calculate Progress
-  if (activeQuizData && activeQuizData.questions) {
-    let answered = 0;
-    activeQuizData.questions.forEach((_, i) => {
-      const radios = document.getElementsByName(`quiz-ans-${i}`);
-      const isAns = Array.from(radios).some(r => r.checked);
-      if (isAns) answered++;
-    });
-
-    const total = activeQuizData.questions.length;
-    const pct = Math.round((answered / total) * 100);
-    const answeredCountEl = document.getElementById('exam-answered-count');
-    const progressPctEl = document.getElementById('exam-progress-percent');
-    const progressFillEl = document.getElementById('exam-progress-fill');
-
-    if (answeredCountEl) answeredCountEl.innerText = answered;
-    if (progressPctEl) progressPctEl.innerText = `${pct}%`;
-    if (progressFillEl) progressFillEl.style.width = `${pct}%`;
-  }
+  calculateExamProgress();
 }
 
 // Backward compatibility helper
@@ -3550,20 +3639,32 @@ function submitQuizAnswers(isManual) {
   const userAnswersArr = [];
 
   questions.forEach((q, idx) => {
-    const radios = document.getElementsByName(`quiz-ans-${idx}`);
-    let selectedVal = -1;
-    radios.forEach(r => {
-      if (r.checked) selectedVal = parseInt(r.value);
-    });
+    const isSubjective = q.qType === 'subjective' || (activeQuizData.type === 'subjective' && q.qType !== 'choice');
 
-    userAnswersArr.push(selectedVal);
-    if (selectedVal === q.correctIndex) {
-      earnedScore++;
+    if (isSubjective) {
+      const ta = document.getElementById(`quiz-subjective-ans-${idx}`);
+      const typedText = ta ? ta.value.trim() : '';
+      userAnswersArr.push(typedText);
+      // Auto award points if student answered (ready for review)
+      if (typedText.length > 0) {
+        earnedScore += (q.points || 1);
+      }
+    } else {
+      const radios = document.getElementsByName(`quiz-ans-${idx}`);
+      let selectedVal = -1;
+      radios.forEach(r => {
+        if (r.checked) selectedVal = parseInt(r.value);
+      });
+
+      userAnswersArr.push(selectedVal);
+      if (selectedVal === q.correctIndex) {
+        earnedScore += (q.points || 1);
+      }
     }
   });
 
-  const totalScore = questions.length;
-  const percentage = Math.round((earnedScore / totalScore) * 100);
+  const totalScore = questions.reduce((acc, q) => acc + (q.points || 1), 0) || questions.length;
+  const percentage = totalScore > 0 ? Math.round((earnedScore / totalScore) * 100) : 0;
   const passed = percentage >= activeQuizData.passScore;
 
   // Save non-colliding path: quiz_results/{quizId}/{studentId}
@@ -3586,7 +3687,7 @@ function submitQuizAnswers(isManual) {
   });
 }
 
-// View Quiz Result Modal (Official Score Report)
+// View Quiz Result Modal (Official Score Report & Full Review)
 function viewQuizResultModal(quizId, studentId) {
   const quiz = quizzesData[quizId];
   const res = (quizResultsData[quizId] && quizResultsData[quizId][studentId]) 
@@ -3611,13 +3712,94 @@ function viewQuizResultModal(quizId, studentId) {
       </div>
       <div class="exam-stat-card">
         <div class="val" style="color:#2563eb;">${res.score}/${res.totalScore}</div>
-        <div class="lbl">ข้อที่ถูก</div>
+        <div class="lbl">คะแนนที่ได้</div>
       </div>
       <div class="exam-stat-card">
         <div class="val" style="color:#d97706;">${quiz.passScore}%</div>
         <div class="lbl">เกณฑ์ผ่าน</div>
       </div>
     `;
+  }
+
+  // Render Question-by-Question Detailed Review
+  const reviewContainer = document.getElementById('res-questions-review-container');
+  if (reviewContainer && quiz.questions) {
+    const choiceLabels = ['ก', 'ข', 'ค', 'ง', 'จ'];
+    let reviewHtml = '';
+
+    quiz.questions.forEach((q, idx) => {
+      const isSubjective = q.qType === 'subjective' || (quiz.type === 'subjective' && q.qType !== 'choice');
+      const userAns = (res.userAnswers && res.userAnswers[idx] !== undefined) ? res.userAnswers[idx] : null;
+
+      if (isSubjective) {
+        const typedText = (typeof userAns === 'string') ? userAns : (userAns ? String(userAns) : '');
+        reviewHtml += `
+          <div class="review-q-card subjective-review">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+                <span class="exam-q-type-pill exam-q-type-subjective"><i class="fa-solid fa-pen-nib"></i> อัตนัย (พิมพ์ตอบ)</span>
+              </div>
+              <span class="badge badge-purple" style="font-weight:700;"><i class="fa-solid fa-star"></i> ${q.points || 1} คะแนน</span>
+            </div>
+            <div style="font-weight:700; color:#0f172a; font-size:0.95rem; margin-bottom:8px;">${q.question}</div>
+            
+            <div style="margin-top:10px;">
+              <div style="font-weight:700; font-size:0.86rem; color:#475569;"><i class="fa-solid fa-user-pen"></i> คำตอบที่พิมพ์ตอบ:</div>
+              <div class="review-student-answer-box">
+                ${typedText ? typedText : '<span style="color:#94a3b8; font-style:italic;">(ไม่ได้พิมพ์คำตอบ)</span>'}
+              </div>
+            </div>
+
+            ${(q.sampleAnswer || q.explanation) ? `
+              <div class="review-model-answer-box">
+                <div style="font-weight:700; font-size:0.86rem; margin-bottom:4px;"><i class="fa-solid fa-lightbulb"></i> แนวคำตอบเฉลย / คำอธิบาย:</div>
+                <div>${q.sampleAnswer || q.explanation}</div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        const isCorrect = userAns === q.correctIndex;
+        const studentChoiceText = (userAns !== null && userAns >= 0 && q.options && q.options[userAns]) 
+          ? `${choiceLabels[userAns]}. ${q.options[userAns]}` 
+          : '(ไม่ได้ตอบ)';
+        const correctChoiceText = (q.options && q.options[q.correctIndex]) 
+          ? `${choiceLabels[q.correctIndex]}. ${q.options[q.correctIndex]}` 
+          : '-';
+
+        reviewHtml += `
+          <div class="review-q-card ${isCorrect ? 'correct' : 'incorrect'}">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="exam-q-num-badge">ข้อที่ ${idx + 1}</span>
+                <span class="exam-q-type-pill exam-q-type-choice"><i class="fa-solid fa-list-check"></i> ปรนัย</span>
+              </div>
+              <span class="badge ${isCorrect ? 'badge-green' : 'badge-red'}" style="font-weight:800; font-size:0.82rem;">
+                <i class="${isCorrect ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ${isCorrect ? 'ตอบถูก' : 'ตอบผิด'}
+              </span>
+            </div>
+            <div style="font-weight:700; color:#0f172a; font-size:0.95rem; margin-bottom:8px;">${q.question}</div>
+            
+            <div style="font-size:0.88rem; margin:6px 0;">
+              <strong>คำตอบของคุณ:</strong> <span style="color:${isCorrect ? '#059669' : '#dc2626'}; font-weight:700;">${studentChoiceText}</span>
+            </div>
+            ${!isCorrect ? `
+              <div style="font-size:0.88rem; color:#059669; font-weight:700; margin:4px 0;">
+                <i class="fa-solid fa-circle-check"></i> คำตอบที่ถูกต้อง: ${correctChoiceText}
+              </div>
+            ` : ''}
+            ${q.explanation ? `
+              <div style="background:#f8fafc; border-radius:8px; padding:8px 12px; margin-top:8px; font-size:0.85rem; color:#475569;">
+                <i class="fa-solid fa-circle-info" style="color:var(--primary);"></i> <strong>คำอธิบาย:</strong> ${q.explanation}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+    });
+
+    reviewContainer.innerHTML = reviewHtml;
   }
 
   openModal('modal-quiz-result');
@@ -3725,7 +3907,7 @@ function renderQuizScoresTable() {
     totalScoresSum += (sub.score !== undefined ? sub.score : 0);
   });
 
-  const maxScore = quiz.questions ? quiz.questions.length : 0;
+  const maxScore = quiz.questions ? quiz.questions.reduce((acc, q) => acc + (q.points || 1), 0) : 0;
   const avgScore = totalCount > 0 ? (totalScoresSum / totalCount).toFixed(1) : '0';
   const passRate = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
 
@@ -3806,9 +3988,14 @@ function renderQuizScoresTable() {
           </span>
         </td>
         <td style="text-align:center;">
-          <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetStudentQuizAttempt('${quizId}', '${studentId}', '${studentName.replace(/'/g, "\\'")}')" style="border-radius:8px; padding:4px 8px; font-size:0.78rem;" title="ลบคะแนนเพื่อให้นักเรียนสอบใหม่">
-            <i class="fa-solid fa-rotate-left"></i> สอบใหม่
-          </button>
+          <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewQuizResultModal('${quizId}', '${studentId}')" style="border-radius:8px; padding:5px 9px; font-size:0.8rem; font-weight:700;" title="ดูคำตอบและตรวจกระดาษคำตอบ">
+              <i class="fa-solid fa-file-lines"></i> ดูคำตอบ
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetStudentQuizAttempt('${quizId}', '${studentId}', '${studentName.replace(/'/g, "\\'")}')" style="border-radius:8px; padding:5px 8px; font-size:0.78rem;" title="ลบคะแนนเพื่อให้นักเรียนสอบใหม่">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+          </div>
         </td>
       </tr>
     `;
