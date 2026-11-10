@@ -5359,12 +5359,62 @@ function resetReportFilters() {
   renderScoreReports();
 }
 
+function isVocationalClass(classLevel) {
+  if (!classLevel || typeof classLevel !== 'string') return false;
+  const clean = classLevel.trim().toLowerCase();
+  return clean.includes('ปวช') || clean.includes('ปวส') || clean.includes('voc');
+}
+
+function getGradingScaleForClass(classLevel) {
+  if (isVocationalClass(classLevel)) {
+    return {
+      isVocational: true,
+      trackLabel: 'สาย ปวช.',
+      hwMax: 60,
+      quizMax: 40,
+      totalMax: 100
+    };
+  }
+  return {
+    isVocational: false,
+    trackLabel: 'สายสามัญ',
+    hwMax: 50,
+    quizMax: 50,
+    totalMax: 100
+  };
+}
+
 function renderScoreReports() {
   const tbody = document.getElementById('reports-table-body');
   if (!tbody) return;
   const classFilter = document.getElementById('report-class-filter')?.value;
   const courseFilter = document.getElementById('report-course-filter')?.value;
   const searchQuery = document.getElementById('report-student-search-input')?.value.toLowerCase().trim() || '';
+
+  // Update dynamic header labels & scale indicator badge based on selected classroom
+  const scaleBadge = document.getElementById('report-scale-badge');
+  const thHw = document.getElementById('report-th-hw');
+  const thQuiz = document.getElementById('report-th-quiz');
+  const thTotal = document.getElementById('report-th-total');
+
+  if (classFilter && classFilter !== 'all') {
+    const scale = getGradingScaleForClass(classFilter);
+    if (scaleBadge) {
+      scaleBadge.className = `badge ${scale.isVocational ? 'badge-purple' : 'badge-blue'}`;
+      scaleBadge.innerHTML = `<i class="fa-solid fa-scale-balanced"></i> เกณฑ์${scale.trackLabel}: คะแนนเก็บ ${scale.hwMax} : คะแนนสอบ ${scale.quizMax} (รวม ${scale.totalMax})`;
+    }
+    if (thHw) thHw.textContent = `คะแนนการบ้าน (เต็ม ${scale.hwMax})`;
+    if (thQuiz) thQuiz.textContent = `คะแนนแบบทดสอบ (เต็ม ${scale.quizMax})`;
+    if (thTotal) thTotal.textContent = `คะแนนรวม (เต็ม ${scale.totalMax})`;
+  } else {
+    if (scaleBadge) {
+      scaleBadge.className = 'badge badge-blue';
+      scaleBadge.innerHTML = `<i class="fa-solid fa-scale-balanced"></i> เกณฑ์คะแนน: สายสามัญ 50:50 | สาย ปวช. 60:40`;
+    }
+    if (thHw) thHw.textContent = 'คะแนนการบ้าน (50/60)';
+    if (thQuiz) thQuiz.textContent = 'คะแนนแบบทดสอบ (50/40)';
+    if (thTotal) thTotal.textContent = 'คะแนนรวม (เต็ม 100)';
+  }
 
   const allStudents = Object.values(studentsData);
   if (allStudents.length === 0) {
@@ -5380,11 +5430,6 @@ function renderScoreReports() {
   const activeQuizzes = Object.keys(quizzesData)
     .filter(qId => !courseFilter || quizzesData[qId].courseId === courseFilter)
     .map(qId => ({ id: qId }));
-
-  // Fixed standard grading scale: Homework (คะแนนเก็บ) = 60, Quizzes (คะแนนสอบ) = 40, Total (คะแนนรวม) = 100
-  const totalHwPossible = 60;
-  const totalQuizPossible = 40;
-  const totalPossible = 100;
 
   // Filter students by classroom and search query
   let filteredStudents = allStudents.filter(std => {
@@ -5420,6 +5465,10 @@ function renderScoreReports() {
   let html = '';
   filteredStudents.forEach(std => {
     const studentId = std.studentId;
+    const stdScale = getGradingScaleForClass(std.classLevel);
+    const totalHwPossible = stdScale.hwMax;
+    const totalQuizPossible = stdScale.quizMax;
+    const totalPossible = stdScale.totalMax;
 
     let totalHwEarned = 0;
     for (let h = 0; h < activeHws.length; h++) {
@@ -5449,7 +5498,9 @@ function renderScoreReports() {
         <td style="text-align:center; font-weight:700; color:#64748b;">${std.no || '-'}</td>
         <td><code style="font-weight:700; font-size:0.9rem;">${std.studentId}</code></td>
         <td><strong>${std.name}</strong></td>
-        <td style="text-align:center;"><span class="badge badge-yellow" style="font-weight:700;">ห้อง ${std.classLevel || '-'}</span></td>
+        <td style="text-align:center;">
+          <span class="badge ${stdScale.isVocational ? 'badge-purple' : 'badge-yellow'}" style="font-weight:700;">ห้อง ${std.classLevel || '-'}</span>
+        </td>
         <td style="text-align:center; font-weight:600;">${totalHwEarned} <span style="font-size:0.8rem; color:#64748b;">/ ${totalHwPossible}</span></td>
         <td style="text-align:center; font-weight:600;">${totalQuizEarned} <span style="font-size:0.8rem; color:#64748b;">/ ${totalQuizPossible}</span></td>
         <td style="text-align:center;">
