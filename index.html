@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.12.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.13.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -1053,30 +1053,37 @@
             <textarea id="submit-text-answer" class="form-control" style="height:85px; resize:vertical; padding:12px 14px; border-radius:12px;" placeholder="พิมพ์คำอธิบาย หรือข้อความคำตอบที่ต้องการส่งถึงครู..."></textarea>
           </div>
 
-          <!-- Modern Upload Dropzone & Live Preview Component -->
+          <!-- Modern Upload Dropzone & Live Preview Component (Supports Multi-Images & PDF) -->
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label" style="font-weight:700; font-size:0.92rem; color:#1e293b; display:flex; align-items:center; justify-content:space-between;">
-              <span><i class="fa-solid fa-camera-retro" style="color:var(--primary);"></i> ถ่ายภาพ / แนบรูปภาพ หรือ ไฟล์ PDF ชิ้นงาน</span>
-              <span id="submit-file-status-badge" class="badge badge-purple" style="font-size:0.78rem; font-weight:600;">ยังไม่ได้เลือกไฟล์</span>
-            </label>
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+              <label class="form-label" style="font-weight:700; font-size:0.92rem; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
+                <i class="fa-solid fa-camera-retro" style="color:var(--primary);"></i> ถ่ายภาพ / แนบรูปภาพ (ได้หลายภาพ) หรือ ไฟล์ PDF ชิ้นงาน
+              </label>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span id="submit-file-status-badge" class="badge badge-purple" style="font-size:0.78rem; font-weight:600;">ยังไม่ได้เลือกไฟล์</span>
+                <button type="button" id="btn-add-more-student-files" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('submit-img-file').click()" style="display:none; border-radius:8px; font-weight:700; font-size:0.78rem; padding:3px 10px;">
+                  <i class="fa-solid fa-plus"></i> เพิ่มรูป/ไฟล์อีก
+                </button>
+              </div>
+            </div>
 
-            <div id="submit-dropzone" class="upload-dropzone" onclick="document.getElementById('submit-img-file').click()">
-              <input type="file" id="submit-img-file" accept="image/*,application/pdf" style="display:none;" onchange="handleStudentFileSelection(this)">
+            <div id="submit-dropzone" class="upload-dropzone">
+              <input type="file" id="submit-img-file" accept="image/*,application/pdf,.pdf" multiple style="display:none;" onchange="handleStudentFileSelection(this)">
               
-              <div id="submit-dropzone-prompt" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:26px 16px; cursor:pointer; text-align:center;">
+              <div id="submit-dropzone-prompt" onclick="document.getElementById('submit-img-file').click()" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:26px 16px; cursor:pointer; text-align:center;">
                 <div style="width:54px; height:54px; border-radius:50%; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:1.5rem; margin-bottom:10px; box-shadow:0 2px 8px rgba(37,99,235,0.15);">
                   <i class="fa-solid fa-cloud-arrow-up"></i>
                 </div>
                 <div style="font-weight:700; color:#1e293b; font-size:0.98rem; margin-bottom:4px;">
-                  คลิกเพื่อเลือกไฟล์ หรือถ่ายภาพจากกล้อง
+                  คลิกเพื่อเลือกไฟล์ หรือถ่ายภาพจากกล้อง (เลือกได้มากกว่า 1 ภาพ)
                 </div>
                 <div style="font-size:0.82rem; color:var(--text-muted);">
-                  รองรับรูปภาพ (JPG, PNG) และไฟล์เอกสาร PDF
+                  รองรับรูปภาพหลายรูป (JPG, PNG, WebP) และไฟล์เอกสาร PDF
                 </div>
               </div>
 
-              <!-- Live Preview Card (Populated dynamically) -->
-              <div id="submit-preview-container" style="display:none; padding:12px;"></div>
+              <!-- Live Multi-File Preview Gallery (Populated dynamically) -->
+              <div id="submit-preview-container" style="display:none; padding:14px;"></div>
             </div>
           </div>
 
@@ -1724,8 +1731,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.12.0"></script>
-  <script src="js/cloudinary.js?v=8.12.0"></script>
-  <script src="js/app.js?v=8.12.0"></script>
+  <script src="js/firebase-config.js?v=8.13.0"></script>
+  <script src="js/cloudinary.js?v=8.13.0"></script>
+  <script src="js/app.js?v=8.13.0"></script>
 </body>
 </html>
