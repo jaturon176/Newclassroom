@@ -1,0 +1,693 @@
+/**
+ * ระบบติดตามแก้ไขผลการเรียน (Academic Remediation System)
+ * students.js - ทะเบียนนักเรียน (Student Master Directory)
+ */
+
+class StudentsService {
+  constructor() {
+    this.searchQuery = '';
+    this.filterGrade = 'all';
+    this.filterRoom = 'all';
+    this.currentPage = 1;
+    this.pageSize = 15;
+  }
+
+  async init() {
+    await this.cleanupGhostStudents();
+    this.populateFilterDropdowns();
+    this.renderStudentsTable();
+
+    db.subscribe('students', () => {
+      this.populateFilterDropdowns();
+      this.renderStudentsTable();
+    });
+  }
+
+  /**
+   * ล้างแถวว่าง หรือข้อมูลนักเรียนที่ไม่มีชื่อออกจากฐานข้อมูลโดยอัตโนมัติ
+   */
+  async cleanupGhostStudents() {
+    const students = db.get('students') || [];
+    const invalidStudents = students.filter(s => !s.name || s.name.trim() === '');
+    if (invalidStudents.length > 0) {
+      console.log(`🧹 ตรวจพบแถวว่างไม่มีชื่อ ${invalidStudents.length} รายการ กำลังล้างข้อมูลขยะอัตโนมัติ...`);
+      for (const inv of invalidStudents) {
+        await db.deleteItem('students', inv.id);
+      }
+    }
+  }
+
+  populateFilterDropdowns() {
+    this.populateGradeDropdown();
+    this.populateRoomDropdown();
+  }
+
+  /**
+   * ดึงข้อมูลระดับชั้นทั้งหมดที่มีอยู่ในระบบ และสร้างตัวเลือกในแถบเลือกชั้น
+   */
+  populateGradeDropdown() {
+    const select = document.getElementById('students-grade-filter');
+    if (!select) return;
+
+    const allStudents = db.get('students') || [];
+    const currentVal = this.filterGrade;
+
+    // รวบรวมระดับชั้นและจำนวนนักเรียน
+    const gradeCounts = {};
+    allStudents.forEach(s => {
+      let grade = s.gradeLevel || 'ไม่ระบุชั้น';
+      if (grade.includes('/')) grade = grade.split('/')[0].trim();
+      gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
+    });
+
+    const sortedGrades = Object.keys(gradeCounts).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+
+    let html = `<option value="all">-- ทุกระดับชั้น (${allStudents.length} คน) --</option>`;
+
+    sortedGrades.forEach(grade => {
+      let label = grade;
+      if (grade === 'ม.1') label = 'มัธยมศึกษาปีที่ 1 (ม.1)';
+      else if (grade === 'ม.2') label = 'มัธยมศึกษาปีที่ 2 (ม.2)';
+      else if (grade === 'ม.3') label = 'มัธยมศึกษาปีที่ 3 (ม.3)';
+      else if (grade === 'ม.4') label = 'มัธยมศึกษาปีที่ 4 (ม.4)';
+      else if (grade === 'ม.5') label = 'มัธยมศึกษาปีที่ 5 (ม.5)';
+      else if (grade === 'ม.6') label = 'มัธยมศึกษาปีที่ 6 (ม.6)';
+
+      html += `<option value="${grade}">${label} (${gradeCounts[grade]} คน)</option>`;
+    });
+
+    select.innerHTML = html;
+
+    const exists = Array.from(select.options).some(opt => opt.value === currentVal);
+    if (exists) {
+      select.value = currentVal;
+    } else {
+      select.value = 'all';
+      this.filterGrade = 'all';
+    }
+  }
+
+  /**
+   * ดึงข้อมูลห้องเรียนตามระดับชั้นที่เลือก และสร้างตัวเลือกในแถบเลือกห้อง
+   */
+  populateRoomDropdown() {
+    const select = document.getElementById('students-room-filter');
+    if (!select) return;
+
+    const allStudents = db.get('students') || [];
+    const currentVal = this.filterRoom;
+
+    // กรองนักเรียนตามระดับชั้นที่เลือกก่อนหาห้อง
+    let targetStudents = allStudents;
+    if (this.filterGrade && this.filterGrade !== 'all') {
+      targetStudents = allStudents.filter(s => {
+        let g = s.gradeLevel || '';
+        if (g.includes('/')) g = g.split('/')[0].trim();
+        return g === this.filterGrade || g.startsWith(this.filterGrade);
+      });
+    }
+
+    const roomCounts = {};
+    targetStudents.forEach(s => {
+      let room = s.room ? String(s.room).trim() : '';
+      if (!room && (s.gradeLevel || '').includes('/')) {
+        room = s.gradeLevel.split('/')[1].trim();
+      }
+      if (!room) room = '1';
+      roomCounts[room] = (roomCounts[room] || 0) + 1;
+    });
+
+    const sortedRooms = Object.keys(roomCounts).sort((a, b) => {
+      const nA = parseInt(a, 10) || 0;
+      const nB = parseInt(b, 10) || 0;
+      return nA !== nB ? nA - nB : a.localeCompare(b, 'th');
+    });
+
+    const gradeText = this.filterGrade !== 'all' ? `ของ ${this.filterGrade}` : '';
+    let html = `<option value="all">-- ทุกห้อง ${gradeText} --</option>`;
+
+    sortedRooms.forEach(room => {
+      const roomLabel = this.filterGrade !== 'all' 
+        ? `ห้อง ${this.filterGrade}/${room}` 
+        : `ห้อง ${room}`;
+      html += `<option value="${room}">${roomLabel} (${roomCounts[room]} คน)</option>`;
+    });
+
+    select.innerHTML = html;
+
+    const exists = Array.from(select.options).some(opt => opt.value === currentVal);
+    if (exists) {
+      select.value = currentVal;
+    } else {
+      select.value = 'all';
+      this.filterRoom = 'all';
+    }
+  }
+
+  onGradeChange(grade) {
+    this.filterGrade = grade;
+    this.filterRoom = 'all';
+    this.populateRoomDropdown();
+    this.currentPage = 1;
+    this.renderStudentsTable();
+  }
+
+  onRoomChange(room) {
+    this.filterRoom = room;
+    this.currentPage = 1;
+    this.renderStudentsTable();
+  }
+
+  getFilteredStudents() {
+    let students = [...(db.get('students') || [])];
+
+    // 1. กรองตามระดับชั้น
+    if (this.filterGrade && this.filterGrade !== 'all') {
+      students = students.filter(s => {
+        let g = s.gradeLevel || '';
+        if (g.includes('/')) g = g.split('/')[0].trim();
+        return g === this.filterGrade || g.startsWith(this.filterGrade);
+      });
+    }
+
+    // 2. กรองตามห้อง
+    if (this.filterRoom && this.filterRoom !== 'all') {
+      students = students.filter(s => {
+        let r = s.room ? String(s.room).trim() : '';
+        if (!r && (s.gradeLevel || '').includes('/')) {
+          r = s.gradeLevel.split('/')[1].trim();
+        }
+        if (!r) r = '1';
+        return r === this.filterRoom;
+      });
+    }
+
+    // 3. ค้นหาข้อความ
+    if (this.searchQuery && this.searchQuery.trim()) {
+      const q = this.searchQuery.trim().toLowerCase();
+      students = students.filter(s => 
+        (s.studentId && s.studentId.toLowerCase().includes(q)) ||
+        (s.name && s.name.toLowerCase().includes(q)) ||
+        (s.advisor && s.advisor.toLowerCase().includes(q)) ||
+        (s.gradeLevel && s.gradeLevel.toLowerCase().includes(q)) ||
+        (s.room && String(s.room).toLowerCase().includes(q))
+      );
+    }
+
+    // เรียงลำดับตัวเลข 1, 2, 3, ... (Natural Numeric Sorting)
+    students.sort((a, b) => {
+      // 1. ระดับชั้น
+      const glA = a.gradeLevel || '';
+      const glB = b.gradeLevel || '';
+      if (glA !== glB) {
+        return glA.localeCompare(glB, 'th', { numeric: true });
+      }
+
+      // 2. ห้อง
+      const roomA = parseInt(a.room, 10) || 0;
+      const roomB = parseInt(b.room, 10) || 0;
+      if (roomA !== roomB) {
+        return roomA - roomB;
+      }
+
+      // 3. เรียงตามเลขที่แบบตัวเลข
+      const numA = parseInt(String(a.number).replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.number).replace(/\D/g, ''), 10) || 0;
+      if (numA !== numB) {
+        return numA - numB;
+      }
+
+      // 4. รหัสประจำตัว
+      return (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true });
+    });
+
+    return students;
+  }
+
+  renderStudentsTable() {
+    const tableBody = document.getElementById('students-table-body');
+    const countBadge = document.getElementById('students-count-badge');
+    if (!tableBody) return;
+
+    const filtered = this.getFilteredStudents();
+    if (countBadge) countBadge.innerText = `${filtered.length} คน`;
+
+    if (filtered.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-8 text-gray-500">
+            <div class="empty-state-card">
+              <i class="fas fa-user-graduate text-4xl mb-2 text-gray-300"></i>
+              <p class="font-semibold">ไม่พบข้อมูลนักเรียน</p>
+              <span class="text-xs text-gray-400">ลองเปลี่ยนตัวกรองระดับชั้น/ห้องเรียน หรือกดเพิ่มข้อมูลนักเรียน</span>
+            </div>
+          </td>
+        </tr>
+      `;
+      this.renderPagination(0);
+      return;
+    }
+
+    const totalPages = Math.ceil(filtered.length / this.pageSize);
+    if (this.currentPage > totalPages) this.currentPage = 1;
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const pageStudents = filtered.slice(startIndex, startIndex + this.pageSize);
+
+    const isAdmin = authService.isAdmin();
+
+    tableBody.innerHTML = pageStudents.map((s, idx) => {
+      const roomDisplay = s.room ? `/${s.room}` : '';
+      const gradeDisplay = `${s.gradeLevel || ''}${roomDisplay}`;
+
+      return `
+        <tr class="hover-row">
+          <td class="text-center font-bold text-gray-800">${s.number || (startIndex + idx + 1)}</td>
+          <td class="font-mono font-bold text-indigo-700">${s.studentId}</td>
+          <td>
+            <div class="font-medium text-gray-900">${s.prefix || ''}${s.name}</div>
+          </td>
+          <td class="text-center">
+            <span class="badge-level font-semibold">${gradeDisplay || '-'}</span>
+          </td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 6px; color: #334155; font-size: 13.5px; line-height: 1.4;">
+              <i class="fas fa-user-shield text-gray-400" style="font-size: 12px; flex-shrink: 0;"></i>
+              <span>${s.advisor || '-'}</span>
+            </div>
+          </td>
+          <td class="text-right">
+            ${isAdmin ? `
+              <div class="action-btn-group">
+                <button type="button" class="btn-icon text-indigo-600" title="แก้ไข" onclick="studentsService.openEditStudentModal('${s.id}')">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="btn-icon text-red-600" title="ลบ" onclick="studentsService.deleteStudentPrompt('${s.id}', '${s.name}')">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            ` : '<span class="text-gray-300">-</span>'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    this.renderPagination(filtered.length);
+  }
+
+  renderPagination(totalCount) {
+    const paginationContainer = document.getElementById('students-pagination');
+    if (!paginationContainer) return;
+
+    const totalPages = Math.ceil(totalCount / this.pageSize);
+    if (totalPages <= 1) {
+      paginationContainer.innerHTML = '';
+      return;
+    }
+
+    let html = `
+      <div class="pagination-wrapper">
+        <button class="btn-page" ${this.currentPage === 1 ? 'disabled' : ''} onclick="studentsService.changePage(${this.currentPage - 1})">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= this.currentPage - 1 && i <= this.currentPage + 1)) {
+        html += `<button class="btn-page ${i === this.currentPage ? 'active' : ''}" onclick="studentsService.changePage(${i})">${i}</button>`;
+      }
+    }
+
+    html += `
+        <button class="btn-page" ${this.currentPage === totalPages ? 'disabled' : ''} onclick="studentsService.changePage(${this.currentPage + 1})">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    `;
+
+    paginationContainer.innerHTML = html;
+  }
+
+  changePage(page) {
+    this.currentPage = page;
+    this.renderStudentsTable();
+  }
+
+  setSearchQuery(q) {
+    this.searchQuery = q;
+    this.currentPage = 1;
+    this.renderStudentsTable();
+  }
+
+  openAddStudentModal() {
+    const modal = document.getElementById('student-form-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+      <div class="modal-backdrop" onclick="studentsService.closeModal()"></div>
+      <div class="modal-dialog modal-lg">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-badge badge-blue"><i class="fas fa-user-plus"></i> ข้อมูลนักเรียน</span>
+            <h3 id="student-modal-title">เพิ่มข้อมูลนักเรียนใหม่</h3>
+          </div>
+          <button class="btn-close-modal" onclick="studentsService.closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-student-data" onsubmit="studentsService.handleStudentFormSubmit(event)">
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label for="std-num">เลขที่</label>
+                <input type="text" id="std-num" class="form-control" placeholder="เช่น 1">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="std-id">รหัสประจำตัว <span class="text-red-500">*</span></label>
+                <input type="text" id="std-id" class="form-control" placeholder="เช่น 50101" required>
+              </div>
+              <div class="form-group col-md-5">
+                <label for="std-name">ชื่อ - สกุล <span class="text-red-500">*</span></label>
+                <input type="text" id="std-name" class="form-control" placeholder="เช่น นายสมชาย ใจดี" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="std-level">ระดับชั้น / ห้อง <span class="text-red-500">*</span></label>
+                <input type="text" id="std-level" class="form-control" placeholder="เช่น ม.4/1 หรือ ม.4" required value="ม.4/1">
+              </div>
+              <div class="form-group col-md-6">
+                <label for="std-advisor">ครูที่ปรึกษา</label>
+                <input type="text" id="std-advisor" class="form-control" placeholder="เช่น ครูสมชาย ใจดี">
+              </div>
+            </div>
+
+            <input type="hidden" id="std-edit-id" value="">
+
+            <div class="modal-footer mt-4">
+              <button type="button" class="btn btn-outline" onclick="studentsService.closeModal()">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save mr-1"></i> บันทึกข้อมูลนักเรียน
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    modal.classList.add('active');
+  }
+
+  openEditStudentModal(id) {
+    const student = db.getById('students', id);
+    if (!student) return;
+
+    this.openAddStudentModal();
+
+    setTimeout(() => {
+      document.getElementById('student-modal-title').innerText = "แก้ไขข้อมูลนักเรียน";
+      document.getElementById('std-edit-id').value = student.id;
+      document.getElementById('std-num').value = student.number || '';
+      document.getElementById('std-id').value = student.studentId || '';
+      document.getElementById('std-name').value = `${student.prefix ? student.prefix : ''}${student.name || ''}`;
+      const lvl = student.room ? `${student.gradeLevel}/${student.room}` : (student.gradeLevel || 'ม.4/1');
+      document.getElementById('std-level').value = lvl;
+      document.getElementById('std-advisor').value = student.advisor || '';
+    }, 50);
+  }
+
+  async handleStudentFormSubmit(e) {
+    e.preventDefault();
+    const editId = document.getElementById('std-edit-id').value;
+    const number = document.getElementById('std-num').value.trim();
+    const studentId = document.getElementById('std-id').value.trim();
+    const fullName = document.getElementById('std-name').value.trim();
+    const levelInput = document.getElementById('std-level').value.trim();
+    const advisor = document.getElementById('std-advisor').value.trim();
+
+    // Parse level and room e.g. "ม.4/1" -> gradeLevel: "ม.4", room: "1"
+    let gradeLevel = levelInput;
+    let room = "1";
+    if (levelInput.includes('/')) {
+      const parts = levelInput.split('/');
+      gradeLevel = parts[0].trim();
+      room = parts[1].trim() || "1";
+    }
+
+    let student = editId ? db.getById('students', editId) : null;
+    if (!student) {
+      student = {
+        id: `s_${Date.now()}`,
+        username: `std_${studentId}`
+      };
+    }
+
+    student.number = number;
+    student.studentId = studentId;
+    student.name = fullName;
+    student.prefix = "";
+    student.gradeLevel = gradeLevel;
+    student.room = room;
+    student.advisor = advisor;
+
+    await db.saveItem('students', student);
+    this.closeModal();
+
+    app.showToast(editId ? "อัปเดตข้อมูลนักเรียนสำเร็จ" : "เพิ่มนักเรียนในทะเบียนสำเร็จ", "success");
+  }
+
+  async deleteStudentPrompt(id, name) {
+    const confirmed = await app.confirmAction({
+      title: "ยืนยันการลบข้อมูลนักเรียน",
+      message: `คุณต้องการลบข้อมูลนักเรียน "${name}" ออกจากทะเบียนหรือไม่?`,
+      type: "danger",
+      confirmText: "ลบนักเรียน",
+      confirmIcon: "fas fa-trash-alt",
+      btnClass: "btn-rose"
+    });
+    if (confirmed) {
+      await db.deleteItem('students', id);
+      app.showToast("ลบข้อมูลนักเรียนเรียบร้อยแล้ว", "info");
+    }
+  }
+
+  async clearAllStudentsPrompt() {
+    const ok = await app.promptAction({
+      title: "ยืนยันการล้างข้อมูลทะเบียนนักเรียน",
+      message: "คำเตือน: คุณต้องการลบข้อมูลนักเรียนทั้งหมดในทะเบียนหรือไม่?",
+      expectedText: "ยืนยันลบนักเรียนทั้งหมด",
+      confirmText: "ยืนยันลบนักเรียนทั้งหมด",
+      type: "danger"
+    });
+
+    if (ok) {
+      await db.clearCollection('students');
+      this.renderStudentsTable();
+      app.showToast("ล้างข้อมูลทะเบียนนักเรียนทั้งหมดเรียบร้อยแล้ว", "warning");
+    }
+  }
+
+  /**
+   * Bulk CSV Import สำหรับนำเข้านักเรียน
+   */
+  openBulkImportModal() {
+    const modal = document.getElementById('csv-import-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+      <div class="modal-backdrop" onclick="studentsService.closeCsvModal()"></div>
+      <div class="modal-dialog modal-lg">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-badge badge-emerald"><i class="fas fa-file-csv"></i> Students CSV</span>
+            <h3>นำเข้าทะเบียนนักเรียนด้วยไฟล์ CSV</h3>
+          </div>
+          <button class="btn-close-modal" onclick="studentsService.closeCsvModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="csv-guide-box">
+            <h4><i class="fas fa-info-circle text-blue-500"></i> โครงสร้างไฟล์ CSV ที่ระบบรองรับ:</h4>
+            <div style="background: #ffffff; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; margin: 8px 0; font-family: monospace; font-weight: bold; color: #1e293b;">
+              เลขที่,รหัสประจำตัว,ชื่อ-สกุล,ระดับชั้น,ครูที่ปรึกษา
+            </div>
+            <p class="text-xs text-gray-500 mt-1">คอลัมน์ <strong>ระดับชั้น</strong> สามารถใส่เป็น "ม.4/1" หรือ "ม.4" ได้</p>
+            <div class="mt-2">
+              <button type="button" class="btn-sm btn-outline text-indigo-600 font-semibold" onclick="exportEngine.downloadTemplate('students')">
+                <i class="fas fa-download mr-1"></i> ดาวน์โหลดไฟล์ตัวอย่าง (Students CSV Template)
+              </button>
+            </div>
+          </div>
+
+          <form id="form-csv-students" onsubmit="studentsService.handleCsvUpload(event)">
+            <div class="form-group mt-4">
+              <label>เลือกไฟล์ CSV ทะเบียนนักเรียน</label>
+              <div class="custom-file-upload">
+                <input type="file" id="csv-students-input" accept=".csv,text/csv" required onchange="studentsService.onCsvFileSelected(this)">
+                <div class="upload-btn-ui">
+                  <i class="fas fa-file-csv"></i> <span id="csv-students-filename">คลิกเพื่อเลือกไฟล์ CSV</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="csv-students-preview-container" class="csv-preview-table-wrapper hidden">
+              <h5>ตัวอย่างข้อมูลนักเรียน (<span id="csv-students-preview-count">0</span> คน):</h5>
+              <div class="table-responsive" style="max-height: 200px;">
+                <table class="data-table text-xs">
+                  <thead>
+                    <tr>
+                      <th class="text-center">เลขที่</th>
+                      <th>รหัสประจำตัว</th>
+                      <th>ชื่อ-สกุล</th>
+                      <th class="text-center">ระดับชั้น</th>
+                      <th>ครูที่ปรึกษา</th>
+                    </tr>
+                  </thead>
+                  <tbody id="csv-students-preview-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="modal-footer mt-4">
+              <button type="button" class="btn btn-outline" onclick="studentsService.closeCsvModal()">ยกเลิก</button>
+              <button type="submit" id="btn-submit-students-csv" class="btn btn-emerald" disabled>
+                <i class="fas fa-upload mr-1"></i> ยืนยันนำเข้าข้อมูลนักเรียน
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    modal.classList.add('active');
+  }
+
+  onCsvFileSelected(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      document.getElementById('csv-students-filename').innerText = file.name;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        this.parsedStudents = this.parseStudentsCsv(text);
+        this.renderCsvPreview(this.parsedStudents);
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+  }
+
+  parseStudentsCsv(csvText) {
+    const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
+    if (lines.length <= 1) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+    const result = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || line.split(',');
+      if (!values || values.length === 0) continue;
+
+      const cleanValues = values.map(v => v ? v.trim().replace(/^["']|["']$/g, '') : '');
+      const row = {};
+      headers.forEach((h, idx) => {
+        row[h] = cleanValues[idx] || '';
+      });
+
+      // ชื่อ-สกุล
+      const name = row['ชื่อ-สกุล'] || row['ชื่อ - สกุล'] || row['ชื่อ_สกุล'] || row['ชื่อ'] || row['name'] || '';
+      const studentId = row['รหัสประจำตัว'] || row['รหัสประจำ'] || row['รหัสนักเรียน'] || row['student_id'] || row['id'] || '';
+
+      // สำคัญมาก: หากไม่มีชื่อ-สกุล (เป็นแถวว่างท้ายตาราง Excel) ให้ข้ามทันที ไม่สร้างข้อมูลขยะ
+      if (!name || name.trim() === '') {
+        continue;
+      }
+
+      const number = row['เลขที่'] || row['number'] || row['no'] || `${result.length + 1}`;
+      const levelRaw = row['ระดับชั้น'] || row['ระดับชั้น/ห้อง'] || row['ชั้น'] || row['grade_level'] || '';
+      const advisor = row['ครูที่ปรึกษา'] || row['ที่ปรึกษา'] || row['advisor'] || '';
+
+      // แยกชั้นและห้อง
+      let gradeLevel = levelRaw;
+      let room = "1";
+      if (levelRaw.includes('/')) {
+        const parts = levelRaw.split('/');
+        gradeLevel = parts[0].trim();
+        room = parts[1].trim() || "1";
+      }
+
+      result.push({
+        id: `s_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 4)}`,
+        studentId: studentId ? studentId.trim() : `STD${i}`,
+        number: number.trim(),
+        prefix: "",
+        name: name.trim(),
+        gradeLevel: gradeLevel.trim(),
+        room: room.trim(),
+        advisor: advisor.trim(),
+        phone: ""
+      });
+    }
+    return result;
+  }
+
+  renderCsvPreview(data) {
+    const container = document.getElementById('csv-students-preview-container');
+    const tbody = document.getElementById('csv-students-preview-body');
+    const countEl = document.getElementById('csv-students-preview-count');
+    const submitBtn = document.getElementById('btn-submit-students-csv');
+
+    if (!container || !tbody) return;
+
+    if (data.length === 0) {
+      container.classList.add('hidden');
+      if (submitBtn) submitBtn.disabled = true;
+      return;
+    }
+
+    countEl.innerText = data.length;
+    tbody.innerHTML = data.slice(0, 8).map(s => `
+      <tr>
+        <td class="text-center font-bold">${s.number}</td>
+        <td class="font-mono font-bold">${s.studentId}</td>
+        <td>${s.name}</td>
+        <td class="text-center">${s.gradeLevel}${s.room ? '/' + s.room : ''}</td>
+        <td>${s.advisor || '-'}</td>
+      </tr>
+    `).join('');
+
+    container.classList.remove('hidden');
+    if (submitBtn) submitBtn.disabled = false;
+  }
+
+  async handleCsvUpload(e) {
+    e.preventDefault();
+    if (!this.parsedStudents || this.parsedStudents.length === 0) return;
+
+    const btn = document.getElementById('btn-submit-students-csv');
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> กำลังนำเข้า...`;
+
+    try {
+      const count = this.parsedStudents.length;
+      await db.bulkInsert('students', this.parsedStudents);
+      this.closeCsvModal();
+      app.showToast(`นำเข้าข้อมูลนักเรียนสำเร็จจำนวน ${count} คน`, "success");
+    } catch (err) {
+      alert("เกิดข้อผิดพลาด: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fas fa-upload mr-1"></i> ยืนยันนำเข้าข้อมูลนักเรียน`;
+    }
+  }
+
+  closeModal() {
+    const modal = document.getElementById('student-form-modal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  closeCsvModal() {
+    const modal = document.getElementById('csv-import-modal');
+    if (modal) modal.classList.remove('active');
+    this.parsedStudents = [];
+  }
+}
+
+// Global Singleton Instance
+const studentsService = new StudentsService();
