@@ -5376,14 +5376,15 @@ function renderScoreReports() {
   const activeHws = Object.keys(homeworkData)
     .filter(hwId => !courseFilter || homeworkData[hwId].courseId === courseFilter)
     .map(hwId => ({ id: hwId, maxScore: homeworkData[hwId].maxScore || 10 }));
-  const totalHwPossible = activeHws.reduce((sum, hw) => sum + hw.maxScore, 0);
 
   const activeQuizzes = Object.keys(quizzesData)
     .filter(qId => !courseFilter || quizzesData[qId].courseId === courseFilter)
-    .map(qId => ({ id: qId, totalQuestions: (quizzesData[qId].questions ? quizzesData[qId].questions.length : 0) }));
-  const totalQuizPossible = activeQuizzes.reduce((sum, q) => sum + q.totalQuestions, 0);
+    .map(qId => ({ id: qId }));
 
-  const totalPossible = totalHwPossible + totalQuizPossible;
+  // Fixed standard grading scale: Homework (คะแนนเก็บ) = 60, Quizzes (คะแนนสอบ) = 40, Total (คะแนนรวม) = 100
+  const totalHwPossible = 60;
+  const totalQuizPossible = 40;
+  const totalPossible = 100;
 
   // Filter students by classroom and search query
   let filteredStudents = allStudents.filter(std => {
@@ -5424,21 +5425,23 @@ function renderScoreReports() {
     for (let h = 0; h < activeHws.length; h++) {
       const hw = activeHws[h];
       const sub = submissionsData[hw.id]?.[studentId];
-      if (sub && sub.score !== undefined) {
-        totalHwEarned += sub.score;
+      if (sub && sub.score !== undefined && sub.score !== '' && !isNaN(Number(sub.score))) {
+        totalHwEarned += Number(sub.score);
       }
     }
+    totalHwEarned = Math.round(totalHwEarned * 10) / 10;
 
     let totalQuizEarned = 0;
     for (let q = 0; q < activeQuizzes.length; q++) {
       const quiz = activeQuizzes[q];
       const qRes = quizResultsData[quiz.id]?.[studentId];
-      if (qRes && qRes.isGraded !== false && qRes.score !== undefined) {
-        totalQuizEarned += qRes.score;
+      if (qRes && qRes.isGraded !== false && qRes.score !== undefined && qRes.score !== '' && !isNaN(Number(qRes.score))) {
+        totalQuizEarned += Number(qRes.score);
       }
     }
+    totalQuizEarned = Math.round(totalQuizEarned * 10) / 10;
 
-    const totalEarned = totalHwEarned + totalQuizEarned;
+    const totalEarned = Math.round((totalHwEarned + totalQuizEarned) * 10) / 10;
     const percent = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
 
     html += `
