@@ -644,6 +644,37 @@ function togglePasswordVisibility(inputId, buttonEl) {
   }
 }
 
+function setLoginRoleHint(role) {
+  const tabStd = document.getElementById('tab-role-student');
+  const tabTch = document.getElementById('tab-role-teacher');
+  const userLabel = document.getElementById('username-label');
+  const userInput = document.getElementById('login-username');
+  const pwdInput = document.getElementById('login-password');
+  const userIcon = document.getElementById('login-user-icon');
+  const hintHead = document.getElementById('login-hint-heading');
+  const hintBody = document.getElementById('login-hint-body');
+
+  if (role === 'teacher') {
+    if (tabStd) tabStd.classList.remove('active');
+    if (tabTch) tabTch.classList.add('active');
+    if (userLabel) userLabel.textContent = 'ชื่อผู้ใช้งาน / เบอร์โทรศัพท์ (สำหรับครูผู้สอน)';
+    if (userInput) userInput.placeholder = 'กรอกชื่อผู้ใช้งาน หรือเบอร์โทรศัพท์ของครู';
+    if (pwdInput) pwdInput.placeholder = 'กรอกรหัสผ่านของท่าน';
+    if (userIcon) userIcon.className = 'fa-solid fa-chalkboard-user input-icon';
+    if (hintHead) hintHead.textContent = 'คำแนะนำสำหรับครูผู้สอน / ผู้ดูแลระบบ:';
+    if (hintBody) hintBody.innerHTML = 'กรอก <strong>Username</strong> และ <strong>Password</strong> ของท่านเพื่อเข้าสู่ระบบจัดการห้องเรียนและตรวจให้คะแนน';
+  } else {
+    if (tabTch) tabTch.classList.remove('active');
+    if (tabStd) tabStd.classList.add('active');
+    if (userLabel) userLabel.textContent = 'รหัสประจำตัวนักเรียน (Student ID)';
+    if (userInput) userInput.placeholder = 'กรอกรหัสประจำตัวนักเรียน (เช่น 01104)';
+    if (pwdInput) pwdInput.placeholder = 'กรอกรหัสประจำตัวนักเรียนอีกครั้ง';
+    if (userIcon) userIcon.className = 'fa-solid fa-id-card input-icon';
+    if (hintHead) hintHead.textContent = 'คำแนะนำสำหรับนักเรียน:';
+    if (hintBody) hintBody.innerHTML = 'ใช้ <strong>รหัสประจำตัวนักเรียน</strong> กรอกเหมือนกันทั้งช่องชื่อผู้ใช้และรหัสผ่านเพื่อเข้าเรียนและส่งงาน';
+  }
+}
+
 
 /* -------------------------------------------------------------
    3. NAVIGATION & VIEW SWITCHING
@@ -664,21 +695,36 @@ function switchNav(viewName) {
   const navBtn = document.getElementById(`nav-${viewName}`);
   if (navBtn) navBtn.classList.add('active');
 
+  // Update mobile bottom quick navigation active tab
+  document.querySelectorAll('.mobile-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const mnavBtn = document.getElementById(`mnav-${viewName}`);
+  if (mnavBtn) mnavBtn.classList.add('active');
+
   // Hide all views, show selected
   document.querySelectorAll('.app-view').forEach(view => view.style.display = 'none');
   const targetView = document.getElementById(`view-${viewName}`);
   if (targetView) targetView.style.display = 'block';
 
-  // Page title mapping
+  // Page title & breadcrumb mapping
   const titleMap = {
     dashboard: "แดชบอร์ดภาพรวมระบบ",
-    students: "รายชื่อนักเรียนในระบบ",
+    students: "ทำเนียบรายชื่อนักเรียน",
     courses: "รายวิชาและการบ้าน",
     quizzes: "คลังแบบทดสอบและข้อสอบ",
     reports: "สรุปรายงานคะแนนเก็บและคะแนนสอบ",
-    users: "จัดการผู้ใช้งานในระบบ"
+    users: "จัดการสิทธิ์ผู้ใช้งาน"
   };
-  document.getElementById('page-title').innerText = titleMap[viewName] || "Myclassroom";
+  const breadcrumbMap = {
+    dashboard: "OVERVIEW & ANNOUNCEMENTS",
+    students: "STUDENT DIRECTORY & ACCOUNTS",
+    courses: "COURSES & ASSIGNMENTS",
+    quizzes: "ONLINE EXAMINATION SUITE",
+    reports: "ACADEMIC SCORE ANALYTICS",
+    users: "USER ACCESS CONTROL"
+  };
+  document.getElementById('page-title').innerText = titleMap[viewName] || "Krunoii Classroom";
+  const bcEl = document.getElementById('header-breadcrumb');
+  if (bcEl) bcEl.innerText = breadcrumbMap[viewName] || "KRUNOII SMART CLASSROOM";
 
   // Trigger render functions for target view
   if (viewName === 'dashboard') updateDashboardStats();
@@ -788,6 +834,14 @@ function updateDashboardStats() {
   const courseCount = Object.keys(coursesData).length;
   const quizCount = Object.keys(quizzesData).length;
 
+  const setStatCard = (valId, value, labelText) => {
+    const valEl = document.getElementById(valId);
+    if (!valEl) return;
+    valEl.innerText = value;
+    const lblEl = valEl.closest('.stat-info')?.querySelector('.stat-label');
+    if (lblEl) lblEl.innerText = labelText;
+  };
+
   if (isStudent) {
     // Filter courses for this student's grade level
     const myCourseKeys = Object.keys(coursesData).filter(id => {
@@ -804,39 +858,17 @@ function updateDashboardStats() {
       return isStudentEligibleForQuiz(studentClass, quizzesData[id]);
     });
 
-    document.getElementById('stat-students-count').innerText = studentClass || 'นักเรียน';
-    const lbl1 = document.querySelector('#stat-students-count + .stat-label');
-    if (lbl1) lbl1.innerText = 'ห้องเรียนของฉัน';
-
-    document.getElementById('stat-courses-count').innerText = myCourseKeys.length;
-    const lbl2 = document.querySelector('#stat-courses-count + .stat-label');
-    if (lbl2) lbl2.innerText = 'รายวิชาของฉัน';
-
-    document.getElementById('stat-homework-count').innerText = myHwKeys.length;
-    const lbl3 = document.querySelector('#stat-homework-count + .stat-label');
-    if (lbl3) lbl3.innerText = 'การบ้านห้องของฉัน';
-
-    document.getElementById('stat-quizzes-count').innerText = myQuizKeys.length;
-    const lbl4 = document.querySelector('#stat-quizzes-count + .stat-label');
-    if (lbl4) lbl4.innerText = 'แบบทดสอบห้องของฉัน';
+    setStatCard('stat-students-count', studentClass || 'นักเรียน', 'ห้องเรียนของฉัน');
+    setStatCard('stat-courses-count', myCourseKeys.length, 'รายวิชาของฉัน');
+    setStatCard('stat-homework-count', myHwKeys.length, 'การบ้านห้องของฉัน');
+    setStatCard('stat-quizzes-count', myQuizKeys.length, 'แบบทดสอบห้องของฉัน');
   } else {
     const homeworkCount = Object.keys(homeworkData).length;
 
-    document.getElementById('stat-students-count').innerText = studentCount;
-    const lbl1 = document.querySelector('#stat-students-count + .stat-label');
-    if (lbl1) lbl1.innerText = 'นักเรียนในระบบ (คน)';
-
-    document.getElementById('stat-courses-count').innerText = courseCount;
-    const lbl2 = document.querySelector('#stat-courses-count + .stat-label');
-    if (lbl2) lbl2.innerText = 'รายวิชาทั้งหมด';
-
-    document.getElementById('stat-homework-count').innerText = homeworkCount;
-    const lbl3 = document.querySelector('#stat-homework-count + .stat-label');
-    if (lbl3) lbl3.innerText = 'การบ้านที่สั่งแล้ว';
-
-    document.getElementById('stat-quizzes-count').innerText = quizCount;
-    const lbl4 = document.querySelector('#stat-quizzes-count + .stat-label');
-    if (lbl4) lbl4.innerText = 'แบบทดสอบที่สร้าง';
+    setStatCard('stat-students-count', studentCount, 'นักเรียนในระบบ (คน)');
+    setStatCard('stat-courses-count', courseCount, 'รายวิชาทั้งหมด');
+    setStatCard('stat-homework-count', homeworkCount, 'การบ้านที่สั่งแล้ว');
+    setStatCard('stat-quizzes-count', quizCount, 'แบบทดสอบที่สร้าง');
   }
 }
 
@@ -886,12 +918,12 @@ function renderDashboardHomeworkSummary() {
   }
 
   if (hwKeys.length === 0) {
-    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีข้อมูลการบ้าน (หรือไม่มีงานที่มอบหมายให้ห้องของคุณ)</p>`;
+    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:24px;"><i class="fa-regular fa-folder-open" style="margin-right:6px;"></i>ยังไม่มีข้อมูลการบ้าน (หรือไม่มีงานที่มอบหมายให้ห้องของคุณ)</p>`;
     return;
   }
 
   let html = `<div style="display:flex; flex-direction:column; gap:12px;">`;
-  hwKeys.slice(-2).reverse().forEach(id => {
+  hwKeys.slice(-3).reverse().forEach(id => {
     const hw = homeworkData[id];
     const course = coursesData[hw.courseId] || { code: 'วิชา', name: '' };
     const subs = submissionsData[id] ? Object.keys(submissionsData[id]).length : 0;
@@ -900,19 +932,27 @@ function renderDashboardHomeworkSummary() {
     if (isStudent) {
       const mySub = (submissionsData[id] && currentUser.studentId) ? submissionsData[id][currentUser.studentId] : null;
       if (mySub) {
-        statusBadge = `<span class="badge badge-green"><i class="fa-solid fa-check"></i> ส่งแล้ว (${mySub.score !== undefined ? mySub.score + ' คะแนน' : 'รอตรวจ'})</span>`;
+        statusBadge = `<span class="badge badge-green" style="padding:5px 12px;"><i class="fa-solid fa-circle-check"></i> ส่งแล้ว (${mySub.score !== undefined && mySub.score !== '' ? mySub.score + ' คะแนน' : 'รอตรวจ'})</span>`;
       } else {
-        statusBadge = `<button class="btn btn-sm btn-primary" onclick="switchNav('courses')"><i class="fa-solid fa-paper-plane"></i> ส่งงาน</button>`;
+        statusBadge = `<button class="btn btn-sm btn-primary" onclick="switchNav('courses')"><i class="fa-solid fa-paper-plane"></i> ส่งงานทันที</button>`;
       }
     } else {
-      statusBadge = `<span class="badge badge-blue">ส่งแล้ว ${subs} คน</span>`;
+      statusBadge = `
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="badge badge-blue" style="padding:5px 10px;"><i class="fa-solid fa-inbox"></i> ส่งแล้ว ${subs} คน</span>
+          <button class="btn btn-sm btn-outline-primary" onclick="switchNav('courses')">ตรวจงาน</button>
+        </div>
+      `;
     }
 
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border-radius:12px; border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
-        <div>
-          <div style="font-weight:700; color:#0f172a;">${hw.title}</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">${course.code} ${course.name} | กำหนดส่ง: ${hw.dueDate}</div>
+      <div class="dash-summary-card">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="font-weight:700; color:#0f172a; font-size:0.98rem;">${hw.title}</div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.82rem; color:var(--text-muted);">
+            <span class="badge badge-blue" style="font-size:0.72rem;">${course.code} ${course.name}</span>
+            <span><i class="fa-regular fa-calendar" style="color:var(--primary);"></i> กำหนดส่ง: <strong>${formatThaiDate(hw.dueDate)}</strong></span>
+          </div>
         </div>
         <div style="text-align:right;">
           ${statusBadge}
@@ -937,12 +977,12 @@ function renderDashboardQuizSummary() {
   }
 
   if (qKeys.length === 0) {
-    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:20px;">ยังไม่มีแบบทดสอบ (หรือไม่มีแบบทดสอบสำหรับห้องของคุณ)</p>`;
+    container.innerHTML = `<p class="text-muted" style="text-align:center; padding:24px;"><i class="fa-regular fa-clipboard" style="margin-right:6px;"></i>ยังไม่มีแบบทดสอบ (หรือไม่มีแบบทดสอบสำหรับห้องของคุณ)</p>`;
     return;
   }
 
   let html = `<div style="display:flex; flex-direction:column; gap:12px;">`;
-  qKeys.slice(-2).reverse().forEach(id => {
+  qKeys.slice(-3).reverse().forEach(id => {
     const q = quizzesData[id];
     const course = coursesData[q.courseId] || { name: 'วิชา' };
     const doneCount = quizResultsData[id] ? Object.keys(quizResultsData[id]).length : 0;
@@ -953,12 +993,12 @@ function renderDashboardQuizSummary() {
       const myResult = (quizResultsData[id] && currentUser.studentId) ? quizResultsData[id][currentUser.studentId] : null;
       if (myResult) {
         if (myResult.isGraded === false || myResult.status === 'pending') {
-          badgeHtml = `<span class="badge badge-amber" style="font-weight:700;"><i class="fa-solid fa-hourglass-half"></i> ส่งแล้ว (รอตรวจ)</span>`;
+          badgeHtml = `<span class="badge badge-amber" style="font-weight:700; padding:5px 12px;"><i class="fa-solid fa-hourglass-half"></i> ส่งแล้ว (รอตรวจ)</span>`;
         } else {
-          badgeHtml = `<span class="badge ${myResult.passed ? 'badge-green' : 'badge-red'}"><i class="${myResult.passed ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ทำแล้ว (${myResult.score}/${myResult.totalScore})</span>`;
+          badgeHtml = `<span class="badge ${myResult.passed ? 'badge-green' : 'badge-red'}" style="padding:5px 12px;"><i class="${myResult.passed ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}"></i> ทำแล้ว (${myResult.score}/${myResult.totalScore})</span>`;
         }
       } else if (isOpen) {
-        badgeHtml = `<button class="btn btn-sm btn-primary" onclick="switchNav('quizzes')"><i class="fa-solid fa-play"></i> เริ่มสอบ</button>`;
+        badgeHtml = `<button class="btn btn-sm btn-primary" onclick="switchNav('quizzes')"><i class="fa-solid fa-play"></i> เริ่มทำข้อสอบ</button>`;
       } else {
         badgeHtml = `<span class="badge badge-red" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecdd3;"><i class="fa-solid fa-lock"></i> ปิดสอบ</span>`;
       }
@@ -968,16 +1008,22 @@ function renderDashboardQuizSummary() {
           <span class="badge ${isOpen ? 'badge-green' : 'badge-red'}" style="font-weight:700;">
             <i class="${isOpen ? 'fa-solid fa-circle-check' : 'fa-solid fa-lock'}"></i> ${isOpen ? 'เปิดสอบ' : 'ปิดสอบ'}
           </span>
-          <span class="badge badge-blue">ทำแล้ว ${doneCount} คน</span>
+          <span class="badge badge-purple">ส่งแล้ว ${doneCount} คน</span>
         </div>
       `;
     }
 
+    const qTypeLabel = q.type === 'subjective' ? 'อัตนัย' : (q.type === 'mixed' ? 'ปรนัย+อัตนัย' : `${q.type} ตัวเลือก`);
+
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border-radius:12px; border:1px solid var(--border); flex-wrap:wrap; gap:8px;">
-        <div>
-          <div style="font-weight:700; color:#0f172a;">${q.title}</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">${course.name} | ${q.type} ตัวเลือก | เวลา ${q.duration} นาที</div>
+      <div class="dash-summary-card quiz-accent">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="font-weight:700; color:#0f172a; font-size:0.98rem;">${q.title}</div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.82rem; color:var(--text-muted);">
+            <span class="badge badge-purple" style="font-size:0.72rem;">${course.name}</span>
+            <span><i class="fa-solid fa-layer-group" style="color:#8b5cf6;"></i> ${qTypeLabel}</span>
+            <span><i class="fa-regular fa-clock" style="color:#d97706;"></i> เวลา ${q.duration} นาที</span>
+          </div>
         </div>
         <div>
           ${badgeHtml}
@@ -5493,19 +5539,33 @@ function renderScoreReports() {
     const totalEarned = Math.round((totalHwEarned + totalQuizEarned) * 10) / 10;
     const percent = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
 
+    const clampedPercent = Math.min(100, Math.max(0, percent));
+    const barColor = percent >= 80 ? '#10b981' : (percent >= 50 ? '#3b82f6' : '#ef4444');
+
     html += `
       <tr>
         <td style="text-align:center; font-weight:700; color:#64748b;">${std.no || '-'}</td>
-        <td><code style="font-weight:700; font-size:0.9rem;">${std.studentId}</code></td>
-        <td><strong>${std.name}</strong></td>
+        <td>
+          <span style="font-family:monospace; font-size:0.92rem; font-weight:700; color:#1d4ed8; background:#eff6ff; padding:3px 8px; border-radius:6px; border:1px solid #bfdbfe;">
+            ${std.studentId}
+          </span>
+        </td>
+        <td><strong style="color:#0f172a; font-size:0.95rem;">${std.name}</strong></td>
         <td style="text-align:center;">
           <span class="badge ${stdScale.isVocational ? 'badge-purple' : 'badge-yellow'}" style="font-weight:700;">ห้อง ${std.classLevel || '-'}</span>
         </td>
-        <td style="text-align:center; font-weight:600;">${totalHwEarned} <span style="font-size:0.8rem; color:#64748b;">/ ${totalHwPossible}</span></td>
-        <td style="text-align:center; font-weight:600;">${totalQuizEarned} <span style="font-size:0.8rem; color:#64748b;">/ ${totalQuizPossible}</span></td>
+        <td style="text-align:center; font-weight:700; color:#1e293b;">${totalHwEarned} <span style="font-size:0.82rem; font-weight:600; color:#64748b;">/ ${totalHwPossible}</span></td>
+        <td style="text-align:center; font-weight:700; color:#1e293b;">${totalQuizEarned} <span style="font-size:0.82rem; font-weight:600; color:#64748b;">/ ${totalQuizPossible}</span></td>
         <td style="text-align:center;">
-          <strong style="color:var(--primary); font-size:1.05rem;">${totalEarned} / ${totalPossible}</strong> 
-          <span class="badge ${percent >= 50 ? 'badge-green' : 'badge-red'}" style="margin-left:6px; font-weight:800;">${percent}%</span>
+          <div class="report-score-cell">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <strong style="color:var(--primary); font-size:1.05rem;">${totalEarned} / ${totalPossible}</strong>
+              <span class="badge ${percent >= 50 ? 'badge-green' : 'badge-red'}" style="font-weight:800;">${percent}%</span>
+            </div>
+            <div class="report-score-bar-track">
+              <div class="report-score-bar-fill" style="width:${clampedPercent}%; background:${barColor};"></div>
+            </div>
+          </div>
         </td>
       </tr>
     `;
