@@ -2480,6 +2480,15 @@ function removeStudentSelectedFile(index, e) {
     if (removed && removed.previewUrl && removed.previewUrl.startsWith('blob:')) {
       try { URL.revokeObjectURL(removed.previewUrl); } catch (err) {}
     }
+    if (removed && removed.sheetId && typeof hwDrawState !== 'undefined' && Array.isArray(hwDrawState.sheets)) {
+      const sIdx = hwDrawState.sheets.findIndex(s => s.id === removed.sheetId);
+      if (sIdx !== -1) {
+        hwDrawState.sheets.splice(sIdx, 1);
+        if (hwDrawState.currentSheetIndex >= hwDrawState.sheets.length) {
+          hwDrawState.currentSheetIndex = Math.max(0, hwDrawState.sheets.length - 1);
+        }
+      }
+    }
     currentSelectedStudentFiles.splice(index, 1);
   }
   currentSelectedStudentFile = currentSelectedStudentFiles[0] ? currentSelectedStudentFiles[0].file : null;
@@ -2524,7 +2533,7 @@ function renderStudentSelectedFilesPreview() {
     const safeName = (item.name || `ไฟล์ที่ ${idx + 1}`).replace(/'/g, "\\'");
     if (item.isPdf) {
       return `
-        <div class="builder-pdf-card" style="width:145px;">
+        <div class="builder-pdf-card" style="width:155px;">
           <div class="builder-pdf-card-top" onclick="showPDFPreviewModal('${item.previewUrl}', '${safeName}')" title="คลิกเพื่อดูตัวอย่าง PDF">
             <div class="builder-pdf-icon-wrap">
               <i class="fa-solid fa-file-pdf"></i>
@@ -2543,19 +2552,20 @@ function renderStudentSelectedFilesPreview() {
         </div>
       `;
     } else {
+      const editBtnHtml = item.sheetId
+        ? `<button type="button" class="btn-builder-att-action" style="background:#eff6ff; color:#2563eb; font-weight:800;" onclick="editHwCanvasSheetById('${item.sheetId}', event)" title="กลับไปแก้ไขแผ่นกระดาษนี้"><i class="fa-solid fa-pen-to-square"></i> แก้ไข</button>`
+        : `<button type="button" class="btn-builder-att-action btn-zoom" onclick="showPDFPreviewModal('${item.previewUrl}', '${safeName} (รูปที่ ${idx + 1}/${count})')" title="ดูภาพขยาย"><i class="fa-solid fa-magnifying-glass-plus"></i> ขยาย</button>`;
       return `
-        <div class="builder-image-card" style="width:145px;">
+        <div class="builder-image-card" style="width:155px;">
           <div class="builder-image-thumb-wrap" style="height:105px;">
             <img src="${item.previewUrl}" class="builder-image-thumb-grid" alt="รูปที่ ${idx + 1}" onclick="showPDFPreviewModal('${item.previewUrl}', '${safeName} (รูปที่ ${idx + 1}/${count})')" title="คลิกเพื่อดูภาพขยาย">
-            <span class="builder-img-number-badge">รูปที่ ${idx + 1}</span>
+            <span class="builder-img-number-badge">${item.sheetId ? `แผ่นที่ ${idx + 1}` : `รูปที่ ${idx + 1}`}</span>
           </div>
           <div style="padding:4px 8px; font-size:0.74rem; color:#334155; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:#ffffff; border-top:1px solid #f1f5f9;">
             ${item.name} <span style="color:#64748b;">(${item.sizeText})</span>
           </div>
           <div class="builder-attachment-card-footer">
-            <button type="button" class="btn-builder-att-action btn-zoom" onclick="showPDFPreviewModal('${item.previewUrl}', '${safeName} (รูปที่ ${idx + 1}/${count})')" title="ดูภาพขยาย">
-              <i class="fa-solid fa-magnifying-glass-plus"></i> ขยาย
-            </button>
+            ${editBtnHtml}
             <button type="button" class="btn-builder-att-action btn-del" onclick="removeStudentSelectedFile(${idx}, event)" title="ลบรูปนี้">
               <i class="fa-solid fa-trash-can"></i> ลบ
             </button>
@@ -2593,7 +2603,18 @@ function renderStudentSelectedFilesPreview() {
 }
 
 function clearStudentFileSelection(e) {
-  if (e) e.stopPropagation();
+  if (e) {
+    e.stopPropagation();
+    if (typeof hwDrawState !== 'undefined') {
+      hwDrawState.sheets = [];
+      hwDrawState.currentSheetIndex = 0;
+      hwDrawState.shapes = [];
+      hwDrawState.selectedShapeId = null;
+      hwDrawState.undoStack = [];
+      hwDrawState.redoStack = [];
+      if (typeof clearHwDrawLayerOnly === 'function') clearHwDrawLayerOnly();
+    }
+  }
   const fileInput = document.getElementById('submit-img-file');
   if (fileInput) fileInput.value = '';
   
@@ -2667,14 +2688,18 @@ function openSubmitHomeworkModal(hwId) {
   }
 
   document.getElementById('submit-hw-id').value = hwId;
-  if (typeof hwDrawState !== 'undefined' && hwDrawState.activeHwId !== hwId) {
+  if (typeof hwDrawState !== 'undefined') {
     hwDrawState.activeHwId = hwId;
+    hwDrawState.sheets = [];
+    hwDrawState.currentSheetIndex = 0;
+    hwDrawState.shapes = [];
+    hwDrawState.selectedShapeId = null;
     hwDrawState.worksheetPdfDoc = null;
     hwDrawState.customBgImage = null;
     hwDrawState.paperType = 'lined';
     hwDrawState.undoStack = [];
     hwDrawState.redoStack = [];
-    clearHwDrawLayerOnly();
+    if (typeof clearHwDrawLayerOnly === 'function') clearHwDrawLayerOnly();
   }
   document.getElementById('submit-hw-details').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
@@ -6116,11 +6141,12 @@ updateLiveClock();
 
 /* -------------------------------------------------------------
    12. IPAD / TABLET INTERACTIVE DRAWING, HANDWRITING & COLORING STUDIO
+       (Vector Movable/Resizable Flowchart Shapes + Multi-Sheet Editable Pages)
 ------------------------------------------------------------- */
 const hwDrawState = {
   initialized: false,
   isDrawing: false,
-  tool: 'pen',          // 'pen' | 'brush' | 'highlighter' | 'bucket' | 'text' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'diamond' | 'pan'
+  tool: 'pen',          // 'pen' | 'select' | 'brush' | 'highlighter' | 'bucket' | 'text' | 'eraser' | 'pan' | FLOWCHART_SHAPE_TOOLS
   color: '#0f172a',
   strokeSize: 4,
   paperType: 'lined',   // 'blank' | 'lined' | 'grid' | 'custom'
@@ -6136,6 +6162,14 @@ const hwDrawState = {
   worksheetPdfDoc: null,
   worksheetPdfPage: 1,
   worksheetPdfTotal: 1,
+  // Interactive Vector Flowchart Shapes on current sheet
+  shapes: [],
+  selectedShapeId: null,
+  shapeInteraction: null, // { mode: 'create' | 'move' | 'resize', shapeId, handle, origShape, startX, startY }
+  editingShapeTextId: null,
+  // Multi-Sheet Editable History
+  sheets: [],
+  currentSheetIndex: 0,
   undoStack: [],
   redoStack: [],
   maxHistory: 25,
@@ -6144,6 +6178,40 @@ const hwDrawState = {
   hasInkOnCurrentSheet: false
 };
 
+const FLOWCHART_SHAPE_TOOLS = [
+  'line',
+  'arrow',
+  'rect',
+  'circle',
+  'diamond',
+  'fc-terminator',
+  'fc-io',
+  'fc-manual-input',
+  'fc-display',
+  'fc-document',
+  'fc-subroutine',
+  'fc-offpage'
+];
+
+function cloneHwShapesList(shapesArr) {
+  if (!Array.isArray(shapesArr)) return [];
+  return shapesArr.map(s => ({ ...s }));
+}
+
+function createBlankSheetEntry(index = 0) {
+  return {
+    id: `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${index}`,
+    paperType: hwDrawState.paperType || 'lined',
+    orientation: hwDrawState.orientation || 'landscape',
+    customBgImage: hwDrawState.customBgImage || null,
+    worksheetPdfPage: hwDrawState.worksheetPdfPage || 1,
+    rasterData: null,
+    shapes: [],
+    undoStack: [],
+    redoStack: []
+  };
+}
+
 function openSubmitHomeworkWithDrawing(hwId) {
   openSubmitHomeworkModal(hwId);
   setTimeout(() => {
@@ -6151,26 +6219,20 @@ function openSubmitHomeworkWithDrawing(hwId) {
   }, 120);
 }
 
-function openHomeworkDrawingStudio(autoLoadWorksheet = false) {
+function openHomeworkDrawingStudio(autoLoadWorksheet = false, targetSheetIdx = null) {
   const hwId = document.getElementById('submit-hw-id')?.value;
   const hw = hwId ? homeworkData[hwId] : null;
 
   const subtitleEl = document.getElementById('hw-canvas-subtitle');
-  const sheetBadgeEl = document.getElementById('hw-canvas-sheet-badge');
   const worksheetBtn = document.getElementById('btn-load-teacher-worksheet');
   const pdfPager = document.getElementById('hw-worksheet-pdf-pager');
 
-  const nextSheetNum = (currentSelectedStudentFiles ? currentSelectedStudentFiles.length : 0) + 1;
-  if (sheetBadgeEl) {
-    sheetBadgeEl.innerText = `แผ่นที่ ${nextSheetNum}`;
-  }
   if (subtitleEl) {
     subtitleEl.innerText = hw
       ? `การบ้าน: ${hw.title} (เต็ม ${hw.maxScore} คะแนน)`
-      : 'เขียนด้วยลายมือ วาดรูปทรง และระบายสีส่งครูได้โดยตรง';
+      : 'เขียนด้วยลายมือ วาดรูปทรง Flowchart และระบายสีส่งครูได้โดยตรง';
   }
 
-  // Check if teacher attached a PDF or image worksheet
   let teacherFileUrl = null;
   if (hw) {
     if (hw.pdfs && Array.isArray(hw.pdfs) && hw.pdfs.length > 0 && hw.pdfs[0].url) {
@@ -6189,20 +6251,177 @@ function openHomeworkDrawingStudio(autoLoadWorksheet = false) {
   initHwCanvasEvents();
   openModal('modal-homework-canvas');
 
-  // Render background and fit stage after modal becomes visible
   setTimeout(() => {
-    if (hwDrawState.undoStack.length === 0) {
+    // Initialize first sheet if none exist yet
+    if (!Array.isArray(hwDrawState.sheets) || hwDrawState.sheets.length === 0) {
+      hwDrawState.sheets = [createBlankSheetEntry(0)];
+      hwDrawState.currentSheetIndex = 0;
+      hwDrawState.shapes = [];
+      hwDrawState.selectedShapeId = null;
       setHwCanvasPaper(hwDrawState.paperType || 'lined');
       clearHwDrawLayerOnly();
+      hwDrawState.undoStack = [];
+      hwDrawState.redoStack = [];
       pushHwUndoState();
+      saveCurrentSheetStateToMemory();
+    } else if (targetSheetIdx !== null && targetSheetIdx >= 0 && targetSheetIdx < hwDrawState.sheets.length) {
+      loadSheetStateFromMemory(targetSheetIdx);
     } else {
-      renderHwBackgroundLayer();
+      loadSheetStateFromMemory(hwDrawState.currentSheetIndex);
     }
+
+    renderHwSheetsNavTabs();
     fitHwCanvasStage();
+
     if (autoLoadWorksheet && teacherFileUrl) {
       loadTeacherWorksheetToCanvas();
     }
   }, 80);
+}
+
+// Multi-Sheet Page Manager (สลับกลับไปแก้ไขแผ่นกระดาษเก่าได้ตลอดเวลา)
+function saveCurrentSheetStateToMemory() {
+  if (!Array.isArray(hwDrawState.sheets) || hwDrawState.sheets.length === 0) return;
+  const idx = hwDrawState.currentSheetIndex;
+  if (idx < 0 || idx >= hwDrawState.sheets.length) return;
+
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  let rasterSnap = null;
+  if (drawCanvas) {
+    const ctx = drawCanvas.getContext('2d');
+    rasterSnap = ctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+  }
+
+  const sheet = hwDrawState.sheets[idx];
+  sheet.paperType = hwDrawState.paperType;
+  sheet.orientation = hwDrawState.orientation;
+  sheet.customBgImage = hwDrawState.customBgImage;
+  sheet.worksheetPdfPage = hwDrawState.worksheetPdfPage;
+  sheet.rasterData = rasterSnap;
+  sheet.shapes = cloneHwShapesList(hwDrawState.shapes);
+  sheet.undoStack = hwDrawState.undoStack.slice();
+  sheet.redoStack = hwDrawState.redoStack.slice();
+}
+
+function loadSheetStateFromMemory(targetIndex) {
+  if (!Array.isArray(hwDrawState.sheets) || targetIndex < 0 || targetIndex >= hwDrawState.sheets.length) return;
+
+  cancelHwFloatingText();
+  hwDrawState.currentSheetIndex = targetIndex;
+  const sheet = hwDrawState.sheets[targetIndex];
+
+  // Apply sheet orientation if different
+  if (sheet.orientation && sheet.orientation !== hwDrawState.orientation) {
+    applyCanvasOrientationDimensions(sheet.orientation);
+  }
+
+  hwDrawState.paperType = sheet.paperType || 'lined';
+  hwDrawState.customBgImage = sheet.customBgImage || null;
+  hwDrawState.worksheetPdfPage = sheet.worksheetPdfPage || 1;
+  hwDrawState.shapes = cloneHwShapesList(sheet.shapes || []);
+  hwDrawState.selectedShapeId = null;
+
+  // Update paper style button highlight
+  ['blank', 'lined', 'grid'].forEach(p => {
+    const btn = document.getElementById(`btn-paper-${p}`);
+    if (btn) {
+      const isActive = p === hwDrawState.paperType;
+      btn.style.background = isActive ? '#2563eb' : 'transparent';
+      btn.style.color = isActive ? '#ffffff' : '#cbd5e1';
+    }
+  });
+
+  renderHwBackgroundLayer();
+
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (drawCanvas) {
+    const ctx = drawCanvas.getContext('2d');
+    ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    if (sheet.rasterData) {
+      ctx.putImageData(sheet.rasterData, 0, 0);
+    }
+  }
+
+  renderHwShapesLayer(true);
+
+  if (Array.isArray(sheet.undoStack) && sheet.undoStack.length > 0) {
+    hwDrawState.undoStack = sheet.undoStack.slice();
+    hwDrawState.redoStack = (sheet.redoStack || []).slice();
+  } else {
+    hwDrawState.undoStack = [];
+    hwDrawState.redoStack = [];
+    pushHwUndoState();
+  }
+
+  renderHwSheetsNavTabs();
+}
+
+function renderHwSheetsNavTabs() {
+  const tabsList = document.getElementById('hw-sheets-tabs-list');
+  const sheetBadgeEl = document.getElementById('hw-canvas-sheet-badge');
+  const prevBtn = document.getElementById('btn-prev-hw-sheet');
+  const nextBtn = document.getElementById('btn-next-hw-sheet');
+
+  const total = hwDrawState.sheets.length || 1;
+  const currentNum = hwDrawState.currentSheetIndex + 1;
+
+  if (sheetBadgeEl) {
+    sheetBadgeEl.innerText = `แผ่นที่ ${currentNum} / ${total}`;
+  }
+  if (prevBtn) {
+    prevBtn.disabled = hwDrawState.currentSheetIndex <= 0;
+    prevBtn.style.opacity = hwDrawState.currentSheetIndex <= 0 ? '0.45' : '1';
+  }
+  if (nextBtn) {
+    nextBtn.disabled = hwDrawState.currentSheetIndex >= total - 1;
+    nextBtn.style.opacity = hwDrawState.currentSheetIndex >= total - 1 ? '0.45' : '1';
+  }
+
+  if (!tabsList) return;
+  tabsList.innerHTML = hwDrawState.sheets.map((s, idx) => {
+    const isActive = idx === hwDrawState.currentSheetIndex;
+    const shapeCount = Array.isArray(s.shapes) ? s.shapes.length : 0;
+    return `
+      <button type="button" class="hw-sheet-tab-btn ${isActive ? 'active' : ''}" onclick="switchHwCanvasSheet(${idx})" title="คลิกเพื่อเปิดและแก้ไข แผ่นที่ ${idx + 1}">
+        <i class="fa-regular fa-file-lines"></i> แผ่นที่ ${idx + 1}
+        ${shapeCount > 0 ? `<span style="font-size:0.7rem; opacity:0.85;">(${shapeCount})</span>` : ''}
+      </button>
+    `;
+  }).join('');
+}
+
+function switchHwCanvasSheet(targetIndex) {
+  if (targetIndex === hwDrawState.currentSheetIndex) return;
+  if (targetIndex < 0 || targetIndex >= hwDrawState.sheets.length) return;
+
+  commitHwFloatingText();
+  saveCurrentSheetStateToMemory();
+  // Sync current sheet's updated drawing to student files list before switching
+  syncSheetToStudentFiles(hwDrawState.currentSheetIndex, () => {
+    loadSheetStateFromMemory(targetIndex);
+  });
+}
+
+function switchToPrevHwSheet() {
+  if (hwDrawState.currentSheetIndex > 0) {
+    switchHwCanvasSheet(hwDrawState.currentSheetIndex - 1);
+  }
+}
+
+function switchToNextHwSheet() {
+  if (hwDrawState.currentSheetIndex < hwDrawState.sheets.length - 1) {
+    switchHwCanvasSheet(hwDrawState.currentSheetIndex + 1);
+  }
+}
+
+function editHwCanvasSheetById(sheetId, e) {
+  if (e) e.stopPropagation();
+  const idx = hwDrawState.sheets.findIndex(s => s.id === sheetId);
+  if (idx !== -1) {
+    openHomeworkDrawingStudio(false, idx);
+  } else {
+    openHomeworkDrawingStudio(false, 0);
+  }
 }
 
 function initHwCanvasEvents() {
@@ -6212,7 +6431,6 @@ function initHwCanvasEvents() {
 
   hwDrawState.initialized = true;
 
-  // Prevent iOS Safari bounce / context menu while drawing with Apple Pencil or finger
   drawCanvas.addEventListener('touchstart', (e) => {
     if (hwDrawState.tool !== 'pan') {
       e.preventDefault();
@@ -6231,21 +6449,6 @@ function initHwCanvasEvents() {
   drawCanvas.addEventListener('pointercancel', handleHwPointerUp);
   drawCanvas.addEventListener('pointerleave', handleHwPointerUp);
 }
-
-const FLOWCHART_SHAPE_TOOLS = [
-  'line',
-  'arrow',
-  'rect',
-  'circle',
-  'diamond',
-  'fc-terminator',
-  'fc-io',
-  'fc-manual-input',
-  'fc-display',
-  'fc-document',
-  'fc-subroutine',
-  'fc-offpage'
-];
 
 let hwPenOnlyToastTimer = null;
 function showHwPenOnlyToast() {
@@ -6281,12 +6484,106 @@ function getHwCanvasCoords(e) {
   };
 }
 
+// Vector Flowchart Shape Hit-Testing & Handle Detection
+function getHwShapeBounds(shape) {
+  const minX = Math.min(shape.x1, shape.x2);
+  const minY = Math.min(shape.y1, shape.y2);
+  const maxX = Math.max(shape.x1, shape.x2);
+  const maxY = Math.max(shape.y1, shape.y2);
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: Math.max(10, maxX - minX),
+    height: Math.max(10, maxY - minY),
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2
+  };
+}
+
+function getHwShapeHandles(shape) {
+  if (!shape) return [];
+  if (shape.type === 'line' || shape.type === 'arrow') {
+    return [
+      { id: 'p1', x: shape.x1, y: shape.y1 },
+      { id: 'p2', x: shape.x2, y: shape.y2 }
+    ];
+  }
+  const b = getHwShapeBounds(shape);
+  return [
+    { id: 'nw', x: b.minX, y: b.minY },
+    { id: 'n',  x: b.cx,   y: b.minY },
+    { id: 'ne', x: b.maxX, y: b.minY },
+    { id: 'e',  x: b.maxX, y: b.cy },
+    { id: 'se', x: b.maxX, y: b.maxY },
+    { id: 's',  x: b.cx,   y: b.maxY },
+    { id: 'sw', x: b.minX, y: b.maxY },
+    { id: 'w',  x: b.minX, y: b.cy }
+  ];
+}
+
+function findHwShapeHandleAtPoint(shape, x, y) {
+  if (!shape) return null;
+  const handles = getHwShapeHandles(shape);
+  const hitRadius = 16;
+  for (let i = 0; i < handles.length; i++) {
+    const h = handles[i];
+    if (Math.hypot(x - h.x, y - h.y) <= hitRadius) {
+      return h.id;
+    }
+  }
+  return null;
+}
+
+function distancePointToSegment(px, py, x1, y1, x2, y2) {
+  const A = px - x1;
+  const B = py - y1;
+  const C = x2 - x1;
+  const D = y2 - y1;
+  const dot = A * C + B * D;
+  const lenSq = C * C + D * D;
+  let param = -1;
+  if (lenSq !== 0) param = dot / lenSq;
+  let xx, yy;
+  if (param < 0) {
+    xx = x1;
+    yy = y1;
+  } else if (param > 1) {
+    xx = x2;
+    yy = y2;
+  } else {
+    xx = x1 + param * C;
+    yy = y1 + param * D;
+  }
+  return Math.hypot(px - xx, py - yy);
+}
+
+function findHwShapeAtPoint(x, y) {
+  // Search top-most shape first
+  for (let i = hwDrawState.shapes.length - 1; i >= 0; i--) {
+    const s = hwDrawState.shapes[i];
+    if (s.type === 'line' || s.type === 'arrow') {
+      if (distancePointToSegment(x, y, s.x1, s.y1, s.x2, s.y2) <= 14) {
+        return s;
+      }
+    } else {
+      const b = getHwShapeBounds(s);
+      const pad = 6;
+      if (x >= b.minX - pad && x <= b.maxX + pad && y >= b.minY - pad && y <= b.maxY + pad) {
+        return s;
+      }
+    }
+  }
+  return null;
+}
+
 function handleHwPointerDown(e) {
   if (hwDrawState.tool === 'pan') return;
   if (e.button !== undefined && e.button !== 0) return;
 
-  // Enforce Pen-Only writing/drawing on the paper sheet (Apple Pencil / Active Stylus: pointerType === 'pen')
-  if (e.pointerType !== 'pen') {
+  // Reject finger/palm touch on the paper canvas while allowing Apple Pencil/Stylus ('pen') and PC testing ('mouse')
+  if (e.pointerType === 'touch') {
     showHwPenOnlyToast();
     return;
   }
@@ -6296,12 +6593,72 @@ function handleHwPointerDown(e) {
   const ctx = drawCanvas.getContext('2d');
   const pt = getHwCanvasCoords(e);
 
-  if (hwDrawState.tool === 'text') {
+  const tool = hwDrawState.tool;
+
+  // 1. Check if user is in 'select' mode OR any Flowchart shape tool and tapped an existing Flowchart shape or handle!
+  if (tool === 'select' || FLOWCHART_SHAPE_TOOLS.includes(tool)) {
+    const currentlySelected = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+    if (currentlySelected) {
+      const handleId = findHwShapeHandleAtPoint(currentlySelected, pt.x, pt.y);
+      if (handleId) {
+        try { drawCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+        hwDrawState.activePointerId = e.pointerId;
+        hwDrawState.isDrawing = true;
+        hwDrawState.shapeInteraction = {
+          mode: 'resize',
+          shapeId: currentlySelected.id,
+          handle: handleId,
+          origShape: { ...currentlySelected },
+          startX: pt.x,
+          startY: pt.y
+        };
+        return;
+      }
+    }
+
+    const hitShape = findHwShapeAtPoint(pt.x, pt.y);
+    if (hitShape) {
+      try { drawCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+      hwDrawState.activePointerId = e.pointerId;
+      hwDrawState.isDrawing = true;
+      hwDrawState.selectedShapeId = hitShape.id;
+      hwDrawState.shapeInteraction = {
+        mode: 'move',
+        shapeId: hitShape.id,
+        origShape: { ...hitShape },
+        startX: pt.x,
+        startY: pt.y
+      };
+      renderHwShapesLayer(true);
+      return;
+    }
+
+    if (tool === 'select') {
+      // Tapped empty space in select mode -> deselect shape
+      hwDrawState.selectedShapeId = null;
+      renderHwShapesLayer(true);
+      return;
+    }
+  }
+
+  // 2. Text tool
+  if (tool === 'text') {
+    hwDrawState.editingShapeTextId = null;
     openHwFloatingTextEditor(pt.x, pt.y);
     return;
   }
 
-  if (hwDrawState.tool === 'bucket') {
+  // 3. Paint Bucket tool (Fills inside a Flowchart shape if tapped inside one, or flood-fills raster canvas!)
+  if (tool === 'bucket') {
+    const hitShape = findHwShapeAtPoint(pt.x, pt.y);
+    if (hitShape && hitShape.type !== 'line' && hitShape.type !== 'arrow') {
+      hitShape.isFilled = true;
+      hitShape.fillColor = hwDrawState.color;
+      hwDrawState.selectedShapeId = hitShape.id;
+      renderHwShapesLayer(true);
+      pushHwUndoState();
+      return;
+    }
     performHwFloodFill(Math.round(pt.x), Math.round(pt.y), hwDrawState.color);
     hwDrawState.hasInkOnCurrentSheet = true;
     pushHwUndoState();
@@ -6320,17 +6677,49 @@ function handleHwPointerDown(e) {
   hwDrawState.lastX = pt.x;
   hwDrawState.lastY = pt.y;
   hwDrawState.points = [{ x: pt.x, y: pt.y }];
+
+  // 4. Creating a new vector Flowchart shape
+  if (FLOWCHART_SHAPE_TOOLS.includes(tool)) {
+    const isFilled = document.getElementById('hw-shape-fill-toggle')?.checked || false;
+    const newShape = {
+      id: `fc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      type: tool,
+      x1: pt.x,
+      y1: pt.y,
+      x2: pt.x,
+      y2: pt.y,
+      color: hwDrawState.color,
+      fillColor: hwDrawState.color,
+      strokeSize: hwDrawState.strokeSize,
+      isFilled: isFilled,
+      text: '',
+      textSize: 22
+    };
+    hwDrawState.shapes.push(newShape);
+    hwDrawState.selectedShapeId = newShape.id;
+    hwDrawState.shapeInteraction = {
+      mode: 'create',
+      shapeId: newShape.id,
+      startX: pt.x,
+      startY: pt.y
+    };
+    renderHwShapesLayer(true);
+    return;
+  }
+
+  // 5. Freehand Pen / Brush / Highlighter / Eraser
+  hwDrawState.selectedShapeId = null;
+  renderHwShapesLayer(true);
   hwDrawState.dragSnapshot = ctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
 
-  // Draw initial dot for freehand tools
-  if (['pen', 'brush', 'highlighter', 'eraser'].includes(hwDrawState.tool)) {
+  if (['pen', 'brush', 'highlighter', 'eraser'].includes(tool)) {
     drawHwFreehandSegment(ctx, pt.x, pt.y, pt.x + 0.1, pt.y + 0.1);
   }
 }
 
 function handleHwPointerMove(e) {
   if (!hwDrawState.isDrawing || hwDrawState.tool === 'pan') return;
-  if (e.pointerType !== 'pen' || (hwDrawState.activePointerId !== undefined && e.pointerId !== hwDrawState.activePointerId)) {
+  if (e.pointerType === 'touch' || (hwDrawState.activePointerId !== undefined && e.pointerId !== hwDrawState.activePointerId)) {
     return;
   }
 
@@ -6338,6 +6727,57 @@ function handleHwPointerMove(e) {
   if (!drawCanvas) return;
   const ctx = drawCanvas.getContext('2d');
   const pt = getHwCanvasCoords(e);
+
+  // Handle interactive Flowchart shape create / move / resize
+  if (hwDrawState.shapeInteraction) {
+    const inter = hwDrawState.shapeInteraction;
+    const shape = hwDrawState.shapes.find(s => s.id === inter.shapeId);
+    if (!shape) return;
+
+    if (inter.mode === 'create') {
+      shape.x2 = pt.x;
+      shape.y2 = pt.y;
+    } else if (inter.mode === 'move') {
+      const dx = pt.x - inter.startX;
+      const dy = pt.y - inter.startY;
+      shape.x1 = inter.origShape.x1 + dx;
+      shape.y1 = inter.origShape.y1 + dy;
+      shape.x2 = inter.origShape.x2 + dx;
+      shape.y2 = inter.origShape.y2 + dy;
+    } else if (inter.mode === 'resize') {
+      const h = inter.handle;
+      if (shape.type === 'line' || shape.type === 'arrow') {
+        if (h === 'p1') {
+          shape.x1 = pt.x;
+          shape.y1 = pt.y;
+        } else if (h === 'p2') {
+          shape.x2 = pt.x;
+          shape.y2 = pt.y;
+        }
+      } else {
+        const b = getHwShapeBounds(inter.origShape);
+        let minX = b.minX;
+        let minY = b.minY;
+        let maxX = b.maxX;
+        let maxY = b.maxY;
+
+        if (h.includes('w')) minX = Math.min(pt.x, maxX - 24);
+        if (h.includes('e')) maxX = Math.max(pt.x, minX + 24);
+        if (h.includes('n')) minY = Math.min(pt.y, maxY - 24);
+        if (h.includes('s')) maxY = Math.max(pt.y, minY + 24);
+
+        shape.x1 = minX;
+        shape.y1 = minY;
+        shape.x2 = maxX;
+        shape.y2 = maxY;
+      }
+    }
+
+    hwDrawState.lastX = pt.x;
+    hwDrawState.lastY = pt.y;
+    renderHwShapesLayer(true);
+    return;
+  }
 
   const tool = hwDrawState.tool;
 
@@ -6371,7 +6811,6 @@ function handleHwPointerMove(e) {
     hwDrawState.lastX = pt.x;
     hwDrawState.lastY = pt.y;
   } else if (tool === 'highlighter') {
-    // Redraw full stroke from dragSnapshot so translucent alpha stays uniform
     hwDrawState.points.push(pt);
     if (hwDrawState.dragSnapshot) {
       ctx.putImageData(hwDrawState.dragSnapshot, 0, 0);
@@ -6386,13 +6825,6 @@ function handleHwPointerMove(e) {
     }
     ctx.stroke();
     ctx.restore();
-  } else if (FLOWCHART_SHAPE_TOOLS.includes(tool)) {
-    if (hwDrawState.dragSnapshot) {
-      ctx.putImageData(hwDrawState.dragSnapshot, 0, 0);
-    }
-    drawHwShape(ctx, tool, hwDrawState.startX, hwDrawState.startY, pt.x, pt.y);
-    hwDrawState.lastX = pt.x;
-    hwDrawState.lastY = pt.y;
   }
 }
 
@@ -6401,28 +6833,161 @@ function handleHwPointerUp(e) {
   if (hwDrawState.activePointerId !== undefined && e && e.pointerId !== undefined && e.pointerId !== hwDrawState.activePointerId) {
     return;
   }
-  const finishedTool = hwDrawState.tool;
-  const sx = hwDrawState.startX;
-  const sy = hwDrawState.startY;
-  const ex = hwDrawState.lastX;
-  const ey = hwDrawState.lastY;
 
+  const inter = hwDrawState.shapeInteraction;
   hwDrawState.isDrawing = false;
   hwDrawState.activePointerId = undefined;
   hwDrawState.points = [];
   hwDrawState.dragSnapshot = null;
-  pushHwUndoState();
+  hwDrawState.shapeInteraction = null;
 
-  // If auto-text inside Flowchart shape is enabled, open floating text editor centered inside the drawn shape
-  const autoText = document.getElementById('hw-shape-auto-text-toggle')?.checked || false;
-  if (autoText && FLOWCHART_SHAPE_TOOLS.includes(finishedTool) && finishedTool !== 'line' && finishedTool !== 'arrow') {
-    const w = Math.abs(ex - sx);
-    const h = Math.abs(ey - sy);
-    if (w > 40 && h > 25) {
-      const centerX = Math.min(sx, ex) + Math.max(12, w * 0.18);
-      const centerY = Math.min(sy, ey) + Math.max(8, h * 0.32);
-      openHwFloatingTextEditor(centerX, centerY);
+  if (inter) {
+    const shape = hwDrawState.shapes.find(s => s.id === inter.shapeId);
+    if (shape && inter.mode === 'create') {
+      const dist = Math.hypot(shape.x2 - shape.x1, shape.y2 - shape.y1);
+      // If user just tapped without dragging, give the Flowchart shape a clean default size!
+      if (dist < 14) {
+        if (shape.type === 'line' || shape.type === 'arrow') {
+          shape.x2 = shape.x1 + 110;
+          shape.y2 = shape.y1;
+        } else if (shape.type === 'circle') {
+          shape.x1 -= 28;
+          shape.y1 -= 28;
+          shape.x2 = shape.x1 + 56;
+          shape.y2 = shape.y1 + 56;
+        } else {
+          shape.x1 -= 85;
+          shape.y1 -= 38;
+          shape.x2 = shape.x1 + 170;
+          shape.y2 = shape.y1 + 76;
+        }
+      }
+      renderHwShapesLayer(true);
+      pushHwUndoState();
+
+      // Auto-text inside Flowchart shape if checkbox is checked
+      const autoText = document.getElementById('hw-shape-auto-text-toggle')?.checked || false;
+      if (autoText && shape.type !== 'line' && shape.type !== 'arrow') {
+        editSelectedHwShapeText();
+      }
+      return;
     }
+    renderHwShapesLayer(true);
+    pushHwUndoState();
+    return;
+  }
+
+  pushHwUndoState();
+}
+
+// Render All Vector Flowchart Shapes & Selection Handles on #hw-shape-canvas
+function renderHwShapesLayer(showSelection = true) {
+  const shapeCanvas = document.getElementById('hw-shape-canvas');
+  if (!shapeCanvas) return;
+  const ctx = shapeCanvas.getContext('2d');
+  ctx.clearRect(0, 0, shapeCanvas.width, shapeCanvas.height);
+
+  hwDrawState.shapes.forEach(shape => {
+    drawHwVectorShapeObject(ctx, shape);
+  });
+
+  const actionBar = document.getElementById('hw-shape-action-bar');
+  if (!showSelection || !hwDrawState.selectedShapeId) {
+    if (actionBar) actionBar.style.display = 'none';
+    return;
+  }
+
+  const selShape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+  if (!selShape) {
+    if (actionBar) actionBar.style.display = 'none';
+    return;
+  }
+
+  // Draw Selection Outline & Drag Handles
+  ctx.save();
+  if (selShape.type !== 'line' && selShape.type !== 'arrow') {
+    const b = getHwShapeBounds(selShape);
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(b.minX - 4, b.minY - 4, b.width + 8, b.height + 8);
+    ctx.setLineDash([]);
+  }
+
+  const handles = getHwShapeHandles(selShape);
+  handles.forEach(h => {
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = '#2563eb';
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // Position Floating Action Bar above or below the selected Flowchart shape
+  if (actionBar) {
+    const b = getHwShapeBounds(selShape);
+    const barTop = b.minY > 56 ? b.minY - 48 : Math.min(shapeCanvas.height - 46, b.maxY + 12);
+    const barLeft = Math.min(Math.max(10, b.cx - 170), shapeCanvas.width - 350);
+    actionBar.style.left = `${barLeft}px`;
+    actionBar.style.top = `${barTop}px`;
+    actionBar.style.display = 'inline-flex';
+  }
+}
+
+// Selected Flowchart Shape Actions (Nudge Left/Right/Up/Down, Edit Text, Duplicate, Delete)
+function nudgeSelectedHwShape(dx, dy) {
+  const shape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+  if (!shape) return;
+  shape.x1 += dx;
+  shape.x2 += dx;
+  shape.y1 += dy;
+  shape.y2 += dy;
+  renderHwShapesLayer(true);
+  pushHwUndoState();
+}
+
+function editSelectedHwShapeText() {
+  const shape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+  if (!shape) return;
+  const b = getHwShapeBounds(shape);
+  hwDrawState.editingShapeTextId = shape.id;
+  openHwFloatingTextEditor(b.minX + 10, b.minY + 10, shape.text || '', shape.textSize || 22, true);
+}
+
+function duplicateSelectedHwShape() {
+  const shape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+  if (!shape) return;
+  const copy = {
+    ...shape,
+    id: `fc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    x1: shape.x1 + 28,
+    y1: shape.y1 + 28,
+    x2: shape.x2 + 28,
+    y2: shape.y2 + 28
+  };
+  hwDrawState.shapes.push(copy);
+  hwDrawState.selectedShapeId = copy.id;
+  renderHwShapesLayer(true);
+  pushHwUndoState();
+}
+
+function deleteSelectedHwShape() {
+  if (!hwDrawState.selectedShapeId) return;
+  hwDrawState.shapes = hwDrawState.shapes.filter(s => s.id !== hwDrawState.selectedShapeId);
+  hwDrawState.selectedShapeId = null;
+  renderHwShapesLayer(true);
+  pushHwUndoState();
+}
+
+function toggleSelectedShapeFill(isChecked) {
+  const shape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+  if (shape) {
+    shape.isFilled = isChecked;
+    renderHwShapesLayer(true);
+    pushHwUndoState();
   }
 }
 
@@ -6462,9 +7027,10 @@ function drawHwFreehandSegment(ctx, x1, y1, x2, y2) {
   ctx.restore();
 }
 
-function fillAndStrokeCurrentPath(ctx, isFilled) {
+function fillAndStrokeCurrentPath(ctx, isFilled, fillColor) {
   if (isFilled) {
     ctx.save();
+    ctx.fillStyle = fillColor || ctx.strokeStyle;
     ctx.globalAlpha = 0.18;
     ctx.fill();
     ctx.restore();
@@ -6472,13 +7038,22 @@ function fillAndStrokeCurrentPath(ctx, isFilled) {
   ctx.stroke();
 }
 
-function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
-  const isFilled = document.getElementById('hw-shape-fill-toggle')?.checked || false;
+function drawHwVectorShapeObject(ctx, shape) {
+  const shapeType = shape.type;
+  const x1 = shape.x1;
+  const y1 = shape.y1;
+  const x2 = shape.x2;
+  const y2 = shape.y2;
+  const isFilled = Boolean(shape.isFilled);
+  const strokeColor = shape.color || '#0f172a';
+  const fillColor = shape.fillColor || strokeColor;
+  const strokeSize = Math.max(2, shape.strokeSize || 4);
+
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-  ctx.strokeStyle = hwDrawState.color;
-  ctx.fillStyle = hwDrawState.color;
-  ctx.lineWidth = Math.max(2, hwDrawState.strokeSize);
+  ctx.strokeStyle = strokeColor;
+  ctx.fillStyle = strokeColor;
+  ctx.lineWidth = strokeSize;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -6495,7 +7070,7 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
     ctx.lineTo(x2, y2);
     ctx.stroke();
   } else if (shapeType === 'arrow') {
-    const headLen = Math.max(13, hwDrawState.strokeSize * 3.5);
+    const headLen = Math.max(13, strokeSize * 3.5);
     const angle = Math.atan2(y2 - y1, x2 - x1);
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -6508,11 +7083,9 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
     ctx.closePath();
     ctx.fill();
   } else if (shapeType === 'rect') {
-    // Flowchart: Process (การประมวลผล)
     ctx.rect(rx, ry, rw, rh);
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'fc-terminator') {
-    // Flowchart: Start / End (เริ่มต้น / สิ้นสุด - Capsule / Stadium shape)
     const r = Math.min(rw, rh) / 2;
     ctx.moveTo(rx + r, ry);
     ctx.lineTo(rx + rw - r, ry);
@@ -6524,35 +7097,31 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
     ctx.lineTo(rx, ry + r);
     ctx.quadraticCurveTo(rx, ry, rx + r, ry);
     ctx.closePath();
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'fc-io') {
-    // Flowchart: Input / Output (รับข้อมูล / แสดงผล - Parallelogram)
     const slant = Math.min(rw * 0.22, 36);
     ctx.moveTo(rx + slant, ry);
     ctx.lineTo(rx + rw, ry);
     ctx.lineTo(rx + rw - slant, ry + rh);
     ctx.lineTo(rx, ry + rh);
     ctx.closePath();
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'diamond') {
-    // Flowchart: Decision (การตัดสินใจ / เงื่อนไข)
     ctx.moveTo(cx, ry);
     ctx.lineTo(rx + rw, cy);
     ctx.lineTo(cx, ry + rh);
     ctx.lineTo(rx, cy);
     ctx.closePath();
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'fc-manual-input') {
-    // Flowchart: Manual Input (รับข้อมูลผ่านแป้นพิมพ์)
     const drop = Math.min(rh * 0.3, 28);
     ctx.moveTo(rx, ry + drop);
     ctx.lineTo(rx + rw, ry);
     ctx.lineTo(rx + rw, ry + rh);
     ctx.lineTo(rx, ry + rh);
     ctx.closePath();
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'fc-display') {
-    // Flowchart: Display (แสดงผลทางหน้าจอ)
     const leftTip = Math.min(rw * 0.25, 38);
     const rightCurve = Math.min(rw * 0.22, 32);
     ctx.moveTo(rx + leftTip, ry);
@@ -6561,9 +7130,8 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
     ctx.lineTo(rx + leftTip, ry + rh);
     ctx.lineTo(rx, cy);
     ctx.closePath();
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'fc-document') {
-    // Flowchart: Document (พิมพ์เอกสาร / รายงาน)
     const waveH = Math.min(rh * 0.18, 22);
     const baseH = ry + rh - waveH;
     ctx.moveTo(rx, ry);
@@ -6575,12 +7143,11 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
       rx, baseH + waveH * 0.3
     );
     ctx.closePath();
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'fc-subroutine') {
-    // Flowchart: Predefined Process / Subroutine (โปรแกรมย่อย)
     const inset = Math.max(10, Math.min(rw * 0.14, 26));
     ctx.rect(rx, ry, rw, rh);
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
     ctx.beginPath();
     ctx.moveTo(rx + inset, ry);
     ctx.lineTo(rx + inset, ry + rh);
@@ -6588,11 +7155,9 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
     ctx.lineTo(rx + rw - inset, ry + rh);
     ctx.stroke();
   } else if (shapeType === 'circle') {
-    // Flowchart: On-page Connector (จุดเชื่อมต่อในหน้าเดียวกัน)
     ctx.ellipse(cx, cy, Math.max(1, rw / 2), Math.max(1, rh / 2), 0, 0, Math.PI * 2);
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   } else if (shapeType === 'fc-offpage') {
-    // Flowchart: Off-page Connector (จุดเชื่อมต่อต่างหน้า)
     const shoulderY = ry + rh * 0.62;
     ctx.moveTo(rx, ry);
     ctx.lineTo(rx + rw, ry);
@@ -6600,12 +7165,29 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
     ctx.lineTo(cx, ry + rh);
     ctx.lineTo(rx, shoulderY);
     ctx.closePath();
-    fillAndStrokeCurrentPath(ctx, isFilled);
+    fillAndStrokeCurrentPath(ctx, isFilled, fillColor);
   }
+
+  // Render centered text label bound to this Flowchart shape (moves with the shape!)
+  if (shape.text && shape.text.trim()) {
+    const fontSize = shape.textSize || 22;
+    ctx.font = `700 ${fontSize}px 'Sarabun', sans-serif`;
+    ctx.fillStyle = strokeColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lines = shape.text.split('\n');
+    const lineH = Math.round(fontSize * 1.3);
+    const totalH = lines.length * lineH;
+    const startTextY = cy - totalH / 2 + lineH / 2;
+    lines.forEach((line, idx) => {
+      ctx.fillText(line, cx, startTextY + idx * lineH);
+    });
+  }
+
   ctx.restore();
 }
 
-// Fast Scanline Flood Fill (Paint Bucket Tool)
+// Fast Scanline Flood Fill (Paint Bucket Tool for Raster Canvas)
 function performHwFloodFill(startX, startY, fillHexColor) {
   const drawCanvas = document.getElementById('hw-draw-canvas');
   const bgCanvas = document.getElementById('hw-bg-canvas');
@@ -6618,8 +7200,6 @@ function performHwFloodFill(startX, startY, fillHexColor) {
   const fillRGB = hexToRgbObj(fillHexColor);
   if (!fillRGB) return;
 
-  // Read composite when custom/teacher worksheet is loaded so student can color inside worksheet lines;
-  // otherwise read drawCanvas so paper lines don't block coloring!
   const refCanvas = document.createElement('canvas');
   refCanvas.width = width;
   refCanvas.height = height;
@@ -6733,21 +7313,36 @@ function hexToRgbObj(hex) {
   };
 }
 
-// Floating Text Tool on Canvas
-function openHwFloatingTextEditor(canvasX, canvasY) {
+// Floating Text Tool on Canvas (Supports free text OR text bound inside a Flowchart shape)
+function openHwFloatingTextEditor(canvasX, canvasY, initialText = '', initialSize = 26, isShapeBound = false) {
   const box = document.getElementById('hw-floating-text-box');
   const input = document.getElementById('hw-floating-text-input');
+  const titleEl = document.getElementById('hw-floating-text-title');
+  const sizeSelect = document.getElementById('hw-floating-text-size');
   const drawCanvas = document.getElementById('hw-draw-canvas');
   if (!box || !input || !drawCanvas) return;
 
-  hwDrawState.pendingTextX = Math.min(Math.max(20, canvasX), drawCanvas.width - 240);
-  hwDrawState.pendingTextY = Math.min(Math.max(20, canvasY), drawCanvas.height - 120);
+  if (!isShapeBound) {
+    hwDrawState.editingShapeTextId = null;
+  }
+
+  if (titleEl) {
+    titleEl.innerHTML = isShapeBound
+      ? `<i class="fa-solid fa-diagram-project" style="color:#4f46e5;"></i> ข้อความในรูปทรง Flowchart (ขยับตามรูปทรง)`
+      : `<i class="fa-solid fa-font" style="color:#2563eb;"></i> พิมพ์ข้อความลงบนกระดาน`;
+  }
+
+  hwDrawState.pendingTextX = Math.min(Math.max(20, canvasX), drawCanvas.width - 250);
+  hwDrawState.pendingTextY = Math.min(Math.max(20, canvasY), drawCanvas.height - 130);
 
   box.style.left = `${hwDrawState.pendingTextX}px`;
   box.style.top = `${hwDrawState.pendingTextY}px`;
   box.style.display = 'flex';
   input.style.color = hwDrawState.color;
-  input.value = '';
+  input.value = initialText || '';
+  if (sizeSelect && initialSize) {
+    sizeSelect.value = String(initialSize);
+  }
   setTimeout(() => input.focus(), 50);
 }
 
@@ -6756,6 +7351,7 @@ function cancelHwFloatingText() {
   const input = document.getElementById('hw-floating-text-input');
   if (box) box.style.display = 'none';
   if (input) input.value = '';
+  hwDrawState.editingShapeTextId = null;
 }
 
 function commitHwFloatingText() {
@@ -6764,14 +7360,29 @@ function commitHwFloatingText() {
   const sizeSelect = document.getElementById('hw-floating-text-size');
   const drawCanvas = document.getElementById('hw-draw-canvas');
   if (!input || !drawCanvas) return;
+  if (box && box.style.display === 'none') return;
 
   const text = input.value.trim();
+  const fontSize = parseInt(sizeSelect?.value || '26', 10);
+
+  // If editing text inside a vector Flowchart shape, bind the text to that shape!
+  if (hwDrawState.editingShapeTextId) {
+    const shape = hwDrawState.shapes.find(s => s.id === hwDrawState.editingShapeTextId);
+    if (shape) {
+      shape.text = text;
+      shape.textSize = fontSize;
+      renderHwShapesLayer(true);
+      pushHwUndoState();
+    }
+    cancelHwFloatingText();
+    return;
+  }
+
   if (!text) {
     cancelHwFloatingText();
     return;
   }
 
-  const fontSize = parseInt(sizeSelect?.value || '26', 10);
   const ctx = drawCanvas.getContext('2d');
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
@@ -6801,6 +7412,7 @@ function selectHwDrawTool(toolName) {
   const drawCanvas = document.getElementById('hw-draw-canvas');
   if (drawCanvas) {
     drawCanvas.classList.toggle('pan-mode', toolName === 'pan');
+    drawCanvas.style.cursor = toolName === 'select' ? 'move' : (toolName === 'pan' ? 'grab' : 'crosshair');
   }
 
   if (toolName !== 'text') {
@@ -6821,7 +7433,18 @@ function selectHwDrawColor(colorHex, swatchBtn) {
   if (textInput) {
     textInput.style.color = colorHex;
   }
-  // If user was on eraser or pan and picks a color, switch back to pen automatically
+
+  // If a Flowchart shape is currently selected, update its color immediately!
+  if (hwDrawState.selectedShapeId) {
+    const selShape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+    if (selShape) {
+      selShape.color = colorHex;
+      selShape.fillColor = colorHex;
+      renderHwShapesLayer(true);
+      pushHwUndoState();
+    }
+  }
+
   if (hwDrawState.tool === 'eraser' || hwDrawState.tool === 'pan') {
     selectHwDrawTool('pen');
   }
@@ -6831,6 +7454,14 @@ function updateHwStrokeSizeLabel(val) {
   hwDrawState.strokeSize = parseInt(val, 10) || 4;
   const label = document.getElementById('hw-stroke-size-val');
   if (label) label.innerText = `${hwDrawState.strokeSize}px`;
+
+  if (hwDrawState.selectedShapeId) {
+    const selShape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
+    if (selShape) {
+      selShape.strokeSize = hwDrawState.strokeSize;
+      renderHwShapesLayer(true);
+    }
+  }
 }
 
 function setHwCanvasPaper(paperType) {
@@ -6849,6 +7480,7 @@ function setHwCanvasPaper(paperType) {
   });
 
   renderHwBackgroundLayer();
+  saveCurrentSheetStateToMemory();
 }
 
 function renderHwBackgroundLayer() {
@@ -6871,11 +7503,9 @@ function renderHwBackgroundLayer() {
     const offsetY = (h - drawH) / 2;
     ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
   } else if (hwDrawState.paperType === 'lined') {
-    // Notebook header & ruled lines
     const lineSpacing = 38;
     const topMargin = 64;
 
-    // Header separator double line
     ctx.strokeStyle = '#93c5fd';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -6885,7 +7515,6 @@ function renderHwBackgroundLayer() {
     ctx.lineTo(w, topMargin + 4);
     ctx.stroke();
 
-    // Horizontal ruled lines
     ctx.strokeStyle = '#dbeafe';
     ctx.lineWidth = 1;
     for (let y = topMargin + lineSpacing; y < h - 20; y += lineSpacing) {
@@ -6895,7 +7524,6 @@ function renderHwBackgroundLayer() {
       ctx.stroke();
     }
 
-    // Vertical red margin line
     ctx.strokeStyle = '#fecaca';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -6922,20 +7550,15 @@ function renderHwBackgroundLayer() {
   ctx.restore();
 }
 
-function toggleHwCanvasOrientation() {
+function applyCanvasOrientationDimensions(targetOrientation) {
   const stage = document.getElementById('hw-canvas-stage');
   const bgCanvas = document.getElementById('hw-bg-canvas');
   const drawCanvas = document.getElementById('hw-draw-canvas');
+  const shapeCanvas = document.getElementById('hw-shape-canvas');
   const label = document.getElementById('hw-orientation-label');
   if (!stage || !bgCanvas || !drawCanvas) return;
 
-  // Snapshot existing drawing
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = drawCanvas.width;
-  tempCanvas.height = drawCanvas.height;
-  tempCanvas.getContext('2d').drawImage(drawCanvas, 0, 0);
-
-  if (hwDrawState.orientation === 'landscape') {
+  if (targetOrientation === 'portrait') {
     hwDrawState.orientation = 'portrait';
     stage.style.width = '820px';
     stage.style.height = '1140px';
@@ -6943,6 +7566,10 @@ function toggleHwCanvasOrientation() {
     bgCanvas.height = 1140;
     drawCanvas.width = 820;
     drawCanvas.height = 1140;
+    if (shapeCanvas) {
+      shapeCanvas.width = 820;
+      shapeCanvas.height = 1140;
+    }
     if (label) label.innerText = 'แนวตั้ง (A4)';
   } else {
     hwDrawState.orientation = 'landscape';
@@ -6952,14 +7579,33 @@ function toggleHwCanvasOrientation() {
     bgCanvas.height = 780;
     drawCanvas.width = 1100;
     drawCanvas.height = 780;
+    if (shapeCanvas) {
+      shapeCanvas.width = 1100;
+      shapeCanvas.height = 780;
+    }
     if (label) label.innerText = 'แนวนอน';
   }
+}
+
+function toggleHwCanvasOrientation() {
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = drawCanvas.width;
+  tempCanvas.height = drawCanvas.height;
+  tempCanvas.getContext('2d').drawImage(drawCanvas, 0, 0);
+
+  const nextOrient = hwDrawState.orientation === 'landscape' ? 'portrait' : 'landscape';
+  applyCanvasOrientationDimensions(nextOrient);
 
   renderHwBackgroundLayer();
   drawCanvas.getContext('2d').drawImage(tempCanvas, 0, 0);
+  renderHwShapesLayer(true);
   hwDrawState.undoStack = [];
   hwDrawState.redoStack = [];
   pushHwUndoState();
+  saveCurrentSheetStateToMemory();
   fitHwCanvasStage();
 }
 
@@ -7009,12 +7655,10 @@ async function loadTeacherWorksheetToCanvas() {
       showPopupWarning("โหลด PDF ไม่สำเร็จ", "ไม่สามารถดึงหน้า PDF มาเป็นพื้นหลังได้ กรุณาแคปหน้าจอใบงานแล้วกดปุ่ม 'นำเข้ารูปพื้นหลัง'");
     }
   } else {
-    // Load teacher image worksheet
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       hwDrawState.customBgImage = img;
-      // Auto-match orientation to worksheet image
       if ((img.height > img.width && hwDrawState.orientation === 'landscape') ||
           (img.width > img.height && hwDrawState.orientation === 'portrait')) {
         toggleHwCanvasOrientation();
@@ -7034,7 +7678,6 @@ async function renderWorksheetPdfPageToBg(pageNum) {
     const page = await hwDrawState.worksheetPdfDoc.getPage(pageNum);
     const vp1 = page.getViewport({ scale: 1 });
 
-    // Auto adjust orientation to match PDF page aspect ratio
     if ((vp1.height > vp1.width && hwDrawState.orientation === 'landscape') ||
         (vp1.width > vp1.height && hwDrawState.orientation === 'portrait')) {
       toggleHwCanvasOrientation();
@@ -7088,56 +7731,69 @@ function handleCustomCanvasBgUpload(input) {
   input.value = '';
 }
 
-// Undo / Redo / Clear Engine
+// Unified Undo / Redo / Clear Engine (Tracks both Freehand Ink AND Vector Flowchart Shapes!)
 function pushHwUndoState() {
   const drawCanvas = document.getElementById('hw-draw-canvas');
   if (!drawCanvas) return;
   const ctx = drawCanvas.getContext('2d');
-  const snap = ctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+  const snap = {
+    raster: ctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height),
+    shapes: cloneHwShapesList(hwDrawState.shapes)
+  };
   hwDrawState.undoStack.push(snap);
   if (hwDrawState.undoStack.length > hwDrawState.maxHistory) {
     hwDrawState.undoStack.shift();
   }
   hwDrawState.redoStack = [];
+  saveCurrentSheetStateToMemory();
+}
+
+function restoreHwHistoryEntry(entry) {
+  if (!entry) return;
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (drawCanvas && entry.raster) {
+    drawCanvas.getContext('2d').putImageData(entry.raster, 0, 0);
+  }
+  hwDrawState.shapes = cloneHwShapesList(entry.shapes || []);
+  if (hwDrawState.selectedShapeId && !hwDrawState.shapes.some(s => s.id === hwDrawState.selectedShapeId)) {
+    hwDrawState.selectedShapeId = null;
+  }
+  renderHwShapesLayer(true);
+  saveCurrentSheetStateToMemory();
 }
 
 function undoHwCanvas() {
   if (hwDrawState.undoStack.length <= 1) return;
-  const drawCanvas = document.getElementById('hw-draw-canvas');
-  if (!drawCanvas) return;
-  const ctx = drawCanvas.getContext('2d');
   const current = hwDrawState.undoStack.pop();
   hwDrawState.redoStack.push(current);
   const prev = hwDrawState.undoStack[hwDrawState.undoStack.length - 1];
-  if (prev) {
-    ctx.putImageData(prev, 0, 0);
-  }
+  restoreHwHistoryEntry(prev);
 }
 
 function redoHwCanvas() {
   if (hwDrawState.redoStack.length === 0) return;
-  const drawCanvas = document.getElementById('hw-draw-canvas');
-  if (!drawCanvas) return;
-  const ctx = drawCanvas.getContext('2d');
   const next = hwDrawState.redoStack.pop();
   if (next) {
     hwDrawState.undoStack.push(next);
-    ctx.putImageData(next, 0, 0);
+    restoreHwHistoryEntry(next);
   }
 }
 
 function clearHwDrawLayerOnly() {
   const drawCanvas = document.getElementById('hw-draw-canvas');
-  if (!drawCanvas) return;
-  const ctx = drawCanvas.getContext('2d');
-  ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  if (drawCanvas) {
+    drawCanvas.getContext('2d').clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  }
+  hwDrawState.shapes = [];
+  hwDrawState.selectedShapeId = null;
+  renderHwShapesLayer(true);
   hwDrawState.hasInkOnCurrentSheet = false;
 }
 
 function clearHwCanvasConfirm() {
   showPopupConfirm(
     "ล้างหน้ากระดานนี้?",
-    "ต้องการลบข้อความและภาพที่วาดบนหน้านี้ทั้งหมดเพื่อเริ่มเขียนใหม่ใช่หรือไม่? (พื้นหลังใบงานจะไม่ถูกลบ)",
+    "ต้องการลบข้อความ รูปทรง Flowchart และภาพที่วาดบนหน้านี้ทั้งหมดเพื่อเริ่มเขียนใหม่ใช่หรือไม่? (พื้นหลังใบงานจะไม่ถูกลบ)",
     "ล้างหน้ากระดาน",
     () => {
       clearHwDrawLayerOnly();
@@ -7191,11 +7847,15 @@ function toggleHwCanvasFullscreen() {
   setTimeout(fitHwCanvasStage, 100);
 }
 
-// Composite Export & Attachment to Homework Submission
+// Composite Export & Multi-Sheet Sync to Homework Submission
 function createHwCompositeCanvas() {
   const bgCanvas = document.getElementById('hw-bg-canvas');
   const drawCanvas = document.getElementById('hw-draw-canvas');
+  const shapeCanvas = document.getElementById('hw-shape-canvas');
   if (!bgCanvas || !drawCanvas) return null;
+
+  // Render shapes cleanly without selection handles before exporting
+  renderHwShapesLayer(false);
 
   const outCanvas = document.createElement('canvas');
   outCanvas.width = drawCanvas.width;
@@ -7206,6 +7866,12 @@ function createHwCompositeCanvas() {
   outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
   outCtx.drawImage(bgCanvas, 0, 0);
   outCtx.drawImage(drawCanvas, 0, 0);
+  if (shapeCanvas) {
+    outCtx.drawImage(shapeCanvas, 0, 0);
+  }
+
+  // Restore selection handles if a shape was selected
+  renderHwShapesLayer(true);
   return outCanvas;
 }
 
@@ -7214,36 +7880,63 @@ function downloadHwCanvasImage() {
   const outCanvas = createHwCompositeCanvas();
   if (!outCanvas) return;
 
-  const sheetNum = (currentSelectedStudentFiles ? currentSelectedStudentFiles.length : 0) + 1;
+  const sheetNum = hwDrawState.currentSheetIndex + 1;
   const link = document.createElement('a');
   link.download = `ใบงานที่วาด_แผ่นที่_${sheetNum}.png`;
   link.href = outCanvas.toDataURL('image/png');
   link.click();
 }
 
-function attachCurrentCanvasSheetToHomework(callback) {
+// Syncs a specific sheet in hwDrawState.sheets into currentSelectedStudentFiles (updates in-place if already attached!)
+function syncSheetToStudentFiles(sheetIndex, callback) {
   commitHwFloatingText();
-  const outCanvas = createHwCompositeCanvas();
-  if (!outCanvas) return;
+  saveCurrentSheetStateToMemory();
 
-  const sheetNum = (currentSelectedStudentFiles ? currentSelectedStudentFiles.length : 0) + 1;
-  const fileName = `แผ่นงานเขียน_iPad_หน้าที่_${sheetNum}.png`;
+  const sheet = hwDrawState.sheets[sheetIndex];
+  if (!sheet) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+
+  const outCanvas = createHwCompositeCanvas();
+  if (!outCanvas) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+
+  const sheetNum = sheetIndex + 1;
+  const fileName = `แผ่นงานเขียน_iPad_แผ่นที่_${sheetNum}.png`;
 
   outCanvas.toBlob((blob) => {
-    if (!blob) return;
+    if (!blob) {
+      if (typeof callback === 'function') callback();
+      return;
+    }
     const file = new File([blob], fileName, { type: 'image/png', lastModified: Date.now() });
     const fileSizeMb = (file.size / (1024 * 1024)).toFixed(2);
     const fileSizeText = file.size > 1024 * 1024 ? `${fileSizeMb} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`;
     const previewUrl = URL.createObjectURL(file);
 
-    currentSelectedStudentFiles.push({
+    const existingIdx = currentSelectedStudentFiles.findIndex(item => item.sheetId === sheet.id);
+    const fileEntry = {
       file: file,
       previewUrl: previewUrl,
       isPdf: false,
       name: fileName,
       size: file.size,
-      sizeText: fileSizeText
-    });
+      sizeText: fileSizeText,
+      sheetId: sheet.id
+    };
+
+    if (existingIdx !== -1) {
+      const oldItem = currentSelectedStudentFiles[existingIdx];
+      if (oldItem && oldItem.previewUrl && oldItem.previewUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(oldItem.previewUrl); } catch (err) {}
+      }
+      currentSelectedStudentFiles[existingIdx] = fileEntry;
+    } else {
+      currentSelectedStudentFiles.push(fileEntry);
+    }
 
     currentSelectedStudentFile = currentSelectedStudentFiles[0] ? currentSelectedStudentFiles[0].file : null;
     renderStudentSelectedFilesPreview();
@@ -7252,42 +7945,41 @@ function attachCurrentCanvasSheetToHomework(callback) {
 }
 
 function saveHwCanvasToHomeworkSubmission() {
-  attachCurrentCanvasSheetToHomework((sheetNum) => {
-    // Reset canvas for potential next sheet
-    clearHwDrawLayerOnly();
-    hwDrawState.undoStack = [];
-    hwDrawState.redoStack = [];
-    pushHwUndoState();
-
+  syncSheetToStudentFiles(hwDrawState.currentSheetIndex, () => {
+    const totalSheets = hwDrawState.sheets.length;
     closeModal('modal-homework-canvas');
     showPopupSuccess(
-      `แนบแผ่นงานที่ ${sheetNum} เรียบร้อย!`,
-      `บันทึกภาพเขียน/ระบายสีเข้าสู่รายการไฟล์เตรียมส่งแล้ว คุณสามารถกด "ยืนยันการส่งงาน" หรือเปิดกระดานเพื่อวาดหน้าถัดไปได้เลย`
+      `บันทึกแผ่นงานทั้งหมด (${totalSheets} แผ่น) เรียบร้อย!`,
+      `คุณสามารถกดปุ่ม "แก้ไข" บนการ์ดแผ่นงานที่ต้องการเพื่อกลับไปขยับรูปทรงหรือแก้ไขแผ่นเก่าได้ตลอดเวลาก่อนกดยืนยันการส่งงาน`
     );
   });
 }
 
 function saveHwCanvasAndNewPage() {
-  attachCurrentCanvasSheetToHomework((savedSheetNum) => {
+  syncSheetToStudentFiles(hwDrawState.currentSheetIndex, (savedSheetNum) => {
+    const newSheetIdx = hwDrawState.sheets.length;
+    const newSheet = createBlankSheetEntry(newSheetIdx);
+    hwDrawState.sheets.push(newSheet);
+    hwDrawState.currentSheetIndex = newSheetIdx;
+
     clearHwDrawLayerOnly();
     hwDrawState.undoStack = [];
     hwDrawState.redoStack = [];
-    pushHwUndoState();
 
     // If a multi-page teacher PDF worksheet is active, automatically advance to next page
     if (hwDrawState.worksheetPdfDoc && hwDrawState.worksheetPdfPage < hwDrawState.worksheetPdfTotal) {
       changeWorksheetPdfPage(1);
+    } else {
+      renderHwBackgroundLayer();
     }
 
-    const nextSheetNum = currentSelectedStudentFiles.length + 1;
-    const sheetBadgeEl = document.getElementById('hw-canvas-sheet-badge');
-    if (sheetBadgeEl) {
-      sheetBadgeEl.innerText = `แผ่นที่ ${nextSheetNum}`;
-    }
+    pushHwUndoState();
+    saveCurrentSheetStateToMemory();
+    renderHwSheetsNavTabs();
 
     showPopupSuccess(
-      `บันทึกแผ่นที่ ${savedSheetNum} แล้ว!`,
-      `เปิดกระดาษแผ่นที่ ${nextSheetNum} ให้เรียบร้อย สามารถเขียนหรือวาดหน้าถัดไปต่อได้ทันที`
+      `บันทึกแผ่นที่ ${savedSheetNum} และสร้างแผ่นที่ ${newSheetIdx + 1} แล้ว!`,
+      `คุณสามารถคลิกปุ่ม "แผ่นที่ 1, แผ่นที่ 2..." ด้านบนของกระดานเพื่อสลับกลับไปแก้ไขแผ่นกระดาษเก่าได้ตลอดเวลา`
     );
   });
 }

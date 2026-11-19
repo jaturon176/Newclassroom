@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.17.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.18.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -1823,6 +1823,30 @@
         </div>
       </div>
 
+      <!-- Multi-Sheet Page Switcher Bar (สลับกลับไปแก้ไขแผ่นกระดาษเก่า หรือเพิ่มแผ่นใหม่ได้ตลอดเวลา) -->
+      <div class="hw-sheets-nav-bar" id="hw-sheets-nav-bar">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span style="font-size:0.78rem; font-weight:800; color:#94a3b8; display:inline-flex; align-items:center; gap:5px;">
+            <i class="fa-solid fa-layer-group" style="color:#38bdf8;"></i> หน้ากระดาษของคุณ (คลิกสลับหน้าเพื่อกลับไปแก้ไขแผ่นเก่าได้):
+          </span>
+          <button type="button" class="btn btn-sm" id="btn-prev-hw-sheet" onclick="switchToPrevHwSheet()" style="background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:8px; padding:3px 9px; font-size:0.76rem; font-weight:700;" title="กลับไปแผ่นก่อนหน้า">
+            <i class="fa-solid fa-chevron-left"></i> แผ่นก่อนหน้า
+          </button>
+          <div class="hw-sheets-tabs-list" id="hw-sheets-tabs-list">
+            <!-- Rendered dynamically: แผ่นที่ 1, แผ่นที่ 2, ... -->
+          </div>
+          <button type="button" class="btn btn-sm" id="btn-next-hw-sheet" onclick="switchToNextHwSheet()" style="background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:8px; padding:3px 9px; font-size:0.76rem; font-weight:700;" title="ไปแผ่นถัดไป">
+            แผ่นถัดไป <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button type="button" class="btn btn-sm" onclick="saveHwCanvasAndNewPage()" style="background:linear-gradient(135deg, #0284c7, #2563eb); color:#ffffff; border:none; border-radius:8px; padding:4px 12px; font-size:0.78rem; font-weight:800; box-shadow:0 2px 8px rgba(37,99,235,0.35);">
+            <i class="fa-solid fa-plus"></i> เพิ่มแผ่นกระดาษใหม่
+          </button>
+        </div>
+      </div>
+
       <!-- Studio Drawing & Coloring Toolbar -->
       <div class="drawing-studio-toolbar">
         
@@ -1831,13 +1855,16 @@
           <button type="button" class="draw-tool-btn active" data-tool="pen" onclick="selectHwDrawTool('pen')" title="ปากกาเขียนข้อความ (เส้นคมชัด)">
             <i class="fa-solid fa-pen-fancy" style="color:#2563eb;"></i> <span class="tool-label-text">ปากกา</span>
           </button>
+          <button type="button" class="draw-tool-btn" data-tool="select" onclick="selectHwDrawTool('select')" title="เลือก / ขยับย้ายตำแหน่ง หรือปรับขนาดรูปทรง Flowchart ที่วาดไปแล้ว">
+            <i class="fa-solid fa-arrows-up-down-left-right" style="color:#4f46e5;"></i> <span class="tool-label-text">ขยับรูปทรง</span>
+          </button>
           <button type="button" class="draw-tool-btn" data-tool="brush" onclick="selectHwDrawTool('brush')" title="พู่กันระบายสี (เส้นนุ่ม)">
             <i class="fa-solid fa-paintbrush" style="color:#7c3aed;"></i> <span class="tool-label-text">พู่กันระบายสี</span>
           </button>
           <button type="button" class="draw-tool-btn" data-tool="highlighter" onclick="selectHwDrawTool('highlighter')" title="ปากกาไฮไลท์ระบายสีโปร่งแสง (ไม่บังเส้นเดิม)">
             <i class="fa-solid fa-highlighter" style="color:#d97706;"></i> <span class="tool-label-text">สีไฮไลท์</span>
           </button>
-          <button type="button" class="draw-tool-btn" data-tool="bucket" onclick="selectHwDrawTool('bucket')" title="ถังเทสี (แตะเพื่อเทสีลงในพื้นที่ปิด)">
+          <button type="button" class="draw-tool-btn" data-tool="bucket" onclick="selectHwDrawTool('bucket')" title="ถังเทสี (แตะเพื่อเทสีลงในพื้นที่ปิด หรือเทสีในรูปทรง Flowchart)">
             <i class="fa-solid fa-fill-drip" style="color:#db2777;"></i> <span class="tool-label-text">ถังเทสี</span>
           </button>
           <button type="button" class="draw-tool-btn" data-tool="text" onclick="selectHwDrawTool('text')" title="พิมพ์ตัวอักษรลงบนกระดาน">
@@ -1902,6 +1929,12 @@
         <span class="flowchart-menu-title">
           <i class="fa-solid fa-diagram-project" style="color:#4f46e5;"></i> รูปทรง Flowchart:
         </span>
+
+        <!-- Move / Edit Shape Button right inside Flowchart menu -->
+        <button type="button" class="fc-shape-btn" data-tool="select" onclick="selectHwDrawTool('select')" style="border-color:#818cf8; background:#eef2ff; color:#3730a3;" title="แตะลากรูปทรง Flowchart ที่วาดไปแล้วเพื่อขยับซ้าย-ขวา-บน-ล่าง หรือดึงมุมเพื่อปรับขนาด">
+          <i class="fa-solid fa-arrows-up-down-left-right" style="color:#4f46e5;"></i>
+          <span>ขยับ/แก้ไขรูปทรง</span>
+        </button>
 
         <!-- 1. Terminator (Start / End) -->
         <button type="button" class="fc-shape-btn" data-tool="fc-terminator" onclick="selectHwDrawTool('fc-terminator')" title="เริ่มต้น / สิ้นสุด (Start / End - Terminator)">
@@ -1978,7 +2011,7 @@
         <!-- Shape Fill & Auto-Text Options -->
         <div style="display:inline-flex; align-items:center; gap:8px; margin-left:auto; background:#ffffff; padding:3px 10px; border-radius:8px; border:1px solid #cbd5e1;">
           <label style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:700; color:#334155; cursor:pointer;" title="เติมสีพื้นด้านในรูปทรง Flowchart">
-            <input type="checkbox" id="hw-shape-fill-toggle" checked style="accent-color:#2563eb; width:14px; height:14px; cursor:pointer;"> เติมสีพื้นรูปทรง
+            <input type="checkbox" id="hw-shape-fill-toggle" checked onchange="toggleSelectedShapeFill(this.checked)" style="accent-color:#2563eb; width:14px; height:14px; cursor:pointer;"> เติมสีพื้นรูปทรง
           </label>
           <label style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:700; color:#334155; cursor:pointer;" title="เมื่อวาดรูปทรง Flowchart เสร็จ จะเปิดช่องพิมพ์ข้อความในรูปทรงให้อัตโนมัติ">
             <input type="checkbox" id="hw-shape-auto-text-toggle" style="accent-color:#4f46e5; width:14px; height:14px; cursor:pointer;"> พิมพ์ข้อความในรูปทรงอัตโนมัติ
@@ -1997,13 +2030,26 @@
         <div class="drawing-canvas-stage" id="hw-canvas-stage" style="width: 1100px; height: 780px;">
           <!-- Layer 1: Background Paper / Teacher Worksheet Layer -->
           <canvas id="hw-bg-canvas" class="drawing-canvas-layer" width="1100" height="780"></canvas>
-          <!-- Layer 2: Student Ink, Drawing & Coloring Layer -->
+          <!-- Layer 2: Student Freehand Ink & Flood Fill Layer -->
           <canvas id="hw-draw-canvas" class="drawing-canvas-layer" width="1100" height="780"></canvas>
+          <!-- Layer 3: Interactive Vector Flowchart Shapes Layer (Movable & Resizable) -->
+          <canvas id="hw-shape-canvas" class="drawing-canvas-layer" width="1100" height="780" style="pointer-events:none;"></canvas>
 
-          <!-- Floating Inline Text Input Box (Appears when using Text Tool) -->
+          <!-- Floating Action Toolbar for Selected Flowchart Shape (ขยับซ้าย-ขวา-บน-ล่าง / แก้ไขข้อความ / คัดลอก / ลบ) -->
+          <div id="hw-shape-action-bar" class="hw-shape-floating-toolbar">
+            <button type="button" onclick="nudgeSelectedHwShape(-12, 0)" title="ขยับไปทางซ้าย"><i class="fa-solid fa-arrow-left"></i></button>
+            <button type="button" onclick="nudgeSelectedHwShape(0, -12)" title="ขยับขึ้นบน"><i class="fa-solid fa-arrow-up"></i></button>
+            <button type="button" onclick="nudgeSelectedHwShape(0, 12)" title="ขยับลงล่าง"><i class="fa-solid fa-arrow-down"></i></button>
+            <button type="button" onclick="nudgeSelectedHwShape(12, 0)" title="ขยับไปทางขวา"><i class="fa-solid fa-arrow-right"></i></button>
+            <button type="button" onclick="editSelectedHwShapeText()" title="พิมพ์หรือแก้ไขข้อความในรูปทรงนี้"><i class="fa-solid fa-font"></i> ข้อความในรูปทรง</button>
+            <button type="button" onclick="duplicateSelectedHwShape()" title="คัดลอกรูปทรงนี้"><i class="fa-regular fa-copy"></i> คัดลอก</button>
+            <button type="button" class="btn-del-shape" onclick="deleteSelectedHwShape()" title="ลบรูปทรงนี้"><i class="fa-solid fa-trash-can"></i> ลบ</button>
+          </div>
+
+          <!-- Floating Inline Text Input Box (Appears when using Text Tool or editing Flowchart Shape label) -->
           <div id="hw-floating-text-box" class="floating-canvas-text-editor">
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.76rem; font-weight:800; color:#1e293b;">
-              <span><i class="fa-solid fa-font" style="color:#2563eb;"></i> พิมพ์ข้อความลงบนกระดาน</span>
+              <span id="hw-floating-text-title"><i class="fa-solid fa-font" style="color:#2563eb;"></i> พิมพ์ข้อความลงบนกระดาน</span>
               <select id="hw-floating-text-size" style="border:1px solid #cbd5e1; border-radius:6px; padding:1px 4px; font-size:0.75rem; font-weight:700;">
                 <option value="20">ขนาดเล็ก (20px)</option>
                 <option value="26" selected>ขนาดกลาง (26px)</option>
@@ -2030,19 +2076,19 @@
             <button type="button" class="btn btn-sm" onclick="fitHwCanvasStage()" style="background:#334155; color:#38bdf8; border:none; border-radius:6px; padding:2px 8px; font-size:0.74rem; font-weight:700;" title="ปรับขนาดพอดีหน้าจอ iPad">พอดีจอ</button>
           </div>
           <span class="badge badge-blue" style="font-size:0.78rem; font-weight:700; padding:5px 10px; background:rgba(37,99,235,0.22); color:#93c5fd; border:1px solid #3b82f6;">
-            <i class="fa-solid fa-pen-nib" style="color:#38bdf8;"></i> ในแผ่นกระดาษใช้ได้เฉพาะปากกา (Stylus / Apple Pencil) เท่านั้นในการขีดเขียน (ป้องกันมือและนิ้วโดนจอ)
+            <i class="fa-solid fa-arrows-up-down-left-right" style="color:#38bdf8;"></i> แตะลากที่รูปทรง Flowchart เพื่อขยับซ้าย-ขวา-บน-ล่าง หรือปรับขนาดได้ตลอดเวลา
           </span>
         </div>
 
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm" onclick="downloadHwCanvasImage()" style="background:#334155; color:#f8fafc; border:1px solid #475569; border-radius:10px; padding:8px 14px; font-weight:700; font-size:0.84rem;" title="ดาวน์โหลดรูปที่วาดเก็บไว้ในเครื่อง">
+          <button type="button" class="btn btn-sm" onclick="downloadHwCanvasImage()" style="background:#334155; color:#f8fafc; border:1px solid #475569; border-radius:10px; padding:8px 14px; font-weight:700; font-size:0.84rem;" title="ดาวน์โหลดรูปแผ่นนี้เก็บไว้ในเครื่อง">
             <i class="fa-solid fa-download"></i> บันทึกรูปลงเครื่อง
           </button>
-          <button type="button" class="btn btn-sm" onclick="saveHwCanvasAndNewPage()" style="background:linear-gradient(135deg, #0284c7, #2563eb); color:#ffffff; border:none; border-radius:10px; padding:8px 16px; font-weight:800; font-size:0.86rem; box-shadow:0 3px 10px rgba(37,99,235,0.35);" title="บันทึกแผ่นนี้เข้าการบ้าน แล้วเปิดแผ่นใหม่เพื่อเขียนหน้าถัดไป">
+          <button type="button" class="btn btn-sm" onclick="saveHwCanvasAndNewPage()" style="background:linear-gradient(135deg, #0284c7, #2563eb); color:#ffffff; border:none; border-radius:10px; padding:8px 16px; font-weight:800; font-size:0.86rem; box-shadow:0 3px 10px rgba(37,99,235,0.35);" title="บันทึกแผ่นนี้ไว้ แล้วเพิ่มแผ่นใหม่ (สามารถกดสลับกลับมาแก้ไขแผ่นเก่าได้ตลอด)">
             <i class="fa-solid fa-file-circle-plus"></i> บันทึกแผ่นนี้ & เพิ่มหน้าถัดไป
           </button>
           <button type="button" class="btn btn-sm" onclick="saveHwCanvasToHomeworkSubmission()" style="background:linear-gradient(135deg, #10b981, #059669); color:#ffffff; border:none; border-radius:10px; padding:8px 20px; font-weight:800; font-size:0.9rem; box-shadow:0 4px 14px rgba(16,185,129,0.4);">
-            <i class="fa-solid fa-circle-check"></i> แนบแผ่นงานนี้ส่งการบ้าน
+            <i class="fa-solid fa-circle-check"></i> บันทึกทุกแผ่นส่งการบ้าน
           </button>
         </div>
       </div>
@@ -2052,8 +2098,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.17.0"></script>
-  <script src="js/cloudinary.js?v=8.17.0"></script>
-  <script src="js/app.js?v=8.17.0"></script>
+  <script src="js/firebase-config.js?v=8.18.0"></script>
+  <script src="js/cloudinary.js?v=8.18.0"></script>
+  <script src="js/app.js?v=8.18.0"></script>
 </body>
 </html>
