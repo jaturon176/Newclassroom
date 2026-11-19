@@ -2157,9 +2157,14 @@ function renderCoursesList() {
                     ` : ''}
                   </div>
                 ` : `
-                  <button class="btn btn-primary" onclick="openSubmitHomeworkModal('${hw.id}')" style="width:100%; border-radius:10px; font-weight:800; padding:9px 14px; background:linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow:0 4px 12px rgba(37,99,235,0.3);">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> ส่งการบ้านชิ้นนี้
-                  </button>
+                  <div style="display:flex; flex-direction:column; gap:7px; width:100%;">
+                    <button class="btn btn-primary" onclick="openSubmitHomeworkWithDrawing('${hw.id}')" style="width:100%; border-radius:10px; font-weight:800; padding:9px 14px; background:linear-gradient(135deg, #4f46e5, #7c3aed, #db2777); border:none; box-shadow:0 4px 12px rgba(124,58,237,0.3);">
+                      <i class="fa-solid fa-palette"></i> เขียน / วาดระบายสีส่งงาน (iPad)
+                    </button>
+                    <button class="btn btn-primary" onclick="openSubmitHomeworkModal('${hw.id}')" style="width:100%; border-radius:10px; font-weight:800; padding:8px 14px; background:linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow:0 3px 10px rgba(37,99,235,0.25);">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> ส่งการบ้าน / แนบรูปและไฟล์
+                    </button>
+                  </div>
                 `}
               ` : `
                 <span class="badge badge-purple" style="font-size:0.82rem; font-weight:700; padding:6px 12px; border-radius:8px;">
@@ -2565,7 +2570,10 @@ function renderStudentSelectedFilesPreview() {
       <div style="font-size:0.86rem; font-weight:700; color:#1e293b;">
         <i class="fa-solid fa-images" style="color:var(--primary);"></i> รายการไฟล์ชิ้นงานที่เตรียมส่ง (${count} ไฟล์)
       </div>
-      <div style="display:flex; gap:6px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-sm" onclick="openHomeworkDrawingStudio()" style="border-radius:8px; padding:4px 10px; font-size:0.78rem; font-weight:800; background:linear-gradient(135deg, #4f46e5, #db2777); color:#fff; border:none;">
+          <i class="fa-solid fa-palette"></i> วาด/เขียนเพิ่มอีกหน้า
+        </button>
         <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('submit-img-file').click()" style="border-radius:8px; padding:4px 10px; font-size:0.78rem; font-weight:700;">
           <i class="fa-solid fa-plus"></i> เพิ่มรูปภาพอีก
         </button>
@@ -2645,16 +2653,29 @@ function openSubmitHomeworkModal(hwId) {
   }
   if (fileUrl) {
     mediaHtml += `
-      <div style="margin:10px 0;">
+      <div style="margin:10px 0; display:flex; flex-wrap:wrap; gap:8px;">
         <button type="button" class="btn btn-sm ${isPdf ? 'btn-outline-danger' : 'btn-outline-primary'}" onclick="showPDFPreviewModal('${fileUrl.replace(/'/g, "\\'")}', '${fileName.replace(/'/g, "\\'")}')" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:6px 14px; border-radius:10px;">
           <i class="${isPdf ? 'fa-solid fa-file-pdf' : 'fa-solid fa-image'}" style="color:${isPdf ? '#ef4444' : '#2563eb'}; font-size:1.1rem;"></i> 
           <span>📄 ดูเอกสารคำสั่งงาน (${fileName})</span>
+        </button>
+        <button type="button" class="btn btn-sm" onclick="openHomeworkDrawingStudio(true)" style="display:inline-flex; align-items:center; gap:7px; font-weight:700; padding:6px 14px; border-radius:10px; background:linear-gradient(135deg, #d97706, #ea580c); color:#ffffff; border:none; box-shadow:0 2px 8px rgba(234,88,12,0.3);">
+          <i class="fa-solid fa-file-pen"></i> 
+          <span>ดึงใบงานนี้มาเขียนตอบ / ระบายสีทับ (iPad)</span>
         </button>
       </div>
     `;
   }
 
   document.getElementById('submit-hw-id').value = hwId;
+  if (typeof hwDrawState !== 'undefined' && hwDrawState.activeHwId !== hwId) {
+    hwDrawState.activeHwId = hwId;
+    hwDrawState.worksheetPdfDoc = null;
+    hwDrawState.customBgImage = null;
+    hwDrawState.paperType = 'lined';
+    hwDrawState.undoStack = [];
+    hwDrawState.redoStack = [];
+    clearHwDrawLayerOnly();
+  }
   document.getElementById('submit-hw-details').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
       <h4 style="font-weight:800; color:#0f172a; font-size:1.2rem; margin:0;">${hw.title}</h4>
@@ -6092,4 +6113,1037 @@ function updateLiveClock() {
 
 setInterval(updateLiveClock, 1000);
 updateLiveClock();
+
+/* -------------------------------------------------------------
+   12. IPAD / TABLET INTERACTIVE DRAWING, HANDWRITING & COLORING STUDIO
+------------------------------------------------------------- */
+const hwDrawState = {
+  initialized: false,
+  isDrawing: false,
+  tool: 'pen',          // 'pen' | 'brush' | 'highlighter' | 'bucket' | 'text' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'diamond' | 'pan'
+  color: '#0f172a',
+  strokeSize: 4,
+  paperType: 'lined',   // 'blank' | 'lined' | 'grid' | 'custom'
+  orientation: 'landscape', // 'landscape' (1100x780) | 'portrait' (820x1140)
+  zoom: 1,
+  startX: 0,
+  startY: 0,
+  lastX: 0,
+  lastY: 0,
+  points: [],
+  dragSnapshot: null,
+  customBgImage: null,
+  worksheetPdfDoc: null,
+  worksheetPdfPage: 1,
+  worksheetPdfTotal: 1,
+  undoStack: [],
+  redoStack: [],
+  maxHistory: 25,
+  pendingTextX: 100,
+  pendingTextY: 100,
+  hasInkOnCurrentSheet: false
+};
+
+function openSubmitHomeworkWithDrawing(hwId) {
+  openSubmitHomeworkModal(hwId);
+  setTimeout(() => {
+    openHomeworkDrawingStudio();
+  }, 120);
+}
+
+function openHomeworkDrawingStudio(autoLoadWorksheet = false) {
+  const hwId = document.getElementById('submit-hw-id')?.value;
+  const hw = hwId ? homeworkData[hwId] : null;
+
+  const subtitleEl = document.getElementById('hw-canvas-subtitle');
+  const sheetBadgeEl = document.getElementById('hw-canvas-sheet-badge');
+  const worksheetBtn = document.getElementById('btn-load-teacher-worksheet');
+  const pdfPager = document.getElementById('hw-worksheet-pdf-pager');
+
+  const nextSheetNum = (currentSelectedStudentFiles ? currentSelectedStudentFiles.length : 0) + 1;
+  if (sheetBadgeEl) {
+    sheetBadgeEl.innerText = `แผ่นที่ ${nextSheetNum}`;
+  }
+  if (subtitleEl) {
+    subtitleEl.innerText = hw
+      ? `การบ้าน: ${hw.title} (เต็ม ${hw.maxScore} คะแนน)`
+      : 'เขียนด้วยลายมือ วาดรูปทรง และระบายสีส่งครูได้โดยตรง';
+  }
+
+  // Check if teacher attached a PDF or image worksheet
+  let teacherFileUrl = null;
+  if (hw) {
+    if (hw.pdfs && Array.isArray(hw.pdfs) && hw.pdfs.length > 0 && hw.pdfs[0].url) {
+      teacherFileUrl = hw.pdfs[0].url;
+    } else if (hw.imageUrl) {
+      teacherFileUrl = hw.imageUrl;
+    }
+  }
+  if (worksheetBtn) {
+    worksheetBtn.style.display = teacherFileUrl ? 'inline-flex' : 'none';
+  }
+  if (pdfPager && !hwDrawState.worksheetPdfDoc) {
+    pdfPager.style.display = 'none';
+  }
+
+  initHwCanvasEvents();
+  openModal('modal-homework-canvas');
+
+  // Render background and fit stage after modal becomes visible
+  setTimeout(() => {
+    if (hwDrawState.undoStack.length === 0) {
+      setHwCanvasPaper(hwDrawState.paperType || 'lined');
+      clearHwDrawLayerOnly();
+      pushHwUndoState();
+    } else {
+      renderHwBackgroundLayer();
+    }
+    fitHwCanvasStage();
+    if (autoLoadWorksheet && teacherFileUrl) {
+      loadTeacherWorksheetToCanvas();
+    }
+  }, 80);
+}
+
+function initHwCanvasEvents() {
+  if (hwDrawState.initialized) return;
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+
+  hwDrawState.initialized = true;
+
+  // Prevent iOS Safari bounce / context menu while drawing with Apple Pencil or finger
+  drawCanvas.addEventListener('touchstart', (e) => {
+    if (hwDrawState.tool !== 'pan') {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  drawCanvas.addEventListener('touchmove', (e) => {
+    if (hwDrawState.tool !== 'pan') {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  drawCanvas.addEventListener('pointerdown', handleHwPointerDown);
+  drawCanvas.addEventListener('pointermove', handleHwPointerMove);
+  drawCanvas.addEventListener('pointerup', handleHwPointerUp);
+  drawCanvas.addEventListener('pointercancel', handleHwPointerUp);
+  drawCanvas.addEventListener('pointerleave', handleHwPointerUp);
+}
+
+function getHwCanvasCoords(e) {
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  const rect = drawCanvas.getBoundingClientRect();
+  const scaleX = drawCanvas.width / rect.width;
+  const scaleY = drawCanvas.height / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+function handleHwPointerDown(e) {
+  if (hwDrawState.tool === 'pan') return;
+  if (e.button !== undefined && e.button !== 0) return;
+
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+  const ctx = drawCanvas.getContext('2d');
+  const pt = getHwCanvasCoords(e);
+
+  // If floating text box is open and user taps elsewhere with another tool, cancel or commit
+  if (hwDrawState.tool === 'text') {
+    openHwFloatingTextEditor(pt.x, pt.y);
+    return;
+  }
+
+  if (hwDrawState.tool === 'bucket') {
+    performHwFloodFill(Math.round(pt.x), Math.round(pt.y), hwDrawState.color);
+    hwDrawState.hasInkOnCurrentSheet = true;
+    pushHwUndoState();
+    return;
+  }
+
+  try {
+    drawCanvas.setPointerCapture(e.pointerId);
+  } catch (err) {}
+
+  hwDrawState.isDrawing = true;
+  hwDrawState.hasInkOnCurrentSheet = true;
+  hwDrawState.startX = pt.x;
+  hwDrawState.startY = pt.y;
+  hwDrawState.lastX = pt.x;
+  hwDrawState.lastY = pt.y;
+  hwDrawState.points = [{ x: pt.x, y: pt.y }];
+  hwDrawState.dragSnapshot = ctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+
+  // Draw initial dot for freehand tools
+  if (['pen', 'brush', 'highlighter', 'eraser'].includes(hwDrawState.tool)) {
+    drawHwFreehandSegment(ctx, pt.x, pt.y, pt.x + 0.1, pt.y + 0.1);
+  }
+}
+
+function handleHwPointerMove(e) {
+  if (!hwDrawState.isDrawing || hwDrawState.tool === 'pan') return;
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+  const ctx = drawCanvas.getContext('2d');
+  const pt = getHwCanvasCoords(e);
+
+  const tool = hwDrawState.tool;
+
+  if (tool === 'pen' || tool === 'brush' || tool === 'eraser') {
+    hwDrawState.points.push(pt);
+    const pts = hwDrawState.points;
+    ctx.save();
+    configureHwBrushContext(ctx, tool);
+
+    if (pts.length < 3) {
+      ctx.beginPath();
+      ctx.moveTo(hwDrawState.lastX, hwDrawState.lastY);
+      ctx.lineTo(pt.x, pt.y);
+      ctx.stroke();
+    } else {
+      const len = pts.length;
+      const mid1 = {
+        x: (pts[len - 3].x + pts[len - 2].x) / 2,
+        y: (pts[len - 3].y + pts[len - 2].y) / 2
+      };
+      const mid2 = {
+        x: (pts[len - 2].x + pts[len - 1].x) / 2,
+        y: (pts[len - 2].y + pts[len - 1].y) / 2
+      };
+      ctx.beginPath();
+      ctx.moveTo(mid1.x, mid1.y);
+      ctx.quadraticCurveTo(pts[len - 2].x, pts[len - 2].y, mid2.x, mid2.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+    hwDrawState.lastX = pt.x;
+    hwDrawState.lastY = pt.y;
+  } else if (tool === 'highlighter') {
+    // Redraw full stroke from dragSnapshot so translucent alpha stays uniform
+    hwDrawState.points.push(pt);
+    if (hwDrawState.dragSnapshot) {
+      ctx.putImageData(hwDrawState.dragSnapshot, 0, 0);
+    }
+    ctx.save();
+    configureHwBrushContext(ctx, 'highlighter');
+    ctx.beginPath();
+    const pts = hwDrawState.points;
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  } else if (['line', 'arrow', 'rect', 'circle', 'diamond'].includes(tool)) {
+    if (hwDrawState.dragSnapshot) {
+      ctx.putImageData(hwDrawState.dragSnapshot, 0, 0);
+    }
+    drawHwShape(ctx, tool, hwDrawState.startX, hwDrawState.startY, pt.x, pt.y);
+  }
+}
+
+function handleHwPointerUp(e) {
+  if (!hwDrawState.isDrawing) return;
+  hwDrawState.isDrawing = false;
+  hwDrawState.points = [];
+  hwDrawState.dragSnapshot = null;
+  pushHwUndoState();
+}
+
+function configureHwBrushContext(ctx, tool) {
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1.0;
+  ctx.shadowBlur = 0;
+
+  if (tool === 'pen') {
+    ctx.strokeStyle = hwDrawState.color;
+    ctx.lineWidth = hwDrawState.strokeSize;
+  } else if (tool === 'brush') {
+    ctx.strokeStyle = hwDrawState.color;
+    ctx.lineWidth = Math.max(4, hwDrawState.strokeSize * 1.6);
+    ctx.shadowColor = hwDrawState.color;
+    ctx.shadowBlur = 2;
+  } else if (tool === 'highlighter') {
+    ctx.strokeStyle = hwDrawState.color;
+    ctx.lineWidth = Math.max(14, hwDrawState.strokeSize * 3.2);
+    ctx.globalAlpha = 0.35;
+    ctx.lineCap = 'square';
+  } else if (tool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.lineWidth = Math.max(12, hwDrawState.strokeSize * 2.8);
+  }
+}
+
+function drawHwFreehandSegment(ctx, x1, y1, x2, y2) {
+  ctx.save();
+  configureHwBrushContext(ctx, hwDrawState.tool);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
+  const isFilled = document.getElementById('hw-shape-fill-toggle')?.checked || false;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.strokeStyle = hwDrawState.color;
+  ctx.fillStyle = hwDrawState.color;
+  ctx.lineWidth = Math.max(2, hwDrawState.strokeSize);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  if (shapeType === 'line') {
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  } else if (shapeType === 'arrow') {
+    const headLen = Math.max(12, hwDrawState.strokeSize * 3.5);
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+  } else if (shapeType === 'rect') {
+    const rx = Math.min(x1, x2);
+    const ry = Math.min(y1, y2);
+    const rw = Math.abs(x2 - x1);
+    const rh = Math.abs(y2 - y1);
+    if (isFilled) {
+      ctx.globalAlpha = 0.25;
+      ctx.fillRect(rx, ry, rw, rh);
+      ctx.globalAlpha = 1.0;
+    }
+    ctx.strokeRect(rx, ry, rw, rh);
+  } else if (shapeType === 'circle') {
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    const radX = Math.abs(x2 - x1) / 2;
+    const radY = Math.abs(y2 - y1) / 2;
+    ctx.ellipse(cx, cy, Math.max(1, radX), Math.max(1, radY), 0, 0, Math.PI * 2);
+    if (isFilled) {
+      ctx.globalAlpha = 0.25;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+    ctx.stroke();
+  } else if (shapeType === 'diamond') {
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    ctx.moveTo(cx, y1);
+    ctx.lineTo(x2, cy);
+    ctx.lineTo(cx, y2);
+    ctx.lineTo(x1, cy);
+    ctx.closePath();
+    if (isFilled) {
+      ctx.globalAlpha = 0.25;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Fast Scanline Flood Fill (Paint Bucket Tool)
+function performHwFloodFill(startX, startY, fillHexColor) {
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  const bgCanvas = document.getElementById('hw-bg-canvas');
+  if (!drawCanvas || !bgCanvas) return;
+
+  const width = drawCanvas.width;
+  const height = drawCanvas.height;
+  if (startX < 0 || startX >= width || startY < 0 || startY >= height) return;
+
+  const fillRGB = hexToRgbObj(fillHexColor);
+  if (!fillRGB) return;
+
+  // Read composite when custom/teacher worksheet is loaded so student can color inside worksheet lines;
+  // otherwise read drawCanvas so paper lines don't block coloring!
+  const refCanvas = document.createElement('canvas');
+  refCanvas.width = width;
+  refCanvas.height = height;
+  const refCtx = refCanvas.getContext('2d');
+
+  if (hwDrawState.paperType === 'custom') {
+    refCtx.drawImage(bgCanvas, 0, 0);
+  } else {
+    refCtx.fillStyle = '#ffffff';
+    refCtx.fillRect(0, 0, width, height);
+  }
+  refCtx.drawImage(drawCanvas, 0, 0);
+
+  const refData = refCtx.getImageData(0, 0, width, height).data;
+  const drawCtx = drawCanvas.getContext('2d');
+  const drawImgData = drawCtx.getImageData(0, 0, width, height);
+  const outData = drawImgData.data;
+
+  const startIdx = (startY * width + startX) * 4;
+  const targetR = refData[startIdx];
+  const targetG = refData[startIdx + 1];
+  const targetB = refData[startIdx + 2];
+
+  if (
+    Math.abs(targetR - fillRGB.r) <= 10 &&
+    Math.abs(targetG - fillRGB.g) <= 10 &&
+    Math.abs(targetB - fillRGB.b) <= 10 &&
+    outData[startIdx + 3] > 200
+  ) {
+    return;
+  }
+
+  const tolerance = 38;
+  const visited = new Uint8Array(width * height);
+  const stack = [startX, startY];
+
+  function matchesTarget(pixelPos) {
+    const idx = pixelPos * 4;
+    return (
+      Math.abs(refData[idx] - targetR) <= tolerance &&
+      Math.abs(refData[idx + 1] - targetG) <= tolerance &&
+      Math.abs(refData[idx + 2] - targetB) <= tolerance
+    );
+  }
+
+  while (stack.length > 0) {
+    const y = stack.pop();
+    const x = stack.pop();
+    let currX = x;
+
+    while (currX >= 0 && !visited[y * width + currX] && matchesTarget(y * width + currX)) {
+      currX--;
+    }
+    currX++;
+
+    let spanAbove = false;
+    let spanBelow = false;
+
+    while (currX < width && !visited[y * width + currX] && matchesTarget(y * width + currX)) {
+      const pos = y * width + currX;
+      visited[pos] = 1;
+      const outIdx = pos * 4;
+      outData[outIdx] = fillRGB.r;
+      outData[outIdx + 1] = fillRGB.g;
+      outData[outIdx + 2] = fillRGB.b;
+      outData[outIdx + 3] = 255;
+
+      if (y > 0) {
+        const abovePos = (y - 1) * width + currX;
+        const aboveMatch = !visited[abovePos] && matchesTarget(abovePos);
+        if (!spanAbove && aboveMatch) {
+          stack.push(currX, y - 1);
+          spanAbove = true;
+        } else if (spanAbove && !aboveMatch) {
+          spanAbove = false;
+        }
+      }
+
+      if (y < height - 1) {
+        const belowPos = (y + 1) * width + currX;
+        const belowMatch = !visited[belowPos] && matchesTarget(belowPos);
+        if (!spanBelow && belowMatch) {
+          stack.push(currX, y + 1);
+          spanBelow = true;
+        } else if (spanBelow && !belowMatch) {
+          spanBelow = false;
+        }
+      }
+      currX++;
+    }
+  }
+
+  drawCtx.putImageData(drawImgData, 0, 0);
+}
+
+function hexToRgbObj(hex) {
+  const clean = (hex || '#000000').replace('#', '');
+  if (clean.length === 3) {
+    return {
+      r: parseInt(clean[0] + clean[0], 16),
+      g: parseInt(clean[1] + clean[1], 16),
+      b: parseInt(clean[2] + clean[2], 16)
+    };
+  }
+  const num = parseInt(clean, 16);
+  if (isNaN(num)) return { r: 0, g: 0, b: 0 };
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255
+  };
+}
+
+// Floating Text Tool on Canvas
+function openHwFloatingTextEditor(canvasX, canvasY) {
+  const box = document.getElementById('hw-floating-text-box');
+  const input = document.getElementById('hw-floating-text-input');
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!box || !input || !drawCanvas) return;
+
+  hwDrawState.pendingTextX = Math.min(Math.max(20, canvasX), drawCanvas.width - 240);
+  hwDrawState.pendingTextY = Math.min(Math.max(20, canvasY), drawCanvas.height - 120);
+
+  box.style.left = `${hwDrawState.pendingTextX}px`;
+  box.style.top = `${hwDrawState.pendingTextY}px`;
+  box.style.display = 'flex';
+  input.style.color = hwDrawState.color;
+  input.value = '';
+  setTimeout(() => input.focus(), 50);
+}
+
+function cancelHwFloatingText() {
+  const box = document.getElementById('hw-floating-text-box');
+  const input = document.getElementById('hw-floating-text-input');
+  if (box) box.style.display = 'none';
+  if (input) input.value = '';
+}
+
+function commitHwFloatingText() {
+  const box = document.getElementById('hw-floating-text-box');
+  const input = document.getElementById('hw-floating-text-input');
+  const sizeSelect = document.getElementById('hw-floating-text-size');
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!input || !drawCanvas) return;
+
+  const text = input.value.trim();
+  if (!text) {
+    cancelHwFloatingText();
+    return;
+  }
+
+  const fontSize = parseInt(sizeSelect?.value || '26', 10);
+  const ctx = drawCanvas.getContext('2d');
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.font = `700 ${fontSize}px 'Sarabun', sans-serif`;
+  ctx.fillStyle = hwDrawState.color;
+  ctx.textBaseline = 'top';
+
+  const lines = text.split('\n');
+  const lineHeight = Math.round(fontSize * 1.35);
+  lines.forEach((line, idx) => {
+    ctx.fillText(line, hwDrawState.pendingTextX, hwDrawState.pendingTextY + idx * lineHeight);
+  });
+  ctx.restore();
+
+  hwDrawState.hasInkOnCurrentSheet = true;
+  pushHwUndoState();
+  cancelHwFloatingText();
+}
+
+// Tool, Color, Size & Paper Controls
+function selectHwDrawTool(toolName) {
+  hwDrawState.tool = toolName;
+  document.querySelectorAll('#modal-homework-canvas .draw-tool-btn[data-tool]').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tool') === toolName);
+  });
+
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (drawCanvas) {
+    drawCanvas.classList.toggle('pan-mode', toolName === 'pan');
+  }
+
+  if (toolName !== 'text') {
+    cancelHwFloatingText();
+  }
+}
+
+function selectHwDrawColor(colorHex, swatchBtn) {
+  hwDrawState.color = colorHex;
+  document.querySelectorAll('#hw-color-palette-group .draw-color-swatch').forEach(btn => {
+    btn.classList.toggle('active', btn === swatchBtn || btn.getAttribute('data-color') === colorHex);
+  });
+  const picker = document.getElementById('hw-custom-color-picker');
+  if (picker && colorHex.startsWith('#') && colorHex.length === 7) {
+    picker.value = colorHex;
+  }
+  const textInput = document.getElementById('hw-floating-text-input');
+  if (textInput) {
+    textInput.style.color = colorHex;
+  }
+  // If user was on eraser or pan and picks a color, switch back to pen automatically
+  if (hwDrawState.tool === 'eraser' || hwDrawState.tool === 'pan') {
+    selectHwDrawTool('pen');
+  }
+}
+
+function updateHwStrokeSizeLabel(val) {
+  hwDrawState.strokeSize = parseInt(val, 10) || 4;
+  const label = document.getElementById('hw-stroke-size-val');
+  if (label) label.innerText = `${hwDrawState.strokeSize}px`;
+}
+
+function setHwCanvasPaper(paperType) {
+  hwDrawState.paperType = paperType;
+  if (paperType !== 'custom') {
+    hwDrawState.customBgImage = null;
+  }
+
+  ['blank', 'lined', 'grid'].forEach(p => {
+    const btn = document.getElementById(`btn-paper-${p}`);
+    if (btn) {
+      const isActive = p === paperType;
+      btn.style.background = isActive ? '#2563eb' : 'transparent';
+      btn.style.color = isActive ? '#ffffff' : '#cbd5e1';
+    }
+  });
+
+  renderHwBackgroundLayer();
+}
+
+function renderHwBackgroundLayer() {
+  const bgCanvas = document.getElementById('hw-bg-canvas');
+  if (!bgCanvas) return;
+  const ctx = bgCanvas.getContext('2d');
+  const w = bgCanvas.width;
+  const h = bgCanvas.height;
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  if (hwDrawState.paperType === 'custom' && hwDrawState.customBgImage) {
+    const img = hwDrawState.customBgImage;
+    const scale = Math.min(w / img.width, h / img.height);
+    const drawW = img.width * scale;
+    const drawH = img.height * scale;
+    const offsetX = (w - drawW) / 2;
+    const offsetY = (h - drawH) / 2;
+    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  } else if (hwDrawState.paperType === 'lined') {
+    // Notebook header & ruled lines
+    const lineSpacing = 38;
+    const topMargin = 64;
+
+    // Header separator double line
+    ctx.strokeStyle = '#93c5fd';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, topMargin);
+    ctx.lineTo(w, topMargin);
+    ctx.moveTo(0, topMargin + 4);
+    ctx.lineTo(w, topMargin + 4);
+    ctx.stroke();
+
+    // Horizontal ruled lines
+    ctx.strokeStyle = '#dbeafe';
+    ctx.lineWidth = 1;
+    for (let y = topMargin + lineSpacing; y < h - 20; y += lineSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    // Vertical red margin line
+    ctx.strokeStyle = '#fecaca';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(72, 0);
+    ctx.lineTo(72, h);
+    ctx.stroke();
+  } else if (hwDrawState.paperType === 'grid') {
+    const gridSize = 30;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    for (let x = gridSize; x < w; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = gridSize; y < h; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function toggleHwCanvasOrientation() {
+  const stage = document.getElementById('hw-canvas-stage');
+  const bgCanvas = document.getElementById('hw-bg-canvas');
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  const label = document.getElementById('hw-orientation-label');
+  if (!stage || !bgCanvas || !drawCanvas) return;
+
+  // Snapshot existing drawing
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = drawCanvas.width;
+  tempCanvas.height = drawCanvas.height;
+  tempCanvas.getContext('2d').drawImage(drawCanvas, 0, 0);
+
+  if (hwDrawState.orientation === 'landscape') {
+    hwDrawState.orientation = 'portrait';
+    stage.style.width = '820px';
+    stage.style.height = '1140px';
+    bgCanvas.width = 820;
+    bgCanvas.height = 1140;
+    drawCanvas.width = 820;
+    drawCanvas.height = 1140;
+    if (label) label.innerText = 'แนวตั้ง (A4)';
+  } else {
+    hwDrawState.orientation = 'landscape';
+    stage.style.width = '1100px';
+    stage.style.height = '780px';
+    bgCanvas.width = 1100;
+    bgCanvas.height = 780;
+    drawCanvas.width = 1100;
+    drawCanvas.height = 780;
+    if (label) label.innerText = 'แนวนอน';
+  }
+
+  renderHwBackgroundLayer();
+  drawCanvas.getContext('2d').drawImage(tempCanvas, 0, 0);
+  hwDrawState.undoStack = [];
+  hwDrawState.redoStack = [];
+  pushHwUndoState();
+  fitHwCanvasStage();
+}
+
+// Teacher Worksheet & Custom Background Image Loader
+async function loadTeacherWorksheetToCanvas() {
+  const hwId = document.getElementById('submit-hw-id')?.value;
+  const hw = hwId ? homeworkData[hwId] : null;
+  if (!hw) return;
+
+  let fileUrl = null;
+  if (hw.pdfs && Array.isArray(hw.pdfs) && hw.pdfs.length > 0 && hw.pdfs[0].url) {
+    fileUrl = hw.pdfs[0].url;
+  } else if (hw.imageUrl) {
+    fileUrl = hw.imageUrl;
+  }
+
+  if (!fileUrl) {
+    showPopupWarning("ไม่พบไฟล์ใบงาน", "การบ้านชิ้นนี้ไม่มีไฟล์รูปภาพหรือ PDF แนบจากครูผู้สอน");
+    return;
+  }
+
+  fileUrl = fileUrl.replace(/^http:\/\//i, 'https://');
+  const isPdf = fileUrl.includes('application/pdf') || fileUrl.includes('.pdf') || fileUrl.toLowerCase().includes('pdf');
+
+  if (isPdf && typeof window.pdfjsLib !== 'undefined') {
+    try {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      let loadingTask;
+      if (fileUrl.startsWith('data:application/pdf')) {
+        const pdfBytes = convertDataURIToBinary(fileUrl);
+        loadingTask = window.pdfjsLib.getDocument({ data: pdfBytes });
+      } else {
+        loadingTask = window.pdfjsLib.getDocument(fileUrl);
+      }
+      const pdfDoc = await loadingTask.promise;
+      hwDrawState.worksheetPdfDoc = pdfDoc;
+      hwDrawState.worksheetPdfPage = 1;
+      hwDrawState.worksheetPdfTotal = pdfDoc.numPages;
+
+      const pager = document.getElementById('hw-worksheet-pdf-pager');
+      if (pager) {
+        pager.style.display = pdfDoc.numPages > 1 ? 'inline-flex' : 'none';
+      }
+      await renderWorksheetPdfPageToBg(1);
+    } catch (err) {
+      console.error("Failed to render teacher PDF onto canvas:", err);
+      showPopupWarning("โหลด PDF ไม่สำเร็จ", "ไม่สามารถดึงหน้า PDF มาเป็นพื้นหลังได้ กรุณาแคปหน้าจอใบงานแล้วกดปุ่ม 'นำเข้ารูปพื้นหลัง'");
+    }
+  } else {
+    // Load teacher image worksheet
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      hwDrawState.customBgImage = img;
+      // Auto-match orientation to worksheet image
+      if ((img.height > img.width && hwDrawState.orientation === 'landscape') ||
+          (img.width > img.height && hwDrawState.orientation === 'portrait')) {
+        toggleHwCanvasOrientation();
+      }
+      setHwCanvasPaper('custom');
+    };
+    img.onerror = () => {
+      showPopupWarning("โหลดรูปใบงานไม่สำเร็จ", "ไม่สามารถดึงรูปภาพใบงานมาวางบนกระดานได้");
+    };
+    img.src = fileUrl;
+  }
+}
+
+async function renderWorksheetPdfPageToBg(pageNum) {
+  if (!hwDrawState.worksheetPdfDoc) return;
+  try {
+    const page = await hwDrawState.worksheetPdfDoc.getPage(pageNum);
+    const vp1 = page.getViewport({ scale: 1 });
+
+    // Auto adjust orientation to match PDF page aspect ratio
+    if ((vp1.height > vp1.width && hwDrawState.orientation === 'landscape') ||
+        (vp1.width > vp1.height && hwDrawState.orientation === 'portrait')) {
+      toggleHwCanvasOrientation();
+    }
+
+    const viewport = page.getViewport({ scale: 2.0 });
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = viewport.width;
+    offCanvas.height = viewport.height;
+    const offCtx = offCanvas.getContext('2d');
+
+    await page.render({ canvasContext: offCtx, viewport }).promise;
+
+    const img = new Image();
+    img.onload = () => {
+      hwDrawState.customBgImage = img;
+      setHwCanvasPaper('custom');
+    };
+    img.src = offCanvas.toDataURL('image/png');
+
+    const pageText = document.getElementById('hw-worksheet-pdf-page-text');
+    if (pageText) {
+      pageText.innerText = `หน้า ${pageNum}/${hwDrawState.worksheetPdfTotal}`;
+    }
+  } catch (err) {
+    console.error("Error rendering PDF page to canvas background:", err);
+  }
+}
+
+function changeWorksheetPdfPage(delta) {
+  if (!hwDrawState.worksheetPdfDoc) return;
+  const next = hwDrawState.worksheetPdfPage + delta;
+  if (next < 1 || next > hwDrawState.worksheetPdfTotal) return;
+  hwDrawState.worksheetPdfPage = next;
+  renderWorksheetPdfPageToBg(next);
+}
+
+function handleCustomCanvasBgUpload(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      hwDrawState.customBgImage = img;
+      setHwCanvasPaper('custom');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+// Undo / Redo / Clear Engine
+function pushHwUndoState() {
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+  const ctx = drawCanvas.getContext('2d');
+  const snap = ctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+  hwDrawState.undoStack.push(snap);
+  if (hwDrawState.undoStack.length > hwDrawState.maxHistory) {
+    hwDrawState.undoStack.shift();
+  }
+  hwDrawState.redoStack = [];
+}
+
+function undoHwCanvas() {
+  if (hwDrawState.undoStack.length <= 1) return;
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+  const ctx = drawCanvas.getContext('2d');
+  const current = hwDrawState.undoStack.pop();
+  hwDrawState.redoStack.push(current);
+  const prev = hwDrawState.undoStack[hwDrawState.undoStack.length - 1];
+  if (prev) {
+    ctx.putImageData(prev, 0, 0);
+  }
+}
+
+function redoHwCanvas() {
+  if (hwDrawState.redoStack.length === 0) return;
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+  const ctx = drawCanvas.getContext('2d');
+  const next = hwDrawState.redoStack.pop();
+  if (next) {
+    hwDrawState.undoStack.push(next);
+    ctx.putImageData(next, 0, 0);
+  }
+}
+
+function clearHwDrawLayerOnly() {
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!drawCanvas) return;
+  const ctx = drawCanvas.getContext('2d');
+  ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  hwDrawState.hasInkOnCurrentSheet = false;
+}
+
+function clearHwCanvasConfirm() {
+  showPopupConfirm(
+    "ล้างหน้ากระดานนี้?",
+    "ต้องการลบข้อความและภาพที่วาดบนหน้านี้ทั้งหมดเพื่อเริ่มเขียนใหม่ใช่หรือไม่? (พื้นหลังใบงานจะไม่ถูกลบ)",
+    "ล้างหน้ากระดาน",
+    () => {
+      clearHwDrawLayerOnly();
+      pushHwUndoState();
+    }
+  );
+}
+
+// Stage Zoom & Fullscreen
+function zoomHwCanvasStage(delta) {
+  hwDrawState.zoom = Math.min(1.6, Math.max(0.45, Math.round((hwDrawState.zoom + delta) * 100) / 100));
+  applyHwCanvasZoom();
+}
+
+function fitHwCanvasStage() {
+  const workspace = document.getElementById('hw-canvas-workspace');
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!workspace || !drawCanvas) return;
+
+  const availW = Math.max(320, workspace.clientWidth - 28);
+  const availH = Math.max(280, workspace.clientHeight - 28);
+  const fitScale = Math.min(1.0, availW / drawCanvas.width, availH / drawCanvas.height);
+  hwDrawState.zoom = Math.max(0.45, Math.round(fitScale * 100) / 100);
+  applyHwCanvasZoom();
+}
+
+function applyHwCanvasZoom() {
+  const stage = document.getElementById('hw-canvas-stage');
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  const label = document.getElementById('hw-canvas-zoom-label');
+  if (!stage || !drawCanvas) return;
+
+  const scaledW = Math.round(drawCanvas.width * hwDrawState.zoom);
+  const scaledH = Math.round(drawCanvas.height * hwDrawState.zoom);
+  stage.style.width = `${scaledW}px`;
+  stage.style.height = `${scaledH}px`;
+
+  if (label) {
+    label.innerText = `${Math.round(hwDrawState.zoom * 100)}%`;
+  }
+}
+
+function toggleHwCanvasFullscreen() {
+  const container = document.getElementById('drawing-studio-container');
+  const icon = document.getElementById('hw-fullscreen-icon');
+  if (!container) return;
+  const isFull = container.classList.toggle('is-fullscreen');
+  if (icon) {
+    icon.className = isFull ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+  }
+  setTimeout(fitHwCanvasStage, 100);
+}
+
+// Composite Export & Attachment to Homework Submission
+function createHwCompositeCanvas() {
+  const bgCanvas = document.getElementById('hw-bg-canvas');
+  const drawCanvas = document.getElementById('hw-draw-canvas');
+  if (!bgCanvas || !drawCanvas) return null;
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = drawCanvas.width;
+  outCanvas.height = drawCanvas.height;
+  const outCtx = outCanvas.getContext('2d');
+
+  outCtx.fillStyle = '#ffffff';
+  outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+  outCtx.drawImage(bgCanvas, 0, 0);
+  outCtx.drawImage(drawCanvas, 0, 0);
+  return outCanvas;
+}
+
+function downloadHwCanvasImage() {
+  commitHwFloatingText();
+  const outCanvas = createHwCompositeCanvas();
+  if (!outCanvas) return;
+
+  const sheetNum = (currentSelectedStudentFiles ? currentSelectedStudentFiles.length : 0) + 1;
+  const link = document.createElement('a');
+  link.download = `ใบงานที่วาด_แผ่นที่_${sheetNum}.png`;
+  link.href = outCanvas.toDataURL('image/png');
+  link.click();
+}
+
+function attachCurrentCanvasSheetToHomework(callback) {
+  commitHwFloatingText();
+  const outCanvas = createHwCompositeCanvas();
+  if (!outCanvas) return;
+
+  const sheetNum = (currentSelectedStudentFiles ? currentSelectedStudentFiles.length : 0) + 1;
+  const fileName = `แผ่นงานเขียน_iPad_หน้าที่_${sheetNum}.png`;
+
+  outCanvas.toBlob((blob) => {
+    if (!blob) return;
+    const file = new File([blob], fileName, { type: 'image/png', lastModified: Date.now() });
+    const fileSizeMb = (file.size / (1024 * 1024)).toFixed(2);
+    const fileSizeText = file.size > 1024 * 1024 ? `${fileSizeMb} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+    const previewUrl = URL.createObjectURL(file);
+
+    currentSelectedStudentFiles.push({
+      file: file,
+      previewUrl: previewUrl,
+      isPdf: false,
+      name: fileName,
+      size: file.size,
+      sizeText: fileSizeText
+    });
+
+    currentSelectedStudentFile = currentSelectedStudentFiles[0] ? currentSelectedStudentFiles[0].file : null;
+    renderStudentSelectedFilesPreview();
+    if (typeof callback === 'function') callback(sheetNum);
+  }, 'image/png', 0.95);
+}
+
+function saveHwCanvasToHomeworkSubmission() {
+  attachCurrentCanvasSheetToHomework((sheetNum) => {
+    // Reset canvas for potential next sheet
+    clearHwDrawLayerOnly();
+    hwDrawState.undoStack = [];
+    hwDrawState.redoStack = [];
+    pushHwUndoState();
+
+    closeModal('modal-homework-canvas');
+    showPopupSuccess(
+      `แนบแผ่นงานที่ ${sheetNum} เรียบร้อย!`,
+      `บันทึกภาพเขียน/ระบายสีเข้าสู่รายการไฟล์เตรียมส่งแล้ว คุณสามารถกด "ยืนยันการส่งงาน" หรือเปิดกระดานเพื่อวาดหน้าถัดไปได้เลย`
+    );
+  });
+}
+
+function saveHwCanvasAndNewPage() {
+  attachCurrentCanvasSheetToHomework((savedSheetNum) => {
+    clearHwDrawLayerOnly();
+    hwDrawState.undoStack = [];
+    hwDrawState.redoStack = [];
+    pushHwUndoState();
+
+    // If a multi-page teacher PDF worksheet is active, automatically advance to next page
+    if (hwDrawState.worksheetPdfDoc && hwDrawState.worksheetPdfPage < hwDrawState.worksheetPdfTotal) {
+      changeWorksheetPdfPage(1);
+    }
+
+    const nextSheetNum = currentSelectedStudentFiles.length + 1;
+    const sheetBadgeEl = document.getElementById('hw-canvas-sheet-badge');
+    if (sheetBadgeEl) {
+      sheetBadgeEl.innerText = `แผ่นที่ ${nextSheetNum}`;
+    }
+
+    showPopupSuccess(
+      `บันทึกแผ่นที่ ${savedSheetNum} แล้ว!`,
+      `เปิดกระดาษแผ่นที่ ${nextSheetNum} ให้เรียบร้อย สามารถเขียนหรือวาดหน้าถัดไปต่อได้ทันที`
+    );
+  });
+}
+
 
