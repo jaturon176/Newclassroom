@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.16.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.17.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -1848,26 +1848,11 @@
           </button>
         </div>
 
-        <!-- 2. Geometric & Flowchart Shapes -->
-        <div class="draw-tool-group" title="เครื่องมือวาดรูปทรงและผังงาน Flowchart">
-          <button type="button" class="draw-tool-btn" data-tool="line" onclick="selectHwDrawTool('line')" title="วาดเส้นตรง">
-            <i class="fa-solid fa-slash"></i> <span class="tool-label-text">เส้นตรง</span>
+        <!-- 2. Flowchart Menu Toggle Button -->
+        <div class="draw-tool-group" title="เปิด/ซ่อน เมนูรูปทรงในการวาดผังงาน Flowchart">
+          <button type="button" class="draw-tool-btn active" id="btn-toggle-flowchart-menu" onclick="toggleFlowchartMenuBar()" style="font-weight:800;">
+            <i class="fa-solid fa-diagram-project" style="color:#4f46e5;"></i> <span>เมนูรูปทรง Flowchart</span> <i class="fa-solid fa-chevron-up" id="fc-menu-caret" style="font-size:0.7rem;"></i>
           </button>
-          <button type="button" class="draw-tool-btn" data-tool="arrow" onclick="selectHwDrawTool('arrow')" title="วาดลูกศร">
-            <i class="fa-solid fa-arrow-right-long"></i> <span class="tool-label-text">ลูกศร</span>
-          </button>
-          <button type="button" class="draw-tool-btn" data-tool="rect" onclick="selectHwDrawTool('rect')" title="วาดสี่เหลี่ยม">
-            <i class="fa-regular fa-square"></i> <span class="tool-label-text">สี่เหลี่ยม</span>
-          </button>
-          <button type="button" class="draw-tool-btn" data-tool="circle" onclick="selectHwDrawTool('circle')" title="วาดวงกลม/วงรี">
-            <i class="fa-regular fa-circle"></i> <span class="tool-label-text">วงกลม</span>
-          </button>
-          <button type="button" class="draw-tool-btn" data-tool="diamond" onclick="selectHwDrawTool('diamond')" title="วาดข้าวหลามตัด (Flowchart Decision)">
-            <i class="fa-solid fa-diamond"></i> <span class="tool-label-text">ผังงาน</span>
-          </button>
-          <label style="display:inline-flex; align-items:center; gap:4px; font-size:0.76rem; font-weight:700; color:#475569; padding:0 6px; cursor:pointer;" title="ติ๊กเพื่อให้รูปทรงระบายสีทึบด้านในอัตโนมัติ">
-            <input type="checkbox" id="hw-shape-fill-toggle" style="accent-color:#2563eb; width:14px; height:14px; cursor:pointer;"> สีทึบ
-          </label>
         </div>
 
         <!-- 3. Color Palette & Custom Color Picker -->
@@ -1912,8 +1897,103 @@
         </div>
       </div>
 
+      <!-- Dedicated Flowchart Shapes Menu Bar (เมนูรูปทรงในการวาดผังงาน Flowchart) -->
+      <div class="flowchart-shapes-menubar" id="hw-flowchart-menubar">
+        <span class="flowchart-menu-title">
+          <i class="fa-solid fa-diagram-project" style="color:#4f46e5;"></i> รูปทรง Flowchart:
+        </span>
+
+        <!-- 1. Terminator (Start / End) -->
+        <button type="button" class="fc-shape-btn" data-tool="fc-terminator" onclick="selectHwDrawTool('fc-terminator')" title="เริ่มต้น / สิ้นสุด (Start / End - Terminator)">
+          <svg viewBox="0 0 28 18"><rect x="2" y="2" width="24" height="14" rx="7" ry="7"/></svg>
+          <span>เริ่มต้น/สิ้นสุด</span>
+        </button>
+
+        <!-- 2. Process (Rectangle) -->
+        <button type="button" class="fc-shape-btn" data-tool="rect" onclick="selectHwDrawTool('rect')" title="การประมวลผล / คำนวณ (Process)">
+          <svg viewBox="0 0 28 18"><rect x="2" y="2" width="24" height="14" rx="1" ry="1"/></svg>
+          <span>ประมวลผล</span>
+        </button>
+
+        <!-- 3. Input / Output (Parallelogram) -->
+        <button type="button" class="fc-shape-btn" data-tool="fc-io" onclick="selectHwDrawTool('fc-io')" title="รับข้อมูล / แสดงผลทั่วไป (Input / Output)">
+          <svg viewBox="0 0 28 18"><polygon points="6,2 26,2 22,16 2,16"/></svg>
+          <span>รับค่า/แสดงผล</span>
+        </button>
+
+        <!-- 4. Decision (Diamond) -->
+        <button type="button" class="fc-shape-btn" data-tool="diamond" onclick="selectHwDrawTool('diamond')" title="การตัดสินใจ / เงื่อนไขทางเลือก (Decision)">
+          <svg viewBox="0 0 28 18"><polygon points="14,1 26,9 14,17 2,9"/></svg>
+          <span>การตัดสินใจ</span>
+        </button>
+
+        <!-- 5. Manual Input (Keyboard) -->
+        <button type="button" class="fc-shape-btn" data-tool="fc-manual-input" onclick="selectHwDrawTool('fc-manual-input')" title="รับข้อมูลผ่านแป้นพิมพ์ (Manual Input)">
+          <svg viewBox="0 0 28 18"><polygon points="2,6 26,2 26,16 2,16"/></svg>
+          <span>รับค่าแป้นพิมพ์</span>
+        </button>
+
+        <!-- 6. Display (Monitor Screen) -->
+        <button type="button" class="fc-shape-btn" data-tool="fc-display" onclick="selectHwDrawTool('fc-display')" title="แสดงผลทางหน้าจอ (Display)">
+          <svg viewBox="0 0 28 18"><path d="M 7,2 L 21,2 Q 26,9 21,16 L 7,16 L 2,9 Z"/></svg>
+          <span>แสดงผลหน้าจอ</span>
+        </button>
+
+        <!-- 7. Document (Printout) -->
+        <button type="button" class="fc-shape-btn" data-tool="fc-document" onclick="selectHwDrawTool('fc-document')" title="แสดงผลทางเครื่องพิมพ์ / เอกสาร (Document)">
+          <svg viewBox="0 0 28 18"><path d="M 2,2 L 26,2 L 26,13 Q 20,18 14,14 Q 8,10 2,15 Z"/></svg>
+          <span>พิมพ์เอกสาร</span>
+        </button>
+
+        <!-- 8. Predefined Process (Subroutine) -->
+        <button type="button" class="fc-shape-btn" data-tool="fc-subroutine" onclick="selectHwDrawTool('fc-subroutine')" title="โปรแกรมย่อย / ฟังก์ชัน (Predefined Process / Subroutine)">
+          <svg viewBox="0 0 28 18"><rect x="2" y="2" width="24" height="14"/><line x1="6" y1="2" x2="6" y2="16"/><line x1="22" y1="2" x2="22" y2="16"/></svg>
+          <span>โปรแกรมย่อย</span>
+        </button>
+
+        <!-- 9. On-page Connector (Circle) -->
+        <button type="button" class="fc-shape-btn" data-tool="circle" onclick="selectHwDrawTool('circle')" title="จุดเชื่อมต่อในหน้าเดียวกัน (On-page Connector)">
+          <svg viewBox="0 0 28 18"><circle cx="14" cy="9" r="7"/></svg>
+          <span>จุดเชื่อมต่อ</span>
+        </button>
+
+        <!-- 10. Off-page Connector (Pentagon Down) -->
+        <button type="button" class="fc-shape-btn" data-tool="fc-offpage" onclick="selectHwDrawTool('fc-offpage')" title="จุดเชื่อมต่อต่างหน้า (Off-page Connector)">
+          <svg viewBox="0 0 28 18"><polygon points="4,2 24,2 24,11 14,17 4,11"/></svg>
+          <span>เชื่อมต่อต่างหน้า</span>
+        </button>
+
+        <!-- 11. Flowline Arrow -->
+        <button type="button" class="fc-shape-btn" data-tool="arrow" onclick="selectHwDrawTool('arrow')" title="ลูกศรทิศทางการไหลของผังงาน (Flowline Arrow)">
+          <svg viewBox="0 0 28 18"><line x1="2" y1="9" x2="24" y2="9"/><polyline points="18,4 24,9 18,14" fill="none"/></svg>
+          <span>ลูกศรทิศทาง</span>
+        </button>
+
+        <!-- 12. Connector Line -->
+        <button type="button" class="fc-shape-btn" data-tool="line" onclick="selectHwDrawTool('line')" title="เส้นตรงเชื่อมต่อ (Connector Line)">
+          <svg viewBox="0 0 28 18"><line x1="3" y1="15" x2="25" y2="3"/></svg>
+          <span>เส้นตรง</span>
+        </button>
+
+        <!-- Shape Fill & Auto-Text Options -->
+        <div style="display:inline-flex; align-items:center; gap:8px; margin-left:auto; background:#ffffff; padding:3px 10px; border-radius:8px; border:1px solid #cbd5e1;">
+          <label style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:700; color:#334155; cursor:pointer;" title="เติมสีพื้นด้านในรูปทรง Flowchart">
+            <input type="checkbox" id="hw-shape-fill-toggle" checked style="accent-color:#2563eb; width:14px; height:14px; cursor:pointer;"> เติมสีพื้นรูปทรง
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:700; color:#334155; cursor:pointer;" title="เมื่อวาดรูปทรง Flowchart เสร็จ จะเปิดช่องพิมพ์ข้อความในรูปทรงให้อัตโนมัติ">
+            <input type="checkbox" id="hw-shape-auto-text-toggle" style="accent-color:#4f46e5; width:14px; height:14px; cursor:pointer;"> พิมพ์ข้อความในรูปทรงอัตโนมัติ
+          </label>
+        </div>
+      </div>
+
       <!-- Studio Interactive Canvas Stage -->
       <div class="drawing-studio-workspace" id="hw-canvas-workspace">
+        <!-- Pen-Only Alert Toast when finger touches paper -->
+        <div id="hw-pen-only-toast" class="pen-only-toast-banner">
+          <i class="fa-solid fa-pen-nib" style="color:#38bdf8;"></i>
+          <span>ในแผ่นกระดาษรองรับการขีดเขียนด้วย <strong>ปากกา (Apple Pencil / Stylus)</strong> เท่านั้น</span>
+        </div>
+
         <div class="drawing-canvas-stage" id="hw-canvas-stage" style="width: 1100px; height: 780px;">
           <!-- Layer 1: Background Paper / Teacher Worksheet Layer -->
           <canvas id="hw-bg-canvas" class="drawing-canvas-layer" width="1100" height="780"></canvas>
@@ -1949,8 +2029,8 @@
             <button type="button" class="btn btn-sm" onclick="zoomHwCanvasStage(0.15)" style="background:transparent; color:#cbd5e1; border:none; padding:2px 6px;" title="ขยายกระดาน"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
             <button type="button" class="btn btn-sm" onclick="fitHwCanvasStage()" style="background:#334155; color:#38bdf8; border:none; border-radius:6px; padding:2px 8px; font-size:0.74rem; font-weight:700;" title="ปรับขนาดพอดีหน้าจอ iPad">พอดีจอ</button>
           </div>
-          <span style="font-size:0.8rem; color:#94a3b8;">
-            <i class="fa-solid fa-tablet-screen-button" style="color:#38bdf8;"></i> ใช้ Apple Pencil, ปากกา Stylus, นิ้วมือ หรือเมาส์ เขียนและระบายสีได้ทันที
+          <span class="badge badge-blue" style="font-size:0.78rem; font-weight:700; padding:5px 10px; background:rgba(37,99,235,0.22); color:#93c5fd; border:1px solid #3b82f6;">
+            <i class="fa-solid fa-pen-nib" style="color:#38bdf8;"></i> ในแผ่นกระดาษใช้ได้เฉพาะปากกา (Stylus / Apple Pencil) เท่านั้นในการขีดเขียน (ป้องกันมือและนิ้วโดนจอ)
           </span>
         </div>
 
@@ -1972,8 +2052,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.16.0"></script>
-  <script src="js/cloudinary.js?v=8.16.0"></script>
-  <script src="js/app.js?v=8.16.0"></script>
+  <script src="js/firebase-config.js?v=8.17.0"></script>
+  <script src="js/cloudinary.js?v=8.17.0"></script>
+  <script src="js/app.js?v=8.17.0"></script>
 </body>
 </html>

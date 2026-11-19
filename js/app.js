@@ -6232,6 +6232,44 @@ function initHwCanvasEvents() {
   drawCanvas.addEventListener('pointerleave', handleHwPointerUp);
 }
 
+const FLOWCHART_SHAPE_TOOLS = [
+  'line',
+  'arrow',
+  'rect',
+  'circle',
+  'diamond',
+  'fc-terminator',
+  'fc-io',
+  'fc-manual-input',
+  'fc-display',
+  'fc-document',
+  'fc-subroutine',
+  'fc-offpage'
+];
+
+let hwPenOnlyToastTimer = null;
+function showHwPenOnlyToast() {
+  const toast = document.getElementById('hw-pen-only-toast');
+  if (!toast) return;
+  toast.style.display = 'inline-flex';
+  if (hwPenOnlyToastTimer) clearTimeout(hwPenOnlyToastTimer);
+  hwPenOnlyToastTimer = setTimeout(() => {
+    toast.style.display = 'none';
+  }, 2200);
+}
+
+function toggleFlowchartMenuBar() {
+  const bar = document.getElementById('hw-flowchart-menubar');
+  const btn = document.getElementById('btn-toggle-flowchart-menu');
+  const caret = document.getElementById('fc-menu-caret');
+  if (!bar) return;
+
+  const isHidden = bar.style.display === 'none';
+  bar.style.display = isHidden ? 'flex' : 'none';
+  if (btn) btn.classList.toggle('active', isHidden);
+  if (caret) caret.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
+}
+
 function getHwCanvasCoords(e) {
   const drawCanvas = document.getElementById('hw-draw-canvas');
   const rect = drawCanvas.getBoundingClientRect();
@@ -6247,12 +6285,17 @@ function handleHwPointerDown(e) {
   if (hwDrawState.tool === 'pan') return;
   if (e.button !== undefined && e.button !== 0) return;
 
+  // Enforce Pen-Only writing/drawing on the paper sheet (Apple Pencil / Active Stylus: pointerType === 'pen')
+  if (e.pointerType !== 'pen') {
+    showHwPenOnlyToast();
+    return;
+  }
+
   const drawCanvas = document.getElementById('hw-draw-canvas');
   if (!drawCanvas) return;
   const ctx = drawCanvas.getContext('2d');
   const pt = getHwCanvasCoords(e);
 
-  // If floating text box is open and user taps elsewhere with another tool, cancel or commit
   if (hwDrawState.tool === 'text') {
     openHwFloatingTextEditor(pt.x, pt.y);
     return;
@@ -6269,6 +6312,7 @@ function handleHwPointerDown(e) {
     drawCanvas.setPointerCapture(e.pointerId);
   } catch (err) {}
 
+  hwDrawState.activePointerId = e.pointerId;
   hwDrawState.isDrawing = true;
   hwDrawState.hasInkOnCurrentSheet = true;
   hwDrawState.startX = pt.x;
@@ -6286,6 +6330,10 @@ function handleHwPointerDown(e) {
 
 function handleHwPointerMove(e) {
   if (!hwDrawState.isDrawing || hwDrawState.tool === 'pan') return;
+  if (e.pointerType !== 'pen' || (hwDrawState.activePointerId !== undefined && e.pointerId !== hwDrawState.activePointerId)) {
+    return;
+  }
+
   const drawCanvas = document.getElementById('hw-draw-canvas');
   if (!drawCanvas) return;
   const ctx = drawCanvas.getContext('2d');
@@ -6338,20 +6386,44 @@ function handleHwPointerMove(e) {
     }
     ctx.stroke();
     ctx.restore();
-  } else if (['line', 'arrow', 'rect', 'circle', 'diamond'].includes(tool)) {
+  } else if (FLOWCHART_SHAPE_TOOLS.includes(tool)) {
     if (hwDrawState.dragSnapshot) {
       ctx.putImageData(hwDrawState.dragSnapshot, 0, 0);
     }
     drawHwShape(ctx, tool, hwDrawState.startX, hwDrawState.startY, pt.x, pt.y);
+    hwDrawState.lastX = pt.x;
+    hwDrawState.lastY = pt.y;
   }
 }
 
 function handleHwPointerUp(e) {
   if (!hwDrawState.isDrawing) return;
+  if (hwDrawState.activePointerId !== undefined && e && e.pointerId !== undefined && e.pointerId !== hwDrawState.activePointerId) {
+    return;
+  }
+  const finishedTool = hwDrawState.tool;
+  const sx = hwDrawState.startX;
+  const sy = hwDrawState.startY;
+  const ex = hwDrawState.lastX;
+  const ey = hwDrawState.lastY;
+
   hwDrawState.isDrawing = false;
+  hwDrawState.activePointerId = undefined;
   hwDrawState.points = [];
   hwDrawState.dragSnapshot = null;
   pushHwUndoState();
+
+  // If auto-text inside Flowchart shape is enabled, open floating text editor centered inside the drawn shape
+  const autoText = document.getElementById('hw-shape-auto-text-toggle')?.checked || false;
+  if (autoText && FLOWCHART_SHAPE_TOOLS.includes(finishedTool) && finishedTool !== 'line' && finishedTool !== 'arrow') {
+    const w = Math.abs(ex - sx);
+    const h = Math.abs(ey - sy);
+    if (w > 40 && h > 25) {
+      const centerX = Math.min(sx, ex) + Math.max(12, w * 0.18);
+      const centerY = Math.min(sy, ey) + Math.max(8, h * 0.32);
+      openHwFloatingTextEditor(centerX, centerY);
+    }
+  }
 }
 
 function configureHwBrushContext(ctx, tool) {
@@ -6390,6 +6462,16 @@ function drawHwFreehandSegment(ctx, x1, y1, x2, y2) {
   ctx.restore();
 }
 
+function fillAndStrokeCurrentPath(ctx, isFilled) {
+  if (isFilled) {
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.stroke();
+}
+
 function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
   const isFilled = document.getElementById('hw-shape-fill-toggle')?.checked || false;
   ctx.save();
@@ -6400,13 +6482,20 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
+  const rx = Math.min(x1, x2);
+  const ry = Math.min(y1, y2);
+  const rw = Math.max(2, Math.abs(x2 - x1));
+  const rh = Math.max(2, Math.abs(y2 - y1));
+  const cx = rx + rw / 2;
+  const cy = ry + rh / 2;
+
   ctx.beginPath();
   if (shapeType === 'line') {
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
   } else if (shapeType === 'arrow') {
-    const headLen = Math.max(12, hwDrawState.strokeSize * 3.5);
+    const headLen = Math.max(13, hwDrawState.strokeSize * 3.5);
     const angle = Math.atan2(y2 - y1, x2 - x1);
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -6419,42 +6508,99 @@ function drawHwShape(ctx, shapeType, x1, y1, x2, y2) {
     ctx.closePath();
     ctx.fill();
   } else if (shapeType === 'rect') {
-    const rx = Math.min(x1, x2);
-    const ry = Math.min(y1, y2);
-    const rw = Math.abs(x2 - x1);
-    const rh = Math.abs(y2 - y1);
-    if (isFilled) {
-      ctx.globalAlpha = 0.25;
-      ctx.fillRect(rx, ry, rw, rh);
-      ctx.globalAlpha = 1.0;
-    }
-    ctx.strokeRect(rx, ry, rw, rh);
-  } else if (shapeType === 'circle') {
-    const cx = (x1 + x2) / 2;
-    const cy = (y1 + y2) / 2;
-    const radX = Math.abs(x2 - x1) / 2;
-    const radY = Math.abs(y2 - y1) / 2;
-    ctx.ellipse(cx, cy, Math.max(1, radX), Math.max(1, radY), 0, 0, Math.PI * 2);
-    if (isFilled) {
-      ctx.globalAlpha = 0.25;
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
-    }
-    ctx.stroke();
-  } else if (shapeType === 'diamond') {
-    const cx = (x1 + x2) / 2;
-    const cy = (y1 + y2) / 2;
-    ctx.moveTo(cx, y1);
-    ctx.lineTo(x2, cy);
-    ctx.lineTo(cx, y2);
-    ctx.lineTo(x1, cy);
+    // Flowchart: Process (การประมวลผล)
+    ctx.rect(rx, ry, rw, rh);
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'fc-terminator') {
+    // Flowchart: Start / End (เริ่มต้น / สิ้นสุด - Capsule / Stadium shape)
+    const r = Math.min(rw, rh) / 2;
+    ctx.moveTo(rx + r, ry);
+    ctx.lineTo(rx + rw - r, ry);
+    ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + r);
+    ctx.lineTo(rx + rw, ry + rh - r);
+    ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - r, ry + rh);
+    ctx.lineTo(rx + r, ry + rh);
+    ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - r);
+    ctx.lineTo(rx, ry + r);
+    ctx.quadraticCurveTo(rx, ry, rx + r, ry);
     ctx.closePath();
-    if (isFilled) {
-      ctx.globalAlpha = 0.25;
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
-    }
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'fc-io') {
+    // Flowchart: Input / Output (รับข้อมูล / แสดงผล - Parallelogram)
+    const slant = Math.min(rw * 0.22, 36);
+    ctx.moveTo(rx + slant, ry);
+    ctx.lineTo(rx + rw, ry);
+    ctx.lineTo(rx + rw - slant, ry + rh);
+    ctx.lineTo(rx, ry + rh);
+    ctx.closePath();
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'diamond') {
+    // Flowchart: Decision (การตัดสินใจ / เงื่อนไข)
+    ctx.moveTo(cx, ry);
+    ctx.lineTo(rx + rw, cy);
+    ctx.lineTo(cx, ry + rh);
+    ctx.lineTo(rx, cy);
+    ctx.closePath();
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'fc-manual-input') {
+    // Flowchart: Manual Input (รับข้อมูลผ่านแป้นพิมพ์)
+    const drop = Math.min(rh * 0.3, 28);
+    ctx.moveTo(rx, ry + drop);
+    ctx.lineTo(rx + rw, ry);
+    ctx.lineTo(rx + rw, ry + rh);
+    ctx.lineTo(rx, ry + rh);
+    ctx.closePath();
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'fc-display') {
+    // Flowchart: Display (แสดงผลทางหน้าจอ)
+    const leftTip = Math.min(rw * 0.25, 38);
+    const rightCurve = Math.min(rw * 0.22, 32);
+    ctx.moveTo(rx + leftTip, ry);
+    ctx.lineTo(rx + rw - rightCurve, ry);
+    ctx.quadraticCurveTo(rx + rw + rightCurve * 0.35, cy, rx + rw - rightCurve, ry + rh);
+    ctx.lineTo(rx + leftTip, ry + rh);
+    ctx.lineTo(rx, cy);
+    ctx.closePath();
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'fc-document') {
+    // Flowchart: Document (พิมพ์เอกสาร / รายงาน)
+    const waveH = Math.min(rh * 0.18, 22);
+    const baseH = ry + rh - waveH;
+    ctx.moveTo(rx, ry);
+    ctx.lineTo(rx + rw, ry);
+    ctx.lineTo(rx + rw, baseH);
+    ctx.bezierCurveTo(
+      rx + rw * 0.72, baseH + waveH * 1.9,
+      rx + rw * 0.28, baseH - waveH * 1.3,
+      rx, baseH + waveH * 0.3
+    );
+    ctx.closePath();
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'fc-subroutine') {
+    // Flowchart: Predefined Process / Subroutine (โปรแกรมย่อย)
+    const inset = Math.max(10, Math.min(rw * 0.14, 26));
+    ctx.rect(rx, ry, rw, rh);
+    fillAndStrokeCurrentPath(ctx, isFilled);
+    ctx.beginPath();
+    ctx.moveTo(rx + inset, ry);
+    ctx.lineTo(rx + inset, ry + rh);
+    ctx.moveTo(rx + rw - inset, ry);
+    ctx.lineTo(rx + rw - inset, ry + rh);
     ctx.stroke();
+  } else if (shapeType === 'circle') {
+    // Flowchart: On-page Connector (จุดเชื่อมต่อในหน้าเดียวกัน)
+    ctx.ellipse(cx, cy, Math.max(1, rw / 2), Math.max(1, rh / 2), 0, 0, Math.PI * 2);
+    fillAndStrokeCurrentPath(ctx, isFilled);
+  } else if (shapeType === 'fc-offpage') {
+    // Flowchart: Off-page Connector (จุดเชื่อมต่อต่างหน้า)
+    const shoulderY = ry + rh * 0.62;
+    ctx.moveTo(rx, ry);
+    ctx.lineTo(rx + rw, ry);
+    ctx.lineTo(rx + rw, shoulderY);
+    ctx.lineTo(cx, ry + rh);
+    ctx.lineTo(rx, shoulderY);
+    ctx.closePath();
+    fillAndStrokeCurrentPath(ctx, isFilled);
   }
   ctx.restore();
 }
@@ -6648,7 +6794,7 @@ function commitHwFloatingText() {
 // Tool, Color, Size & Paper Controls
 function selectHwDrawTool(toolName) {
   hwDrawState.tool = toolName;
-  document.querySelectorAll('#modal-homework-canvas .draw-tool-btn[data-tool]').forEach(btn => {
+  document.querySelectorAll('#modal-homework-canvas .draw-tool-btn[data-tool], #modal-homework-canvas .fc-shape-btn[data-tool]').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-tool') === toolName);
   });
 
