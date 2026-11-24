@@ -6891,15 +6891,12 @@ function renderHwShapesLayer(showSelection = true) {
     drawHwVectorShapeObject(ctx, shape);
   });
 
-  const actionBar = document.getElementById('hw-shape-action-bar');
   if (!showSelection || !hwDrawState.selectedShapeId) {
-    if (actionBar) actionBar.style.display = 'none';
     return;
   }
 
   const selShape = hwDrawState.shapes.find(s => s.id === hwDrawState.selectedShapeId);
   if (!selShape) {
-    if (actionBar) actionBar.style.display = 'none';
     return;
   }
 
@@ -6925,16 +6922,6 @@ function renderHwShapesLayer(showSelection = true) {
     ctx.stroke();
   });
   ctx.restore();
-
-  // Position Floating Action Bar above or below the selected Flowchart shape
-  if (actionBar) {
-    const b = getHwShapeBounds(selShape);
-    const barTop = b.minY > 56 ? b.minY - 48 : Math.min(shapeCanvas.height - 46, b.maxY + 12);
-    const barLeft = Math.min(Math.max(10, b.cx - 170), shapeCanvas.width - 350);
-    actionBar.style.left = `${barLeft}px`;
-    actionBar.style.top = `${barTop}px`;
-    actionBar.style.display = 'inline-flex';
-  }
 }
 
 // Selected Flowchart Shape Actions (Nudge Left/Right/Up/Down, Edit Text, Duplicate, Delete)

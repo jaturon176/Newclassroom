@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.18.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.19.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -2035,17 +2035,6 @@
           <!-- Layer 3: Interactive Vector Flowchart Shapes Layer (Movable & Resizable) -->
           <canvas id="hw-shape-canvas" class="drawing-canvas-layer" width="1100" height="780" style="pointer-events:none;"></canvas>
 
-          <!-- Floating Action Toolbar for Selected Flowchart Shape (ขยับซ้าย-ขวา-บน-ล่าง / แก้ไขข้อความ / คัดลอก / ลบ) -->
-          <div id="hw-shape-action-bar" class="hw-shape-floating-toolbar">
-            <button type="button" onclick="nudgeSelectedHwShape(-12, 0)" title="ขยับไปทางซ้าย"><i class="fa-solid fa-arrow-left"></i></button>
-            <button type="button" onclick="nudgeSelectedHwShape(0, -12)" title="ขยับขึ้นบน"><i class="fa-solid fa-arrow-up"></i></button>
-            <button type="button" onclick="nudgeSelectedHwShape(0, 12)" title="ขยับลงล่าง"><i class="fa-solid fa-arrow-down"></i></button>
-            <button type="button" onclick="nudgeSelectedHwShape(12, 0)" title="ขยับไปทางขวา"><i class="fa-solid fa-arrow-right"></i></button>
-            <button type="button" onclick="editSelectedHwShapeText()" title="พิมพ์หรือแก้ไขข้อความในรูปทรงนี้"><i class="fa-solid fa-font"></i> ข้อความในรูปทรง</button>
-            <button type="button" onclick="duplicateSelectedHwShape()" title="คัดลอกรูปทรงนี้"><i class="fa-regular fa-copy"></i> คัดลอก</button>
-            <button type="button" class="btn-del-shape" onclick="deleteSelectedHwShape()" title="ลบรูปทรงนี้"><i class="fa-solid fa-trash-can"></i> ลบ</button>
-          </div>
-
           <!-- Floating Inline Text Input Box (Appears when using Text Tool or editing Flowchart Shape label) -->
           <div id="hw-floating-text-box" class="floating-canvas-text-editor">
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.76rem; font-weight:800; color:#1e293b;">
@@ -2098,8 +2087,8 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.18.0"></script>
-  <script src="js/cloudinary.js?v=8.18.0"></script>
-  <script src="js/app.js?v=8.18.0"></script>
+  <script src="js/firebase-config.js?v=8.19.0"></script>
+  <script src="js/cloudinary.js?v=8.19.0"></script>
+  <script src="js/app.js?v=8.19.0"></script>
 </body>
 </html>
