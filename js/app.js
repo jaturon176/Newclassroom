@@ -2697,6 +2697,8 @@ function openSubmitHomeworkModal(hwId) {
     hwDrawState.worksheetPdfDoc = null;
     hwDrawState.customBgImage = null;
     hwDrawState.paperType = 'lined';
+    hwDrawState.orientation = 'portrait';
+    hwDrawState.zoom = 0.75;
     hwDrawState.undoStack = [];
     hwDrawState.redoStack = [];
     if (typeof clearHwDrawLayerOnly === 'function') clearHwDrawLayerOnly();
@@ -6150,8 +6152,8 @@ const hwDrawState = {
   color: '#0f172a',
   strokeSize: 4,
   paperType: 'lined',   // 'blank' | 'lined' | 'grid' | 'custom'
-  orientation: 'landscape', // 'landscape' (1100x780) | 'portrait' (820x1140)
-  zoom: 1,
+  orientation: 'portrait', // 'portrait' (820x1140) | 'landscape' (1100x780)
+  zoom: 0.75,           // Default initial paper zoom: 75%
   startX: 0,
   startY: 0,
   lastX: 0,
@@ -6202,7 +6204,7 @@ function createBlankSheetEntry(index = 0) {
   return {
     id: `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${index}`,
     paperType: hwDrawState.paperType || 'lined',
-    orientation: hwDrawState.orientation || 'landscape',
+    orientation: hwDrawState.orientation || 'portrait',
     customBgImage: hwDrawState.customBgImage || null,
     worksheetPdfPage: hwDrawState.worksheetPdfPage || 1,
     rasterData: null,
@@ -6229,8 +6231,8 @@ function openHomeworkDrawingStudio(autoLoadWorksheet = false, targetSheetIdx = n
 
   if (subtitleEl) {
     subtitleEl.innerText = hw
-      ? `การบ้าน: ${hw.title} (เต็ม ${hw.maxScore} คะแนน)`
-      : 'เขียนด้วยลายมือ วาดรูปทรง Flowchart และระบายสีส่งครูได้โดยตรง';
+      ? `• ${hw.title} (${hw.maxScore} คะแนน)`
+      : '';
   }
 
   let teacherFileUrl = null;
@@ -6252,8 +6254,11 @@ function openHomeworkDrawingStudio(autoLoadWorksheet = false, targetSheetIdx = n
   openModal('modal-homework-canvas');
 
   setTimeout(() => {
-    // Initialize first sheet if none exist yet
+    // Initialize first sheet if none exist yet (Default: Portrait A4 at 75% zoom)
     if (!Array.isArray(hwDrawState.sheets) || hwDrawState.sheets.length === 0) {
+      hwDrawState.orientation = 'portrait';
+      hwDrawState.zoom = 0.75;
+      applyCanvasOrientationDimensions('portrait');
       hwDrawState.sheets = [createBlankSheetEntry(0)];
       hwDrawState.currentSheetIndex = 0;
       hwDrawState.shapes = [];
@@ -6271,7 +6276,7 @@ function openHomeworkDrawingStudio(autoLoadWorksheet = false, targetSheetIdx = n
     }
 
     renderHwSheetsNavTabs();
-    fitHwCanvasStage();
+    applyHwCanvasZoom();
 
     if (autoLoadWorksheet && teacherFileUrl) {
       loadTeacherWorksheetToCanvas();
@@ -6380,11 +6385,9 @@ function renderHwSheetsNavTabs() {
   if (!tabsList) return;
   tabsList.innerHTML = hwDrawState.sheets.map((s, idx) => {
     const isActive = idx === hwDrawState.currentSheetIndex;
-    const shapeCount = Array.isArray(s.shapes) ? s.shapes.length : 0;
     return `
       <button type="button" class="hw-sheet-tab-btn ${isActive ? 'active' : ''}" onclick="switchHwCanvasSheet(${idx})" title="คลิกเพื่อเปิดและแก้ไข แผ่นที่ ${idx + 1}">
-        <i class="fa-regular fa-file-lines"></i> แผ่นที่ ${idx + 1}
-        ${shapeCount > 0 ? `<span style="font-size:0.7rem; opacity:0.85;">(${shapeCount})</span>` : ''}
+        แผ่น ${idx + 1}
       </button>
     `;
   }).join('');
@@ -7593,7 +7596,7 @@ function toggleHwCanvasOrientation() {
   hwDrawState.redoStack = [];
   pushHwUndoState();
   saveCurrentSheetStateToMemory();
-  fitHwCanvasStage();
+  applyHwCanvasZoom();
 }
 
 // Teacher Worksheet & Custom Background Image Loader
