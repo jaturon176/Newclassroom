@@ -649,12 +649,16 @@ function togglePasswordVisibility(inputId, buttonEl) {
    3. NAVIGATION & VIEW SWITCHING
 ------------------------------------------------------------- */
 function switchNav(viewName) {
-  // Security permission guard for students: only allowed dashboard, courses, quizzes
+  // Security permission guard for students: allowed dashboard, courses, quizzes, rpg
   if (currentUser && currentUser.role === 'student') {
-    const studentAllowedViews = ['dashboard', 'courses', 'quizzes'];
+    const studentAllowedViews = ['dashboard', 'courses', 'quizzes', 'rpg'];
     if (!studentAllowedViews.includes(viewName)) {
       viewName = 'dashboard';
     }
+  }
+
+  if (activeNavView === 'rpg' && viewName !== 'rpg' && typeof window.onLeaveRpgGameView === 'function') {
+    window.onLeaveRpgGameView();
   }
 
   activeNavView = viewName;
@@ -675,6 +679,7 @@ function switchNav(viewName) {
     students: "รายชื่อนักเรียนในระบบ",
     courses: "รายวิชาและการบ้าน",
     quizzes: "คลังแบบทดสอบและข้อสอบ",
+    rpg: "โลกผจญภัย 2D MMORPG เก็บเลเวล",
     reports: "สรุปรายงานคะแนนเก็บและคะแนนสอบ",
     users: "จัดการผู้ใช้งานในระบบ"
   };
@@ -685,6 +690,7 @@ function switchNav(viewName) {
   if (viewName === 'students') renderStudentsTable();
   if (viewName === 'courses') renderCoursesList();
   if (viewName === 'quizzes') renderQuizzesList();
+  if (viewName === 'rpg' && typeof window.onEnterRpgGameView === 'function') window.onEnterRpgGameView();
   if (viewName === 'reports') renderScoreReports();
   if (viewName === 'users') renderUsersTable();
 

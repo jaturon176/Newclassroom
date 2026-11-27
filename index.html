@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.20.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.21.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -201,6 +201,10 @@
         <a class="nav-item" onclick="switchNav('quizzes')" id="nav-quizzes">
           <i class="fa-solid fa-list-check"></i>
           <span>แบบทดสอบ</span>
+        </a>
+        <a class="nav-item" onclick="switchNav('rpg')" id="nav-rpg" style="background:linear-gradient(90deg, rgba(124,58,237,0.18), rgba(219,39,119,0.12)); border:1px solid rgba(167,139,250,0.3);">
+          <i class="fa-solid fa-gamepad" style="color:#c084fc;"></i>
+          <span style="font-weight:800; color:#f3e8ff;">โลกผจญภัย RPG</span>
         </a>
         <a class="nav-item teacher-only" onclick="switchNav('reports')" id="nav-reports">
           <i class="fa-solid fa-square-poll-vertical"></i>
@@ -708,6 +712,269 @@
             </div>
 
           </div>
+        </section>
+
+        <!-- VIEW 7: 2D MMORPG CLASSROOM ADVENTURE GAME -->
+        <section id="view-rpg" class="app-view" style="display: none;">
+          
+          <!-- Teacher Game Master Control Bar (Visible to Teacher/Admin only) -->
+          <div class="rpg-gm-control-bar teacher-only" id="rpg-gm-control-bar">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span class="badge badge-purple" style="font-size:0.84rem; padding:6px 12px; font-weight:800;">
+                <i class="fa-solid fa-crown"></i> แผงควบคุมครู (Game Master)
+              </span>
+              <button type="button" class="btn btn-sm" id="btn-rpg-toggle-server" onclick="toggleRpgServerStatus()" style="border-radius:10px; font-weight:800; padding:6px 14px; background:#10b981; color:#fff; border:none;">
+                <i class="fa-solid fa-power-off"></i> สถานะเกม: เปิดให้นักเรียนเข้าเล่น
+              </button>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">แหล่งโจทย์มอนสเตอร์:</label>
+                <select id="rpg-quiz-source-select" class="form-control" onchange="changeRpgQuizSource(this.value)" style="width:auto; min-width:210px; padding:4px 10px; font-size:0.82rem; font-weight:700; border-radius:8px; background:#0f172a; color:#f8fafc; border-color:#475569;">
+                  <option value="all">-- รวมข้อสอบปรนัยในระบบ + คลังโจทย์คอมพิวเตอร์ --</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-sm" onclick="giveRpgClassBonusReward()" style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; border:none; border-radius:10px; font-weight:800; padding:6px 12px;">
+                <i class="fa-solid fa-gift"></i> แจกโบนัส EXP/Gold ทั้งห้อง
+              </button>
+            </div>
+          </div>
+
+          <!-- Closed Server Banner for Students -->
+          <div id="rpg-server-closed-banner" style="display:none; text-align:center; padding:60px 20px; background:linear-gradient(135deg, #0f172a, #1e1b4b); border-radius:20px; color:#fff; border:2px solid #4f46e5; box-shadow:0 15px 35px rgba(15,23,42,0.3);">
+            <div style="width:76px; height:76px; border-radius:50%; background:rgba(239,68,68,0.2); border:2px solid #ef4444; color:#f87171; display:flex; align-items:center; justify-content:center; font-size:2.2rem; margin:0 auto 16px;">
+              <i class="fa-solid fa-lock"></i>
+            </div>
+            <h3 style="font-size:1.5rem; font-weight:800; margin-bottom:8px;">คุณครูพักการเข้าเล่นเกมชั่วคราว (อยู่ในเวลาเรียน)</h3>
+            <p style="color:#cbd5e1; font-size:0.95rem; max-width:520px; margin:0 auto;">กรุณาตั้งใจเรียนและส่งการบ้านให้ครบ เมื่อคุณครูเปิดเซิร์ฟเวอร์เกมแล้ว คุณสามารถนำคะแนนการบ้านมาแลกโบนัส EXP และเหรียญทองเพื่ออัปเลเวลได้ทันที!</p>
+          </div>
+
+          <!-- Character Creation / Class Selection Screen -->
+          <div id="rpg-create-char-screen" class="rpg-char-create-card" style="display:none;">
+            <div style="text-align:center; margin-bottom:20px;">
+              <span class="badge badge-purple" style="font-size:0.85rem; padding:5px 14px; font-weight:800; margin-bottom:8px;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> KRUNOI CLASSROOM MMORPG
+              </span>
+              <h2 style="font-size:1.6rem; font-weight:800; color:#ffffff; margin:4px 0;">เลือกสายอาชีพผู้กล้าของคุณ</h2>
+              <p style="color:#94a3b8; font-size:0.9rem; margin:0;">ออกผจญภัยร่วมกับเพื่อนในห้องเรียน ตอบคำถามพิชิตมอนสเตอร์และบอสเพื่อเก็บเลเวล</p>
+            </div>
+
+            <div class="rpg-class-grid">
+              <!-- Class 1: Warrior -->
+              <div class="rpg-class-card" onclick="selectRpgHeroClass('warrior')" id="rpg-class-card-warrior">
+                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #ef4444, #b91c1c);">⚔️</div>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">นักรบอัลกอริทึม (Warrior)</h4>
+                <span class="badge badge-red" style="font-size:0.74rem; margin-bottom:8px;">HP สูง • เกราะหนา</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 150 | โจมตี 20 | ป้องกัน 15<br>สกิล: <strong>ดาบผ่าตรรกะ</strong> (โจมตีแรง 150% + ลดดาเมจเมื่อตอบผิด)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+              </div>
+
+              <!-- Class 2: Mage -->
+              <div class="rpg-class-card" onclick="selectRpgHeroClass('mage')" id="rpg-class-card-mage">
+                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #8b5cf6, #6d28d9);">🪄</div>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">จอมเวทโค้ดดิ้ง (Mage)</h4>
+                <span class="badge badge-purple" style="font-size:0.74rem; margin-bottom:8px;">โจมตีเวทสูงสุด • คอมโบแรง</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 105 | โจมตี 30 | ป้องกัน 8<br>สกิล: <strong>มหาเวทไบนารี</strong> (ยิ่งตอบถูกต่อเนื่อง ดาเมจยิ่งคูณทวีคูณ)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+              </div>
+
+              <!-- Class 3: Ranger -->
+              <div class="rpg-class-card" onclick="selectRpgHeroClass('ranger')" id="rpg-class-card-ranger">
+                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #10b981, #047857);">🏹</div>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">นักธนูไซเบอร์ (Ranger)</h4>
+                <span class="badge badge-green" style="font-size:0.74rem; margin-bottom:8px;">คริติคอล 35% • เพิ่มเวลาคิด</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 115 | โจมตี 24 | ป้องกัน 10<br>สกิล: <strong>ศรทะลวงบั๊ก</strong> (โอกาสคริติคอล ×2 + เพิ่มเวลาตอบคำถาม +5 วินาที)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+              </div>
+
+              <!-- Class 4: Paladin -->
+              <div class="rpg-class-card" onclick="selectRpgHeroClass('paladin')" id="rpg-class-card-paladin">
+                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #f59e0b, #b45309);">🛡️</div>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">พาลาดินดาต้า (Paladin)</h4>
+                <span class="badge badge-yellow" style="font-size:0.74rem; margin-bottom:8px;">สมดุล • ฟื้นฟูเลือดอัตโนมัติ</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 135 | โจมตี 21 | ป้องกัน 13<br>สกิล: <strong>แสงแห่งปัญญา</strong> (โจมตีพร้อมฟื้นฟู HP 20% ทุกครั้งที่ตอบถูก)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Interactive 2D MMORPG Game Container -->
+          <div id="rpg-main-stage" class="rpg-main-container" style="display:none;">
+            
+            <!-- 1. Hero Status HUD Bar -->
+            <div class="rpg-hud-topbar">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div class="rpg-hud-avatar" id="rpg-hud-avatar">⚔️</div>
+                <div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span id="rpg-hud-name" style="font-weight:800; color:#ffffff; font-size:0.95rem;">ผู้กล้า</span>
+                    <span id="rpg-hud-level" class="badge badge-yellow" style="font-weight:800; font-size:0.78rem;">Lv.1</span>
+                    <span id="rpg-hud-job" class="badge badge-purple" style="font-size:0.72rem;">นักรบอัลกอริทึม</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:10px; margin-top:4px; flex-wrap:wrap;">
+                    <!-- HP Bar -->
+                    <div class="rpg-bar-wrap" title="พลังชีวิต (HP)">
+                      <div class="rpg-bar-fill rpg-hp-fill" id="rpg-hud-hp-bar" style="width:100%;"></div>
+                      <span class="rpg-bar-text" id="rpg-hud-hp-text">HP 150/150</span>
+                    </div>
+                    <!-- EXP Bar -->
+                    <div class="rpg-bar-wrap" title="ค่าประสบการณ์ (EXP)">
+                      <div class="rpg-bar-fill rpg-exp-fill" id="rpg-hud-exp-bar" style="width:0%;"></div>
+                      <span class="rpg-bar-text" id="rpg-hud-exp-text">EXP 0/100</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stats & Quick Actions -->
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div class="rpg-stat-pill" title="พลังโจมตี / พลังป้องกัน / คริติคอล">
+                  <span>⚔️ <strong id="rpg-hud-atk">20</strong></span>
+                  <span>🛡️ <strong id="rpg-hud-def">15</strong></span>
+                  <span>💥 <strong id="rpg-hud-crit">10%</strong></span>
+                </div>
+                <div class="rpg-stat-pill" style="background:rgba(245,158,11,0.18); border-color:#f59e0b; color:#fde047;">
+                  <i class="fa-solid fa-coins"></i> <strong id="rpg-hud-gold">100</strong> G
+                </div>
+
+                <button type="button" class="btn btn-sm" onclick="claimRpgHomeworkBonus()" style="background:linear-gradient(135deg, #10b981, #059669); color:#fff; border:none; border-radius:9px; font-weight:800; font-size:0.78rem; padding:5px 10px;" title="ซิงก์คะแนนการบ้านและแบบทดสอบจริงมาเป็นโบนัส EXP & Gold">
+                  <i class="fa-solid fa-bolt"></i> ซิงก์โบนัสคะแนนเรียน
+                </button>
+                <button type="button" class="btn btn-sm" onclick="openRpgShopModal()" style="background:linear-gradient(135deg, #4f46e5, #7c3aed); color:#fff; border:none; border-radius:9px; font-weight:800; font-size:0.78rem; padding:5px 10px;">
+                  <i class="fa-solid fa-shield-halved"></i> ร้านค้า & อัปสเตตัส <span id="rpg-stat-pts-badge" class="badge badge-yellow" style="display:none; font-size:0.68rem; padding:1px 5px; margin-left:3px;">0</span>
+                </button>
+                <button type="button" class="btn btn-sm" onclick="openRpgLeaderboardModal()" style="background:#334155; color:#fde047; border:1px solid #475569; border-radius:9px; font-weight:800; font-size:0.78rem; padding:5px 10px;">
+                  <i class="fa-solid fa-trophy"></i> อันดับผู้กล้า
+                </button>
+                <button type="button" class="btn btn-sm" onclick="openRpgChangeClassScreen()" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:9px; font-weight:700; font-size:0.75rem; padding:5px 8px;" title="เปลี่ยนสายอาชีพ">
+                  <i class="fa-solid fa-repeat"></i> เปลี่ยนอาชีพ
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Map Teleport & Multiplayer Chat Bar -->
+            <div class="rpg-map-nav-bar">
+              <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                <span style="font-size:0.76rem; font-weight:800; color:#94a3b8;"><i class="fa-solid fa-map-location-dot" style="color:#38bdf8;"></i> แผนที่โลก:</span>
+                <button type="button" class="rpg-map-btn active" data-map="town" onclick="switchRpgMap('town')">
+                  🏰 เมืองเริ่มต้น (Safe Zone)
+                </button>
+                <button type="button" class="rpg-map-btn" data-map="forest" onclick="switchRpgMap('forest')">
+                  🌲 ป่าผังงาน (Lv.1-10)
+                </button>
+                <button type="button" class="rpg-map-btn" data-map="desert" onclick="switchRpgMap('desert')">
+                  🏜️ หุบเขาตัวแปร (Lv.10-25)
+                </button>
+                <button type="button" class="rpg-map-btn" data-map="castle" onclick="switchRpgMap('castle')">
+                  🌋 ปราสาทจอมมารบั๊ก (Boss Lv.25+)
+                </button>
+              </div>
+
+              <!-- Quick Chat Emotes for Multiplayer -->
+              <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                <span id="rpg-online-count-badge" class="badge badge-green" style="font-size:0.74rem; padding:3px 8px;">
+                  <i class="fa-solid fa-users"></i> ออนไลน์ 1 คน
+                </span>
+                <button type="button" class="rpg-chat-pill" onclick="sendRpgQuickChat('👋 สวัสดีเพื่อนๆ!')">👋 ทักทาย</button>
+                <button type="button" class="rpg-chat-pill" onclick="sendRpgQuickChat('⚔️ ไปล่าบอสกัน!')">⚔️ ล่าบอส</button>
+                <button type="button" class="rpg-chat-pill" onclick="sendRpgQuickChat('🎉 เลเวลอัปแล้ว!')">🎉 เลเวลอัป</button>
+                <button type="button" class="rpg-chat-pill" onclick="sendRpgQuickChat('💪 สู้ๆ นะทุกคน!')">💪 เชียร์</button>
+              </div>
+            </div>
+
+            <!-- 3. 2D Canvas Viewport & Touch Controls -->
+            <div class="rpg-canvas-wrapper">
+              <canvas id="rpg-world-canvas" width="960" height="520"></canvas>
+
+              <!-- Touch Controls for iPad / Tablet / Mobile -->
+              <div class="rpg-touch-controls">
+                <div class="rpg-dpad">
+                  <button type="button" class="rpg-dpad-btn dpad-up" onpointerdown="startRpgTouchMove(0, -1)" onpointerup="stopRpgTouchMove()" onpointerleave="stopRpgTouchMove()"><i class="fa-solid fa-caret-up"></i></button>
+                  <button type="button" class="rpg-dpad-btn dpad-left" onpointerdown="startRpgTouchMove(-1, 0)" onpointerup="stopRpgTouchMove()" onpointerleave="stopRpgTouchMove()"><i class="fa-solid fa-caret-left"></i></button>
+                  <button type="button" class="rpg-dpad-btn dpad-right" onpointerdown="startRpgTouchMove(1, 0)" onpointerup="stopRpgTouchMove()" onpointerleave="stopRpgTouchMove()"><i class="fa-solid fa-caret-right"></i></button>
+                  <button type="button" class="rpg-dpad-btn dpad-down" onpointerdown="startRpgTouchMove(0, 1)" onpointerup="stopRpgTouchMove()" onpointerleave="stopRpgTouchMove()"><i class="fa-solid fa-caret-down"></i></button>
+                </div>
+
+                <div class="rpg-action-pad">
+                  <button type="button" class="rpg-btn-engage" onclick="engageNearestRpgTarget()">
+                    <i class="fa-solid fa-khanda"></i> โจมตี / คุย NPC
+                  </button>
+                </div>
+              </div>
+
+              <!-- 4. Turn-Based Quiz Combat Overlay -->
+              <div id="rpg-combat-overlay" class="rpg-combat-overlay" style="display:none;">
+                <div class="rpg-combat-card">
+                  <!-- Battle Arena Top (Hero vs Monster) -->
+                  <div class="rpg-battle-arena">
+                    <!-- Hero Side -->
+                    <div class="rpg-combatant-box">
+                      <div class="rpg-combat-sprite" id="rpg-battle-hero-sprite">⚔️</div>
+                      <div style="font-weight:800; color:#fff; font-size:0.95rem;" id="rpg-battle-hero-name">ผู้กล้า</div>
+                      <div class="rpg-bar-wrap" style="width:150px; margin-top:4px;">
+                        <div class="rpg-bar-fill rpg-hp-fill" id="rpg-battle-hero-hp-bar" style="width:100%;"></div>
+                        <span class="rpg-bar-text" id="rpg-battle-hero-hp-text">150/150</span>
+                      </div>
+                      <div id="rpg-battle-combo-badge" class="badge badge-yellow" style="margin-top:4px; font-size:0.72rem; display:none;">🔥 Combo x1</div>
+                    </div>
+
+                    <!-- VS Center & Floating Damage -->
+                    <div style="text-align:center;">
+                      <div style="font-size:1.5rem; font-weight:900; color:#f59e0b; text-shadow:0 2px 10px rgba(245,158,11,0.5);">VS</div>
+                      <div id="rpg-battle-dmg-banner" style="font-size:0.86rem; font-weight:800; color:#38bdf8; margin-top:4px; min-height:22px;">เตรียมพร้อมต่อสู้!</div>
+                    </div>
+
+                    <!-- Monster Side -->
+                    <div class="rpg-combatant-box">
+                      <div class="rpg-combat-sprite monster-bob" id="rpg-battle-monster-sprite">👾</div>
+                      <div style="font-weight:800; color:#fca5a5; font-size:0.95rem;" id="rpg-battle-monster-name">มอนสเตอร์</div>
+                      <div class="rpg-bar-wrap" style="width:150px; margin-top:4px;">
+                        <div class="rpg-bar-fill" id="rpg-battle-monster-hp-bar" style="width:100%; background:linear-gradient(90deg, #ef4444, #f97316);"></div>
+                        <span class="rpg-bar-text" id="rpg-battle-monster-hp-text">80/80</span>
+                      </div>
+                      <span id="rpg-battle-monster-reward" style="font-size:0.72rem; color:#fde047; margin-top:4px;">รางวัล: +35 EXP | +25 G</span>
+                    </div>
+                  </div>
+
+                  <!-- Action Command Buttons (Shown before picking attack) -->
+                  <div id="rpg-battle-commands" class="rpg-battle-commands">
+                    <button type="button" class="rpg-cmd-btn cmd-attack" onclick="startRpgAttackQuiz('normal')">
+                      <i class="fa-solid fa-gavel"></i> โจมตีปกติ (ดาเมจ 100%)
+                    </button>
+                    <button type="button" class="rpg-cmd-btn cmd-skill" onclick="startRpgAttackQuiz('skill')">
+                      <i class="fa-solid fa-fire-flame-curved"></i> สกิลไม้ตายอาชีพ (ดาเมจ 160% + เอฟเฟกต์อาชีพ)
+                    </button>
+                    <button type="button" class="rpg-cmd-btn cmd-heal" onclick="useRpgHealingPotion()">
+                      <i class="fa-solid fa-flask"></i> ดื่มยาฟื้นเลือด +60 HP (ใช้ 25 G)
+                    </button>
+                    <button type="button" class="rpg-cmd-btn cmd-flee" onclick="fleeRpgCombat()">
+                      <i class="fa-solid fa-person-running"></i> ถอยหนีกลับจุดปลอดภัย
+                    </button>
+                  </div>
+
+                  <!-- Quiz Question Panel (Shown when attacking) -->
+                  <div id="rpg-battle-quiz-box" class="rpg-battle-quiz-box" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                      <span class="badge badge-blue" style="font-size:0.76rem; font-weight:800;">
+                        <i class="fa-solid fa-bolt"></i> ตอบคำถามเพื่อปล่อยท่าโจมตี!
+                      </span>
+                      <span id="rpg-quiz-timer-badge" class="badge badge-yellow" style="font-size:0.8rem; font-weight:800;">
+                        <i class="fa-regular fa-clock"></i> เวลา 20 วินาที
+                      </span>
+                    </div>
+                    <div id="rpg-battle-question-text" style="font-size:1rem; font-weight:800; color:#ffffff; background:#0f172a; padding:10px 14px; border-radius:10px; border:1px solid #334155; margin-bottom:10px; line-height:1.45;">
+                      คำถาม...
+                    </div>
+                    <div id="rpg-battle-options-grid" class="rpg-battle-options-grid">
+                      <!-- 4 options rendered here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </section>
 
       </div>
@@ -2043,8 +2310,9 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.20.0"></script>
-  <script src="js/cloudinary.js?v=8.20.0"></script>
-  <script src="js/app.js?v=8.20.0"></script>
+  <script src="js/firebase-config.js?v=8.21.0"></script>
+  <script src="js/cloudinary.js?v=8.21.0"></script>
+  <script src="js/app.js?v=8.21.0"></script>
+  <script src="js/rpg-game.js?v=8.21.0"></script>
 </body>
 </html>
