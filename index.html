@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.22.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.23.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -762,38 +762,38 @@
             <div class="rpg-class-grid">
               <!-- Class 1: Warrior -->
               <div class="rpg-class-card" onclick="selectRpgHeroClass('warrior')" id="rpg-class-card-warrior">
-                <canvas id="rpg-preview-warrior" width="96" height="96" style="background:radial-gradient(circle, rgba(239,68,68,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #ef4444;"></canvas>
-                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">นักรบอัลกอริทึม (Warrior)</h4>
-                <span class="badge badge-red" style="font-size:0.74rem; margin-bottom:8px;">HP สูง • เกราะหนา</span>
-                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 150 | โจมตี 20 | ป้องกัน 15<br>สกิล: <strong>ดาบผ่าตรรกะ</strong> (โจมตีแรง 160% + ลดดาเมจเมื่อตอบผิด)</p>
-                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+                <canvas id="rpg-preview-warrior" width="110" height="110" style="background:radial-gradient(circle, rgba(239,68,68,0.28), rgba(15,23,42,0.92)); border-radius:50%; border:2.5px solid #ef4444;"></canvas>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">⚔️ Warrior (นักรบเกราะเหล็ก)</h4>
+                <span class="badge badge-red" style="font-size:0.74rem; margin-bottom:8px;">HP สูง • โล่ราชสีห์ทองคำ</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 150 | โจมตี 20 | ป้องกัน 16<br>สกิล: <strong>ดาบอัศวินราชสีห์</strong> (โจมตีแรง 160% + กางโล่ลดดาเมจศัตรู 40%)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800; background:linear-gradient(135deg,#dc2626,#991b1b); border:none;">เลือก Warrior</button>
               </div>
 
               <!-- Class 2: Mage -->
               <div class="rpg-class-card" onclick="selectRpgHeroClass('mage')" id="rpg-class-card-mage">
-                <canvas id="rpg-preview-mage" width="96" height="96" style="background:radial-gradient(circle, rgba(139,92,246,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #8b5cf6;"></canvas>
-                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">จอมเวทโค้ดดิ้ง (Mage)</h4>
-                <span class="badge badge-purple" style="font-size:0.74rem; margin-bottom:8px;">โจมตีเวทสูงสุด • คอมโบแรง</span>
-                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 105 | โจมตี 30 | ป้องกัน 8<br>สกิล: <strong>มหาเวทไบนารี</strong> (ยิ่งตอบถูกต่อเนื่อง ดาเมจยิ่งคูณทวีคูณ)</p>
-                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+                <canvas id="rpg-preview-mage" width="110" height="110" style="background:radial-gradient(circle, rgba(139,92,246,0.28), rgba(15,23,42,0.92)); border-radius:50%; border:2.5px solid #8b5cf6;"></canvas>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">🪄 Mage (จอมเวทมนตรา)</h4>
+                <span class="badge badge-purple" style="font-size:0.74rem; margin-bottom:8px;">โจมตีเวทสูงสุด • คฑาดวงดาว</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 105 | โจมตี 30 | ป้องกัน 8<br>สกิล: <strong>มหาเวทอัญมณีม่วง</strong> (ยิ่งตอบถูกต่อเนื่อง ดาเมจยิ่งคูณตาม Combo)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800; background:linear-gradient(135deg,#7c3aed,#5b21b6); border:none;">เลือก Mage</button>
               </div>
 
-              <!-- Class 3: Ranger -->
-              <div class="rpg-class-card" onclick="selectRpgHeroClass('ranger')" id="rpg-class-card-ranger">
-                <canvas id="rpg-preview-ranger" width="96" height="96" style="background:radial-gradient(circle, rgba(16,185,129,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #10b981;"></canvas>
-                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">นักธนูไซเบอร์ (Ranger)</h4>
-                <span class="badge badge-green" style="font-size:0.74rem; margin-bottom:8px;">คริติคอล 35% • เพิ่มเวลาคิด</span>
-                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 115 | โจมตี 24 | ป้องกัน 10<br>สกิล: <strong>ศรทะลวงบั๊ก</strong> (โอกาสคริติคอล ×2 + เพิ่มเวลาตอบคำถาม +5 วินาที)</p>
-                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+              <!-- Class 3: Archer -->
+              <div class="rpg-class-card" onclick="selectRpgHeroClass('archer')" id="rpg-class-card-archer">
+                <canvas id="rpg-preview-archer" width="110" height="110" style="background:radial-gradient(circle, rgba(16,185,129,0.28), rgba(15,23,42,0.92)); border-radius:50%; border:2.5px solid #10b981;"></canvas>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">🏹 Archer (นักธนูพงไพร)</h4>
+                <span class="badge badge-green" style="font-size:0.74rem; margin-bottom:8px;">คริติคอล 35% • เพิ่มเวลาคิด +5 วิ</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 115 | โจมตี 24 | ป้องกัน 10<br>สกิล: <strong>ศรสายลมพิฆาต</strong> (โอกาสคริติคอล ×1.8 + เพิ่มเวลาทำโจทย์ +5 วินาที)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800; background:linear-gradient(135deg,#16a34a,#15803d); border:none;">เลือก Archer</button>
               </div>
 
-              <!-- Class 4: Paladin -->
-              <div class="rpg-class-card" onclick="selectRpgHeroClass('paladin')" id="rpg-class-card-paladin">
-                <canvas id="rpg-preview-paladin" width="96" height="96" style="background:radial-gradient(circle, rgba(245,158,11,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #f59e0b;"></canvas>
-                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">พาลาดินดาต้า (Paladin)</h4>
-                <span class="badge badge-yellow" style="font-size:0.74rem; margin-bottom:8px;">สมดุล • ฟื้นฟูเลือดอัตโนมัติ</span>
-                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 135 | โจมตี 21 | ป้องกัน 13<br>สกิล: <strong>แสงแห่งปัญญา</strong> (โจมตีพร้อมฟื้นฟู HP 20% ทุกครั้งที่ตอบถูก)</p>
-                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
+              <!-- Class 4: Priest -->
+              <div class="rpg-class-card" onclick="selectRpgHeroClass('priest')" id="rpg-class-card-priest">
+                <canvas id="rpg-preview-priest" width="110" height="110" style="background:radial-gradient(circle, rgba(245,158,11,0.28), rgba(15,23,42,0.92)); border-radius:50%; border:2.5px solid #f59e0b;"></canvas>
+                <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">✝️ Priest (นักบวชศักดิ์สิทธิ์)</h4>
+                <span class="badge badge-yellow" style="font-size:0.74rem; margin-bottom:8px;">คฑากางเขนทอง • ฟื้นฟู HP ทุกเทิร์น</span>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 135 | โจมตี 22 | ป้องกัน 13<br>สกิล: <strong>พรแห่งคัมภีร์ศักดิ์สิทธิ์</strong> (โจมตีพร้อมฟื้นฟู HP 20% ทุกครั้งที่ตอบถูก)</p>
+                <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800; background:linear-gradient(135deg,#d97706,#b45309); border:none;">เลือก Priest</button>
               </div>
             </div>
           </div>
@@ -852,21 +852,21 @@
               </div>
             </div>
 
-            <!-- 2. Map Teleport & Multiplayer Chat Bar -->
+            <!-- 2. Map Teleport & Multiplayer Chat Bar (4 Maps from Concept Sheet) -->
             <div class="rpg-map-nav-bar">
               <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                <span style="font-size:0.76rem; font-weight:800; color:#94a3b8;"><i class="fa-solid fa-map-location-dot" style="color:#38bdf8;"></i> แผนที่โลก:</span>
-                <button type="button" class="rpg-map-btn active" data-map="town" onclick="switchRpgMap('town')">
-                  🏰 เมืองเริ่มต้น (Safe Zone)
+                <span style="font-size:0.76rem; font-weight:800; color:#94a3b8;"><i class="fa-solid fa-map-location-dot" style="color:#38bdf8;"></i> 4 Maps:</span>
+                <button type="button" class="rpg-map-btn active" data-map="forest" onclick="switchRpgMap('forest')">
+                  🍃 Forest Map (ป่ามรกต Lv.1-10)
                 </button>
-                <button type="button" class="rpg-map-btn" data-map="forest" onclick="switchRpgMap('forest')">
-                  🌲 ป่าผังงาน (Lv.1-10)
+                <button type="button" class="rpg-map-btn" data-map="ice_cave" onclick="switchRpgMap('ice_cave')">
+                  ❄️ Ice Cave Map (ถ้ำน้ำแข็ง Lv.10-20)
                 </button>
-                <button type="button" class="rpg-map-btn" data-map="desert" onclick="switchRpgMap('desert')">
-                  🏜️ หุบเขาตัวแปร (Lv.10-25)
+                <button type="button" class="rpg-map-btn" data-map="dark_dungeon" onclick="switchRpgMap('dark_dungeon')">
+                  💀 Dark Dungeon Map (คุกใต้ดิน Lv.20-30)
                 </button>
-                <button type="button" class="rpg-map-btn" data-map="castle" onclick="switchRpgMap('castle')">
-                  🌋 ปราสาทจอมมารบั๊ก (Boss Lv.25+)
+                <button type="button" class="rpg-map-btn" data-map="lava_volcano" onclick="switchRpgMap('lava_volcano')">
+                  🔥 Lava Volcano Map (บอสมังกร Lv.30+)
                 </button>
               </div>
 
@@ -2312,9 +2312,9 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.22.0"></script>
-  <script src="js/cloudinary.js?v=8.22.0"></script>
-  <script src="js/app.js?v=8.22.0"></script>
-  <script src="js/rpg-game.js?v=8.22.0"></script>
+  <script src="js/firebase-config.js?v=8.23.0"></script>
+  <script src="js/cloudinary.js?v=8.23.0"></script>
+  <script src="js/app.js?v=8.23.0"></script>
+  <script src="js/rpg-game.js?v=8.23.0"></script>
 </body>
 </html>

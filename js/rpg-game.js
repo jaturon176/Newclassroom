@@ -1,236 +1,211 @@
 /**
- * Krunoi Classroom 2D Educational MMORPG Engine (Classic 16-bit 2D RPG Edition)
- * Features:
- * - Authentic 2D Character Sprites (Warrior, Mage, Ranger, Paladin) with walk & weapon animations
- * - Authentic 2D Monster & Boss Sprites (Slime, Goblin, Wolf, Scorpion, Golem, Bat, Dark Knight, Boss Dragon)
- * - Classic 2D Tilemap World with Animated Flowing Rivers, Wooden Bridges, Lush 2D Forests/Trees, Village Houses & Y-Sorted Depth
- * - Ultra-Lightweight Firebase Realtime Multiplayer + Quiz-Driven Turn-Based Combat
+ * Krunoi Classroom 2D Fantasy RPG Engine
+ * Built directly from the "2D Fantasy RPG - Game Concept Sheet":
+ * - 4 Character Classes: Warrior, Mage, Archer, Priest (with 4-direction sprites & full gear)
+ * - 4 Maps: Forest Map, Ice Cave Map, Dark Dungeon Map, Lava Volcano Map
+ * - Boss: Infernal Cave Dragon (breathing fire on volcanic rock ledge with red crystals & lava river)
  */
 
 const RPG_CLASSES = {
   warrior: {
     id: 'warrior',
-    name: 'นักรบอัลกอริทึม',
+    name: 'Warrior (นักรบเกราะเหล็ก)',
     icon: '⚔️',
-    color: '#ef4444',
+    color: '#dc2626',
     baseHp: 150,
     baseAtk: 20,
-    baseDef: 15,
+    baseDef: 16,
     baseCrit: 10,
-    skillName: 'ดาบผ่าตรรกะ',
-    skillDesc: 'โจมตีรุนแรง 160% และกางโล่ลดดาเมจศัตรู 40% ในเทิร์นนี้'
+    skillName: 'ดาบอัศวินราชสีห์',
+    skillDesc: 'โจมตีรุนแรง 160% และยกโล่ราชสีห์ทองคำลดดาเมจศัตรู 40% ในเทิร์นนี้'
   },
   mage: {
     id: 'mage',
-    name: 'จอมเวทโค้ดดิ้ง',
+    name: 'Mage (จอมเวทมนตรา)',
     icon: '🪄',
-    color: '#8b5cf6',
+    color: '#7c3aed',
     baseHp: 105,
     baseAtk: 30,
     baseDef: 8,
     baseCrit: 15,
-    skillName: 'มหาเวทไบนารี',
+    skillName: 'มหาเวทอัญมณีม่วง',
     skillDesc: 'โจมตีเวท 165% และเพิ่มโบนัสดาเมจตามจำนวน Combo ที่ตอบถูกต่อเนื่อง'
   },
-  ranger: {
-    id: 'ranger',
-    name: 'นักธนูไซเบอร์',
+  archer: {
+    id: 'archer',
+    name: 'Archer (นักธนูพงไพร)',
     icon: '🏹',
-    color: '#10b981',
+    color: '#16a34a',
     baseHp: 115,
     baseAtk: 24,
     baseDef: 10,
     baseCrit: 35,
-    skillName: 'ศรทะลวงบั๊ก',
+    skillName: 'ศรสายลมพิฆาต',
     skillDesc: 'โอกาสติดคริติคอลสูงพิเศษ และได้เวลาคิดคำตอบเพิ่มขึ้น +5 วินาที'
   },
-  paladin: {
-    id: 'paladin',
-    name: 'พาลาดินดาต้า',
-    icon: '🛡️',
-    color: '#f59e0b',
+  priest: {
+    id: 'priest',
+    name: 'Priest (นักบวชศักดิ์สิทธิ์)',
+    icon: '✝️',
+    color: '#d97706',
     baseHp: 135,
-    baseAtk: 21,
+    baseAtk: 22,
     baseDef: 13,
     baseCrit: 12,
-    skillName: 'แสงแห่งปัญญา',
-    skillDesc: 'โจมตี 150% พร้อมฟื้นฟูพลังชีวิต (HP) 20% ทันทีที่ตอบถูก'
+    skillName: 'พรแห่งคัมภีร์ศักดิ์สิทธิ์',
+    skillDesc: 'โจมตีด้วยคฑากางเขนทอง 150% พร้อมฟื้นฟูพลังชีวิต (HP) 20% ทันทีที่ตอบถูก'
   }
 };
+// Backward compatibility aliases for existing saved characters
+RPG_CLASSES.ranger = RPG_CLASSES.archer;
+RPG_CLASSES.paladin = RPG_CLASSES.priest;
+
+function normalizeRpgJobId(jobId) {
+  if (jobId === 'ranger') return 'archer';
+  if (jobId === 'paladin') return 'priest';
+  return RPG_CLASSES[jobId] ? jobId : 'warrior';
+}
 
 const RPG_WEAPONS = [
-  { id: 'w0', name: 'อาวุธฝึกหัดโค้ดดิ้ง', icon: '🗡️', atk: 0, crit: 0, price: 0 },
-  { id: 'w1', name: 'ดาบเหล็กโฟลว์ชาร์ต', icon: '⚔️', atk: 12, crit: 3, price: 120 },
-  { id: 'w2', name: 'คฑาเวทอัลกอริทึม', icon: '🪄', atk: 25, crit: 6, price: 300 },
-  { id: 'w3', name: 'ธนูแสงไฟเบอร์ออปติก', icon: '🏹', atk: 42, crit: 12, price: 650 },
-  { id: 'w4', name: 'ศาสตราเทพควอนตัมโค้ด', icon: '⚡', atk: 70, crit: 20, price: 1400 }
+  { id: 'w0', name: 'อาวุธเริ่มต้นผู้กล้า', icon: '🗡️', atk: 0, crit: 0, price: 0 },
+  { id: 'w1', name: 'ดาบอัศวินเหล็กกล้า / คฑาฝึกหัด', icon: '⚔️', atk: 12, crit: 3, price: 120 },
+  { id: 'w2', name: 'คฑาอัญมณีเวท / ธนูไม้โอ๊ก', icon: '🪄', atk: 25, crit: 6, price: 300 },
+  { id: 'w3', name: 'ธนูเอลฟ์มรกต / คฑากางเขนทอง', icon: '🏹', atk: 42, crit: 12, price: 650 },
+  { id: 'w4', name: 'ศาสตราวุธพิชิตมังกรอเวจี', icon: '🔥', atk: 72, crit: 20, price: 1400 }
 ];
 
 const RPG_ARMORS = [
-  { id: 'a0', name: 'ชุดนักเรียนผู้กล้า', icon: '👕', def: 0, hp: 0, price: 0 },
-  { id: 'a1', name: 'เกราะหนังไบนารี', icon: '🦺', def: 8, hp: 45, price: 120 },
-  { id: 'a2', name: 'เกราะเงินไฟร์วอลล์', icon: '🛡️', def: 18, hp: 110, price: 320 },
-  { id: 'a3', name: 'เกราะทองคลาวด์เซิร์ฟเวอร์', icon: '⚜️', def: 32, hp: 240, price: 750 },
-  { id: 'a4', name: 'เกราะเทพแอนตี้ไวรัสสูงสุด', icon: '👑', def: 55, hp: 450, price: 1500 }
+  { id: 'a0', name: 'ชุดนักผจญภัยเริ่มต้น', icon: '👕', def: 0, hp: 0, price: 0 },
+  { id: 'a1', name: 'ผ้าคลุมพงไพร / เกราะหนัง', icon: '🦺', def: 8, hp: 45, price: 120 },
+  { id: 'a2', name: 'ชุดคลุมจอมเวทดาวทอง / เกราะเงิน', icon: '🛡️', def: 18, hp: 110, price: 320 },
+  { id: 'a3', name: 'อาภรณ์นักบวชศักดิ์สิทธิ์ / โล่ราชสีห์', icon: '⚜️', def: 32, hp: 240, price: 750 },
+  { id: 'a4', name: 'เกราะเกล็ดมังกรเพลิงอเวจี', icon: '👑', def: 55, hp: 450, price: 1500 }
 ];
 
+// 4 Maps from the Concept Sheet
 const RPG_MAPS = {
-  town: {
-    id: 'town',
-    name: '🏰 เมืองเริ่มต้น (Starter Town)',
-    theme: 'grass',
-    tileA: '#3b7a3e',
-    tileB: '#346e37',
-    pathColor: '#d6b887',
-    pathBorder: '#b08f5a',
-    riverX: 640,
-    riverWidth: 74,
-    riverType: 'water',
-    bridgeY: 260,
-    bridgeH: 74,
-    isSafe: true,
-    props: [
-      { type: 'house_red', x: 160, y: 125 },
-      { type: 'house_blue', x: 420, y: 115 },
-      { type: 'tree_oak', x: 75, y: 110 },
-      { type: 'tree_oak', x: 285, y: 105 },
-      { type: 'tree_pine', x: 540, y: 100 },
-      { type: 'tree_oak', x: 760, y: 110 },
-      { type: 'tree_pine', x: 890, y: 125 },
-      { type: 'tree_oak', x: 95, y: 430 },
-      { type: 'tree_pine', x: 250, y: 455 },
-      { type: 'tree_oak', x: 490, y: 445 },
-      { type: 'tree_pine', x: 775, y: 450 },
-      { type: 'bush', x: 330, y: 205 },
-      { type: 'bush', x: 545, y: 375 },
-      { type: 'rock', x: 745, y: 360 }
-    ],
-    npcs: [
-      { id: 'fountain', name: 'น้ำพุแห่งปัญญา (ฟื้น HP 100%)', npcSprite: 'fountain', x: 350, y: 265, radius: 42, type: 'heal' },
-      { id: 'blacksmith', name: 'ช่างตีเหล็ก (ร้านค้าอาวุธ/เกราะ)', npcSprite: 'blacksmith', x: 195, y: 200, radius: 36, type: 'shop' },
-      { id: 'monument', name: 'ศิลาจารึกอันดับผู้กล้า', npcSprite: 'monument', x: 465, y: 195, radius: 36, type: 'rank' },
-      { id: 'portal_forest', name: 'วาร์ปไป: ป่าผังงาน (Lv.1-10)', npcSprite: 'portal', x: 875, y: 265, radius: 38, type: 'portal', targetMap: 'forest' }
-    ],
-    monsterTemplates: []
-  },
   forest: {
     id: 'forest',
-    name: '🌲 ป่าผังงานและอัลกอริทึม (Lv.1-10)',
-    theme: 'forest',
-    tileA: '#295f35',
-    tileB: '#23532e',
-    pathColor: '#a6895b',
-    pathBorder: '#82683f',
-    riverX: 485,
-    riverWidth: 72,
-    riverType: 'water',
-    bridgeY: 260,
-    bridgeH: 74,
-    isSafe: false,
+    name: '🍃 Forest Map (ป่ามรกต Lv.1-10)',
+    chasmX: 540,
+    chasmWidth: 74,
+    bridgeY: 280,
+    bridgeH: 76,
     props: [
-      { type: 'tree_pine', x: 70, y: 95 },
-      { type: 'tree_oak', x: 185, y: 85 },
-      { type: 'tree_pine', x: 310, y: 105 },
-      { type: 'tree_oak', x: 405, y: 85 },
-      { type: 'tree_pine', x: 605, y: 95 },
-      { type: 'tree_oak', x: 735, y: 90 },
-      { type: 'tree_pine', x: 875, y: 105 },
-      { type: 'tree_oak', x: 145, y: 440 },
-      { type: 'tree_pine', x: 280, y: 455 },
-      { type: 'tree_oak', x: 395, y: 430 },
-      { type: 'tree_pine', x: 610, y: 445 },
-      { type: 'tree_oak', x: 750, y: 455 },
-      { type: 'tree_pine', x: 890, y: 430 },
-      { type: 'tree_oak', x: 640, y: 220 },
-      { type: 'bush', x: 245, y: 310 },
-      { type: 'bush', x: 710, y: 310 },
-      { type: 'rock', x: 380, y: 195 },
-      { type: 'rock', x: 830, y: 195 }
+      { type: 'tree_oak', x: 85, y: 155 },
+      { type: 'tree_oak', x: 255, y: 145 },
+      { type: 'tree_oak', x: 435, y: 155 },
+      { type: 'tree_oak', x: 675, y: 150 },
+      { type: 'tree_oak', x: 865, y: 155 },
+      { type: 'tree_oak', x: 115, y: 455 },
+      { type: 'tree_oak', x: 410, y: 460 },
+      { type: 'tree_oak', x: 745, y: 455 },
+      { type: 'mushroom', x: 175, y: 215 },
+      { type: 'mushroom', x: 355, y: 195 },
+      { type: 'mushroom', x: 635, y: 385 },
+      { type: 'chest', x: 785, y: 185 },
+      { type: 'crates', x: 325, y: 390 }
     ],
     npcs: [
-      { id: 'portal_town', name: 'กลับเมืองเริ่มต้น', npcSprite: 'portal', x: 75, y: 265, radius: 34, type: 'portal', targetMap: 'town' }
+      { id: 'campfire', name: '🔥 กองไฟแคมป์ (แตะเพื่อฟื้น HP 100%)', npcSprite: 'campfire', x: 215, y: 365, radius: 42, type: 'heal' },
+      { id: 'blacksmith', name: '🛡️ ร้านค้าอาวุธ & อัปสเตตัส', npcSprite: 'blacksmith', x: 135, y: 255, radius: 38, type: 'shop' },
+      { id: 'monument', name: '🏆 หอเกียรติยศผู้กล้า', npcSprite: 'monument', x: 330, y: 245, radius: 38, type: 'rank' },
+      { id: 'portal_ice', name: '❄️ วาร์ปไป: Ice Cave Map', npcSprite: 'portal', x: 895, y: 280, radius: 38, type: 'portal', targetMap: 'ice_cave' }
     ],
     monsterTemplates: [
-      { id: 'm_slime', name: 'สไลม์ไร้ระเบียบ (Lv.1)', spriteType: 'slime', level: 1, hp: 55, atk: 14, def: 3, exp: 40, gold: 28, x: 240, y: 185 },
-      { id: 'm_slime2', name: 'สไลม์บั๊กเขียว (Lv.3)', spriteType: 'bug_slime', level: 3, hp: 75, atk: 17, def: 4, exp: 55, gold: 36, x: 345, y: 355 },
-      { id: 'm_goblin', name: 'ก็อบลินลูปไม่รู้จบ (Lv.5)', spriteType: 'goblin', level: 5, hp: 115, atk: 23, def: 7, exp: 85, gold: 55, x: 685, y: 175 },
-      { id: 'm_wolf', name: 'หมาป่าตรรกะวิบัติ (Lv.8)', spriteType: 'wolf', level: 8, hp: 165, atk: 30, def: 10, exp: 125, gold: 80, x: 825, y: 345 }
+      { id: 'm_shroom', name: 'เห็ดพิษป่ามรกต (Lv.1)', spriteType: 'mushroom_mon', level: 1, hp: 55, atk: 14, def: 3, exp: 40, gold: 28, x: 445, y: 245 },
+      { id: 'm_slime', name: 'สไลม์พงไพร (Lv.4)', spriteType: 'slime', level: 4, hp: 90, atk: 19, def: 5, exp: 65, gold: 42, x: 675, y: 235 },
+      { id: 'm_goblin', name: 'ก็อบลินนักล่า (Lv.8)', spriteType: 'goblin', level: 8, hp: 155, atk: 28, def: 9, exp: 115, gold: 75, x: 795, y: 365 }
     ]
   },
-  desert: {
-    id: 'desert',
-    name: '🏜️ หุบเขาตัวแปรและเงื่อนไข (Lv.10-25)',
-    theme: 'desert',
-    tileA: '#c29b57',
-    tileB: '#b58e4a',
-    pathColor: '#9c783c',
-    pathBorder: '#7d5d28',
-    riverX: 520,
-    riverWidth: 66,
-    riverType: 'water',
-    bridgeY: 260,
-    bridgeH: 74,
-    isSafe: false,
+  ice_cave: {
+    id: 'ice_cave',
+    name: '❄️ Ice Cave Map (ถ้ำน้ำแข็งคริสตัล Lv.10-20)',
+    chasmX: 500,
+    chasmWidth: 78,
+    bridgeY: 280,
+    bridgeH: 76,
     props: [
-      { type: 'palm', x: 440, y: 135 },
-      { type: 'palm', x: 605, y: 145 },
-      { type: 'palm', x: 445, y: 425 },
-      { type: 'palm', x: 600, y: 415 },
-      { type: 'cactus', x: 170, y: 115 },
-      { type: 'cactus', x: 310, y: 430 },
-      { type: 'cactus', x: 760, y: 120 },
-      { type: 'cactus', x: 870, y: 420 },
-      { type: 'rock', x: 250, y: 140 },
-      { type: 'rock', x: 700, y: 430 },
-      { type: 'rock', x: 850, y: 170 }
+      { type: 'snow_pine', x: 150, y: 175 },
+      { type: 'snow_pine', x: 380, y: 165 },
+      { type: 'snow_pine', x: 790, y: 175 },
+      { type: 'ice_crystal', x: 265, y: 185 },
+      { type: 'ice_crystal', x: 625, y: 175 },
+      { type: 'ice_crystal', x: 345, y: 435 },
+      { type: 'ice_crystal', x: 720, y: 435 },
+      { type: 'snow_fence', x: 280, y: 235 },
+      { type: 'chest', x: 855, y: 195 }
     ],
     npcs: [
-      { id: 'portal_town', name: 'กลับเมืองเริ่มต้น', npcSprite: 'portal', x: 75, y: 265, radius: 34, type: 'portal', targetMap: 'town' }
+      { id: 'portal_forest', name: '🍃 กลับ Forest Map', npcSprite: 'portal', x: 75, y: 280, radius: 36, type: 'portal', targetMap: 'forest' },
+      { id: 'portal_dungeon', name: '💀 ไปต่อ: Dark Dungeon Map', npcSprite: 'portal', x: 895, y: 280, radius: 36, type: 'portal', targetMap: 'dark_dungeon' }
     ],
     monsterTemplates: [
-      { id: 'm_scorpion', name: 'แมงป่องตัวแปรลอย (Lv.12)', spriteType: 'scorpion', level: 12, hp: 230, atk: 38, def: 14, exp: 165, gold: 110, x: 290, y: 205 },
-      { id: 'm_golem', name: 'โกเลมชนิดข้อมูล (Lv.17)', spriteType: 'golem', level: 17, hp: 340, atk: 48, def: 20, exp: 230, gold: 155, x: 380, y: 360 },
-      { id: 'm_bat', name: 'ค้างคาวเงื่อนไขซ้อน (Lv.22)', spriteType: 'bat', level: 22, hp: 450, atk: 58, def: 24, exp: 310, gold: 210, x: 760, y: 260 }
+      { id: 'm_iceslime', name: 'สไลม์น้ำแข็ง (Lv.11)', spriteType: 'ice_slime', level: 11, hp: 210, atk: 35, def: 13, exp: 155, gold: 105, x: 255, y: 345 },
+      { id: 'm_wolf', name: 'หมาป่าหิมะเขี้ยวเงิน (Lv.15)', spriteType: 'wolf', level: 15, hp: 300, atk: 44, def: 17, exp: 215, gold: 145, x: 645, y: 245 },
+      { id: 'm_icegolem', name: 'โกเลมคริสตัลน้ำแข็ง (Lv.19)', spriteType: 'golem', level: 19, hp: 390, atk: 54, def: 22, exp: 280, gold: 185, x: 775, y: 365 }
     ]
   },
-  castle: {
-    id: 'castle',
-    name: '🌋 ปราสาทจอมมารบั๊ก (Boss Dungeon Lv.25+)',
-    theme: 'castle',
-    tileA: '#2b2538',
-    tileB: '#231e2e',
-    pathColor: '#433b54',
-    pathBorder: '#1a1524',
-    riverX: 480,
-    riverWidth: 78,
-    riverType: 'lava',
-    bridgeY: 260,
+  dark_dungeon: {
+    id: 'dark_dungeon',
+    name: '💀 Dark Dungeon Map (คุกใต้ดินรัตติกาล Lv.20-30)',
+    chasmX: 500,
+    chasmWidth: 74,
+    bridgeY: 280,
+    bridgeH: 76,
+    props: [
+      { type: 'dungeon_torch', x: 165, y: 160 },
+      { type: 'dungeon_torch', x: 395, y: 160 },
+      { type: 'dungeon_torch', x: 625, y: 160 },
+      { type: 'dungeon_torch', x: 835, y: 160 },
+      { type: 'hanging_cage', x: 285, y: 175 },
+      { type: 'iron_gate', x: 735, y: 165 },
+      { type: 'skulls', x: 155, y: 420 },
+      { type: 'skulls', x: 655, y: 430 },
+      { type: 'crates', x: 375, y: 430 },
+      { type: 'candles', x: 585, y: 225 }
+    ],
+    npcs: [
+      { id: 'portal_ice_back', name: '❄️ กลับ Ice Cave Map', npcSprite: 'portal', x: 75, y: 280, radius: 36, type: 'portal', targetMap: 'ice_cave' },
+      { id: 'portal_volcano', name: '🔥 ไปต่อ: Lava Volcano Map (Boss)', npcSprite: 'portal', x: 895, y: 280, radius: 36, type: 'portal', targetMap: 'lava_volcano' }
+    ],
+    monsterTemplates: [
+      { id: 'm_bat', name: 'ค้างคาวรัตติกาล (Lv.21)', spriteType: 'bat', level: 21, hp: 440, atk: 58, def: 24, exp: 320, gold: 215, x: 265, y: 275 },
+      { id: 'm_skeleton', name: 'โครงกระดูกนักรบ (Lv.25)', spriteType: 'skeleton', level: 25, hp: 520, atk: 65, def: 28, exp: 390, gold: 265, x: 645, y: 245 },
+      { id: 'm_knight', name: 'อัศวินเกราะทมิฬ (Lv.29)', spriteType: 'knight', level: 29, hp: 620, atk: 74, def: 33, exp: 470, gold: 320, x: 785, y: 360 }
+    ]
+  },
+  lava_volcano: {
+    id: 'lava_volcano',
+    name: '🔥 Lava Volcano Map (ภูเขาไฟลาวา & บอสมังกร Lv.30+)',
+    chasmX: 465,
+    chasmWidth: 96,
+    bridgeY: 280,
     bridgeH: 78,
-    isSafe: false,
     props: [
-      { type: 'torch', x: 180, y: 195 },
-      { type: 'torch', x: 180, y: 340 },
-      { type: 'torch', x: 415, y: 195 },
-      { type: 'torch', x: 415, y: 340 },
-      { type: 'torch', x: 590, y: 195 },
-      { type: 'torch', x: 590, y: 340 },
-      { type: 'dead_tree', x: 120, y: 105 },
-      { type: 'dead_tree', x: 330, y: 100 },
-      { type: 'dead_tree', x: 250, y: 440 },
-      { type: 'rock', x: 670, y: 115 },
-      { type: 'rock', x: 670, y: 430 },
-      { type: 'rock', x: 880, y: 130 },
-      { type: 'rock', x: 880, y: 415 }
+      { type: 'red_crystal', x: 135, y: 190 },
+      { type: 'red_crystal', x: 635, y: 185 },
+      { type: 'red_crystal', x: 885, y: 195 },
+      { type: 'red_crystal', x: 665, y: 430 },
+      { type: 'red_crystal', x: 875, y: 425 },
+      { type: 'volcano_banner', x: 355, y: 185 },
+      { type: 'volcano_banner', x: 585, y: 185 },
+      { type: 'bone_ribs', x: 235, y: 425 }
     ],
     npcs: [
-      { id: 'portal_town', name: 'กลับเมืองเริ่มต้น', npcSprite: 'portal', x: 75, y: 265, radius: 34, type: 'portal', targetMap: 'town' }
+      { id: 'portal_dungeon_back', name: '💀 กลับ Dark Dungeon Map', npcSprite: 'portal', x: 75, y: 280, radius: 36, type: 'portal', targetMap: 'dark_dungeon' },
+      { id: 'portal_forest_home', name: '🍃 กลับแคมป์ Forest Map', npcSprite: 'portal', x: 75, y: 390, radius: 34, type: 'portal', targetMap: 'forest' }
     ],
     monsterTemplates: [
-      { id: 'm_knight', name: 'อัศวินไวรัสโทรจัน (Lv.26)', spriteType: 'knight', level: 26, hp: 580, atk: 70, def: 30, exp: 420, gold: 300, x: 310, y: 265 },
-      { id: 'm_dragon', name: '👑 บอสใหญ่: มังกรซินแทกซ์เออร์เรอร์ (Lv.35)', spriteType: 'dragon', level: 35, hp: 1000, atk: 92, def: 40, exp: 850, gold: 650, x: 765, y: 265, isBoss: true }
+      { id: 'm_magma', name: 'โกเลมแมกมาลาวา (Lv.32)', spriteType: 'magma_golem', level: 32, hp: 720, atk: 82, def: 36, exp: 560, gold: 390, x: 285, y: 275 },
+      { id: 'm_dragon', name: '👑 Infernal Cave Dragon (มังกรเพลิงถ้ำอเวจี Lv.40)', spriteType: 'dragon', level: 40, hp: 1200, atk: 98, def: 45, exp: 1000, gold: 800, x: 765, y: 275, isBoss: true }
     ]
   }
 };
+// Backward compatibility map aliases
+RPG_MAPS.town = RPG_MAPS.forest;
+RPG_MAPS.desert = RPG_MAPS.ice_cave;
+RPG_MAPS.castle = RPG_MAPS.lava_volcano;
 
 // Built-in Computer Science, Flowchart, Algorithm & Programming Question Bank
 const RPG_DEFAULT_QUESTIONS = [
@@ -308,12 +283,13 @@ const rpgState = {
   allCharacters: {},
   onlinePlayers: {},
   hero: null,
-  currentMap: 'town',
-  localX: 280,
-  localY: 265,
-  targetX: 280,
-  targetY: 265,
-  facing: 1,
+  currentMap: 'forest',
+  localX: 230,
+  localY: 280,
+  targetX: 230,
+  targetY: 280,
+  facing: 1,       // 1 = right, -1 = left
+  facingDir: 'right', // 'right' | 'left' | 'up' | 'down'
   walkPhase: 0,
   isMoving: false,
   moveDirX: 0,
@@ -338,24 +314,30 @@ const rpgState = {
 };
 
 /* =============================================================
-   CLASSIC 2D RETRO RPG CHARACTER, MONSTER & PROP SPRITE RENDERER
+   CONCEPT SHEET 2D SPRITE RENDERER (4 CLASSES, 4 MAPS, BOSS DRAGON)
 ============================================================= */
 
 /**
- * Draws a full 2D RPG Hero Character with animated legs, armor, cape, head, eyes, shield, and weapon!
+ * Draws the 4 Chibi 2D Pixel-Art Character Classes matching the "2D Fantasy RPG - Game Concept Sheet":
+ * - Warrior: Silver knight helm with red plume, silver plate armor, red cape, golden lion-crest shield, silver broadsword
+ * - Mage: Lavender long hair, purple star witch hat with yellow band, purple/gold robe, golden ring-staff with glowing violet orb
+ * - Archer: Brown hair, green Robin-Hood cap with white feather, green tunic/cape, quiver on back, tall curved wooden bow
+ * - Priest: White & blue-trimmed hooded habit with gold cross, sacred blue/gold cross bible tome, tall golden cross staff
  */
-function draw2dHeroSprite(ctx, x, y, job = 'warrior', facing = 1, walkPhase = 0, scale = 1.0) {
+function draw2dHeroSprite(ctx, x, y, rawJob = 'warrior', facing = 1, walkPhase = 0, scale = 1.0, facingDir = 'right') {
+  const job = normalizeRpgJobId(rawJob);
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(scale, scale);
 
-  const legSwing = Math.sin(walkPhase) * 6;
-  const bobY = Math.abs(Math.sin(walkPhase)) * -2.5;
+  const legSwing = Math.sin(walkPhase) * 5.5;
+  const bobY = Math.abs(Math.sin(walkPhase)) * -2.2;
+  const isBack = facingDir === 'up';
 
   // Ground shadow
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
   ctx.beginPath();
-  ctx.ellipse(0, 22, 16, 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 23, 17, 6, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.save();
@@ -364,242 +346,408 @@ function draw2dHeroSprite(ctx, x, y, job = 'warrior', facing = 1, walkPhase = 0,
     ctx.scale(-1, 1);
   }
 
-  // 1. Back Cape
-  const capeColors = {
-    warrior: '#b91c1c',
-    mage: '#4c1d95',
-    ranger: '#14532d',
-    paladin: '#1d4ed8'
-  };
-  ctx.fillStyle = capeColors[job] || '#b91c1c';
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.moveTo(-7, -6);
-  ctx.quadraticCurveTo(-18, 6 + legSwing * 0.3, -15, 16);
-  ctx.lineTo(-4, 14);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.strokeStyle = '#181020';
+  ctx.lineWidth = 2.0;
+  ctx.lineJoin = 'round';
 
-  // 2. Animated Legs / Boots
-  ctx.fillStyle = '#334155';
-  // Left leg
-  ctx.beginPath();
-  ctx.roundRect(-7 + legSwing * 0.6, 8, 6, 13, 3);
-  ctx.fill();
-  ctx.stroke();
-  // Right leg
-  ctx.beginPath();
-  ctx.roundRect(1 - legSwing * 0.6, 8, 6, 13, 3);
-  ctx.fill();
-  ctx.stroke();
-
-  // 3. Torso / Armor / Robe
-  const armorColors = {
-    warrior: '#94a3b8',
-    mage: '#7c3aed',
-    ranger: '#16a34a',
-    paladin: '#f8fafc'
-  };
-  const trimColors = {
-    warrior: '#ef4444',
-    mage: '#fde047',
-    ranger: '#854d0e',
-    paladin: '#f59e0b'
-  };
-
-  ctx.fillStyle = armorColors[job] || '#94a3b8';
-  ctx.beginPath();
-  ctx.roundRect(-10, -8, 20, 19, 5);
-  ctx.fill();
-  ctx.stroke();
-
-  // Armor Chest Trim / Belt
-  ctx.fillStyle = trimColors[job] || '#ef4444';
-  ctx.fillRect(-10, 4, 20, 4);
-  if (job === 'paladin') {
-    // Holy gold cross on chest
-    ctx.fillRect(-2, -5, 4, 12);
-    ctx.fillRect(-6, -1, 12, 3);
-  } else if (job === 'mage') {
-    // Gold robe trim
-    ctx.fillRect(-2, -7, 4, 17);
-  }
-
-  // 4. Head & Face
-  ctx.fillStyle = '#fde68a'; // Warm skin tone
-  ctx.beginPath();
-  ctx.arc(0, -17, 10.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // Expressive 2D RPG Eyes (looking forward)
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath();
-  ctx.ellipse(3, -17, 1.7, 2.5, 0, 0, Math.PI * 2);
-  ctx.ellipse(8, -17, 1.7, 2.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // Eye shine
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(3.2, -18.5, 1.2, 1.2);
-  ctx.fillRect(8.2, -18.5, 1.2, 1.2);
-
-  // 5. Class Headgear / Hair
+  // --- 1. BACK CAPE / QUIVER ---
   if (job === 'warrior') {
-    // Silver Knight Helmet + Red Crest Plume
-    ctx.fillStyle = '#dc2626';
+    ctx.fillStyle = '#c82828';
     ctx.beginPath();
-    ctx.moveTo(-4, -27);
-    ctx.quadraticCurveTo(-14, -36, -18, -23);
-    ctx.quadraticCurveTo(-10, -22, -2, -26);
+    ctx.moveTo(-9, -6);
+    ctx.quadraticCurveTo(-19, 8 + legSwing * 0.25, -16, 19);
+    ctx.lineTo(8, 19);
+    ctx.lineTo(10, -4);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  } else if (job === 'archer') {
+    // Quiver with feathered arrows on back + forest green cape
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath();
+    ctx.roundRect(-14, -12, 7, 16, 2);
+    ctx.fill();
+    ctx.stroke();
+    // White arrow feathers sticking out
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(-16, -16, 4, 4);
+    ctx.fillRect(-12, -17, 4, 4);
 
+    ctx.fillStyle = '#166534';
+    ctx.beginPath();
+    ctx.moveTo(-8, -5);
+    ctx.lineTo(-15, 17);
+    ctx.lineTo(6, 17);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (job === 'mage') {
+    // Long flowing lavender hair behind back
+    ctx.fillStyle = '#c084fc';
+    ctx.beginPath();
+    ctx.arc(-5, -4, 13, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (job === 'priest') {
+    // White & blue-trimmed holy cape
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.moveTo(-11, -6);
+    ctx.lineTo(-16, 18);
+    ctx.lineTo(12, 18);
+    ctx.lineTo(10, -6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // --- 2. BOOTS / LEGS ---
+  const bootColor = job === 'warrior' ? '#94a3b8' : (job === 'archer' ? '#78350f' : (job === 'mage' ? '#4c1d95' : '#e2e8f0'));
+  ctx.fillStyle = bootColor;
+  ctx.beginPath();
+  ctx.roundRect(-8 + legSwing * 0.5, 10, 7, 12, 3);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.roundRect(1 - legSwing * 0.5, 10, 7, 12, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  // --- 3. TORSO / ARMOR / ROBE ---
+  if (job === 'warrior') {
+    // Silver Plate Armor with Red Trim & Gold Belt
     ctx.fillStyle = '#cbd5e1';
     ctx.beginPath();
-    ctx.arc(0, -19, 11, Math.PI * 0.95, Math.PI * 2.05);
+    ctx.roundRect(-11, -7, 22, 19, 5);
     ctx.fill();
     ctx.stroke();
-    // Helmet visor trim
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(-10, -22, 20, 3);
+    // Red chest plate accent
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(-4, -5, 8, 9);
+    // Gold belt buckle
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(-11, 5, 22, 4);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-3, 4, 6, 6);
   } else if (job === 'mage') {
-    // Pointed Purple Wizard Hat with Gold Band
-    ctx.fillStyle = '#5b21b6';
+    // Purple Robe with Golden Trim & Sash
+    ctx.fillStyle = '#6d28d9';
     ctx.beginPath();
-    ctx.moveTo(-13, -23);
-    ctx.lineTo(0, -43);
-    ctx.lineTo(13, -23);
+    ctx.moveTo(-9, -7);
+    ctx.lineTo(-14, 18);
+    ctx.lineTo(14, 18);
+    ctx.lineTo(9, -7);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-
-    ctx.beginPath();
-    ctx.ellipse(0, -23, 15, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#fde047';
-    ctx.fillRect(-9, -26, 18, 3);
-  } else if (job === 'ranger') {
-    // Forest Green Hood + Feather
+    // Golden center trim & belt
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-10, 3, 20, 4);
+    ctx.fillRect(-2, -6, 4, 24);
+  } else if (job === 'archer') {
+    // Forest Green Tunic with Brown Leather Strap & Belt
     ctx.fillStyle = '#15803d';
     ctx.beginPath();
-    ctx.arc(-1, -19, 11.5, Math.PI * 0.75, Math.PI * 2.1);
-    ctx.lineTo(-12, -14);
+    ctx.roundRect(-10, -7, 20, 19, 4);
+    ctx.fill();
+    ctx.stroke();
+    // Gold collar trim
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-9, -6, 18, 3);
+    // Brown leather belt
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-10, 5, 20, 4);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-2, 5, 5, 4);
+  } else if (job === 'priest') {
+    // White Vestment with Blue & Gold Cross Tabard
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-10, -7);
+    ctx.lineTo(-14, 19);
+    ctx.lineTo(14, 19);
+    ctx.lineTo(10, -7);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-
-    // Red/Yellow Feather on hood
-    ctx.fillStyle = '#f97316';
-    ctx.beginPath();
-    ctx.moveTo(-4, -28);
-    ctx.quadraticCurveTo(-12, -37, -15, -33);
-    ctx.quadraticCurveTo(-10, -26, -4, -27);
-    ctx.fill();
-  } else if (job === 'paladin') {
-    // Golden Hair + Royal Paladin Crown/Circlet
-    ctx.fillStyle = '#f59e0b';
-    ctx.beginPath();
-    ctx.arc(-1, -19, 11, Math.PI * 0.85, Math.PI * 2.1);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#fde047';
-    ctx.beginPath();
-    ctx.moveTo(-9, -24);
-    ctx.lineTo(-5, -31);
-    ctx.lineTo(0, -26);
-    ctx.lineTo(5, -32);
-    ctx.lineTo(9, -24);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    // Blue & Gold front stole
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(-5, -5, 10, 23);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-1.5, -4, 3, 21);
+    ctx.fillRect(-5, 6, 10, 3);
   }
 
-  // 6. Main Weapon & Off-Hand Shield
-  const armSwing = -legSwing * 0.4;
-  ctx.save();
-  ctx.translate(8, -1 + armSwing);
+  // --- 4. HEAD, HAIR & FACE ---
+  if (!isBack) {
+    // Chibi Face
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(0, -17, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
 
+    // Hair bangs above eyes
+    const hairColors = {
+      warrior: '#78350f',
+      mage: '#c084fc',
+      archer: '#713f12',
+      priest: '#4c1d95'
+    };
+    ctx.fillStyle = hairColors[job] || '#78350f';
+    ctx.beginPath();
+    ctx.arc(0, -19, 10.5, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // Side hair locks for Mage & Priest
+    if (job === 'mage') {
+      ctx.fillStyle = '#c084fc';
+      ctx.beginPath();
+      ctx.ellipse(-9, -11, 4, 8, 0.2, 0, Math.PI * 2);
+      ctx.ellipse(9, -11, 4, 8, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (job === 'priest') {
+      ctx.fillStyle = '#4c1d95';
+      ctx.beginPath();
+      ctx.ellipse(-8, -13, 3, 6, 0, 0, Math.PI * 2);
+      ctx.ellipse(8, -13, 3, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Cute Dark Chibi Eyes (matching Concept Sheet!)
+    ctx.fillStyle = '#1e1b4b';
+    ctx.fillRect(-4, -18, 3, 5);
+    ctx.fillRect(4, -18, 3, 5);
+    // White eye highlight
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-3.5, -17.5, 1.4, 1.4);
+    ctx.fillRect(4.5, -17.5, 1.4, 1.4);
+    // Rosy cheeks
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+    ctx.fillRect(-7, -13, 3, 2);
+    ctx.fillRect(6, -13, 3, 2);
+  }
+
+  // --- 5. CLASS HELMET / HAT / HOOD ---
   if (job === 'warrior') {
-    // Broadsword
+    // Red Horsehair Plume on top of Helmet
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(-2, -28);
+    ctx.quadraticCurveTo(-16, -42, -20, -22);
+    ctx.quadraticCurveTo(-12, -18, -3, -26);
+    ctx.fill();
+    ctx.stroke();
+
+    // Silver Knight Open-Visor Helmet
     ctx.fillStyle = '#e2e8f0';
     ctx.beginPath();
-    ctx.moveTo(4, -2);
-    ctx.lineTo(18, -18);
-    ctx.lineTo(21, -15);
-    ctx.lineTo(7, 1);
+    ctx.arc(0, -20, 12, Math.PI * 0.9, Math.PI * 2.1);
+    ctx.fill();
+    ctx.stroke();
+    // Visor ridge & cheek guards
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(-12, -23, 24, 4);
+    ctx.strokeRect(-12, -23, 24, 4);
+    ctx.fillRect(-12, -19, 4, 8);
+    ctx.strokeRect(-12, -19, 4, 8);
+
+  } else if (job === 'mage') {
+    // Wide Purple Witch/Wizard Hat with Gold Star & Ribbon
+    ctx.fillStyle = '#7e22ce';
+    ctx.beginPath();
+    ctx.ellipse(0, -23, 18, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-12, -24);
+    ctx.quadraticCurveTo(-2, -45, 8, -42);
+    ctx.lineTo(12, -24);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    // Gold hilt
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(1, -4, 7, 3);
-  } else if (job === 'mage') {
-    // Magic Crystal Staff
-    ctx.strokeStyle = '#78350f';
-    ctx.lineWidth = 3.5;
+
+    // Yellow hat ribbon & Gold Star
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-10, -27, 20, 3.5);
     ctx.beginPath();
-    ctx.moveTo(4, 12);
-    ctx.lineTo(12, -18);
+    ctx.arc(0, -27, 4, 0, Math.PI * 2);
+    ctx.fill();
     ctx.stroke();
 
-    // Glowing Orb
-    ctx.fillStyle = '#38bdf8';
+  } else if (job === 'archer') {
+    // Forest Green Robin-Hood Cap + White Feather
+    ctx.fillStyle = '#16a34a';
     ctx.beginPath();
-    ctx.arc(12, -21, 5.5, 0, Math.PI * 2);
+    ctx.arc(0, -20, 12, Math.PI * 0.85, Math.PI * 2.15);
+    ctx.lineTo(0, -33);
+    ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 1.5;
     ctx.stroke();
-  } else if (job === 'ranger') {
-    // Recurve Wooden Bow
+
+    // White Feather on side of hood
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.moveTo(-6, -26);
+    ctx.quadraticCurveTo(-17, -38, -13, -41);
+    ctx.quadraticCurveTo(-4, -34, -4, -26);
+    ctx.fill();
+    ctx.stroke();
+
+  } else if (job === 'priest') {
+    // White & Blue-Trimmed Holy Hood with Gold Cross Emblem
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, -19, 13, Math.PI * 0.8, Math.PI * 2.2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Blue hood band
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(-10, -28, 20, 3.5);
+
+    // Gold Cross on top of hood
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-1.5, -31, 3, 7);
+    ctx.fillRect(-4, -29, 8, 2.5);
+  }
+
+  // --- 6. WEAPONS & OFF-HAND SHIELDS/BOOKS ---
+  const armSwing = -legSwing * 0.35;
+
+  if (job === 'warrior') {
+    // Right Arm: Golden Lion-Crest Shield (Red Rim, Gold Center)
+    ctx.save();
+    ctx.translate(-12, 1);
+    ctx.fillStyle = '#facc15';
+    ctx.strokeStyle = '#b91c1c';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-7, -9);
+    ctx.lineTo(7, -9);
+    ctx.lineTo(7, 2);
+    ctx.lineTo(0, 11);
+    ctx.lineTo(-7, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Red Lion Emblem inside shield
+    ctx.fillStyle = '#b91c1c';
+    ctx.fillRect(-2.5, -4, 5, 7);
+    ctx.restore();
+
+    // Left Arm: Upright Silver Broadsword with Gold Hilt
+    ctx.save();
+    ctx.translate(13, 0 + armSwing);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.strokeStyle = '#181020';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-3, -4);
+    ctx.lineTo(-3, -26);
+    ctx.lineTo(0, -32);
+    ctx.lineTo(3, -26);
+    ctx.lineTo(3, -4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Gold Crossguard & Pommel
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-6, -5, 12, 3.5);
+    ctx.strokeRect(-6, -5, 12, 3.5);
+    ctx.restore();
+
+  } else if (job === 'mage') {
+    // Golden Ring-Staff with Glowing Violet Magic Orb
+    ctx.save();
+    ctx.translate(14, -2 + armSwing);
     ctx.strokeStyle = '#b45309';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(4, -2, 13, -Math.PI * 0.45, Math.PI * 0.45);
+    ctx.moveTo(0, 18);
+    ctx.lineTo(0, -14);
     ctx.stroke();
+
+    // Golden Crescent Ring
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, -21, 7.5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Glowing Purple Magic Orb inside Ring
+    ctx.fillStyle = '#c084fc';
+    ctx.beginPath();
+    ctx.arc(0, -21, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-2, -23, 2, 2);
+    ctx.restore();
+
+  } else if (job === 'archer') {
+    // Tall Curved Wooden Bow & Strung Arrow
+    ctx.save();
+    ctx.translate(12, -2 + armSwing);
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.arc(-2, 0, 16, -Math.PI * 0.45, Math.PI * 0.45);
+    ctx.stroke();
+
     // Bowstring
-    ctx.strokeStyle = '#e2e8f0';
+    ctx.strokeStyle = '#f8fafc';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(6, -14);
-    ctx.lineTo(6, 10);
+    ctx.moveTo(0, -15);
+    ctx.lineTo(0, 15);
     ctx.stroke();
-  } else if (job === 'paladin') {
-    // Holy Golden Sword + Shield
-    ctx.fillStyle = '#fef08a';
-    ctx.strokeStyle = '#ca8a04';
+    ctx.restore();
+
+  } else if (job === 'priest') {
+    // Right Hand: Sacred Blue Tome with Gold Cross
+    ctx.save();
+    ctx.translate(-11, 3);
+    ctx.fillStyle = '#1e3a8a';
+    ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.moveTo(5, -2);
-    ctx.lineTo(19, -20);
-    ctx.lineTo(22, -17);
-    ctx.lineTo(8, 1);
-    ctx.closePath();
+    ctx.roundRect(-5, -6, 10, 12, 2);
     ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-1, -4, 2, 8);
+    ctx.fillRect(-3, -2, 6, 2);
+    ctx.restore();
+
+    // Left Hand: Tall Golden Cross Staff (Crozier)
+    ctx.save();
+    ctx.translate(14, -2 + armSwing);
+    ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 19);
+    ctx.lineTo(0, -16);
     ctx.stroke();
 
-    // Holy Shield on front-left
-    ctx.fillStyle = '#2563eb';
-    ctx.strokeStyle = '#fde047';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(-19, -6, 11, 15, 4);
-    ctx.fill();
-    ctx.stroke();
+    // Ornate Golden Cross Top
+    ctx.fillStyle = '#facc15';
+    ctx.strokeStyle = '#181020';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(-2.5, -31, 5, 16);
+    ctx.strokeRect(-2.5, -31, 5, 16);
+    ctx.fillRect(-7, -26, 14, 4.5);
+    ctx.strokeRect(-7, -26, 14, 4.5);
+    ctx.restore();
   }
 
-  ctx.restore();
   ctx.restore();
   ctx.restore();
 }
 
 /**
- * Draws authentic 2D Retro RPG Monsters & Bosses on the map or battle canvas!
+ * Draws 2D Monsters & the Infernal Cave Dragon Boss matching the Concept Sheet!
  */
 function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scale = 1.0) {
   ctx.save();
@@ -607,24 +755,196 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
   ctx.scale(scale, scale);
 
   const bounce = Math.sin(animTime * 4) * 3;
-  const squishX = 1 + Math.sin(animTime * 4) * 0.06;
-  const squishY = 1 - Math.sin(animTime * 4) * 0.06;
-
-  // Ground Shadow
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
-  ctx.beginPath();
-  ctx.ellipse(0, 20, spriteType === 'dragon' ? 28 : 16, spriteType === 'dragon' ? 9 : 6, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#0f172a';
+  ctx.strokeStyle = '#181020';
   ctx.lineWidth = 1.8;
 
-  if (spriteType === 'slime' || spriteType === 'bug_slime') {
+  if (spriteType === 'dragon') {
+    // =========================================================
+    // BOSS EXAMPLE FROM CONCEPT SHEET: INFERNAL CAVE DRAGON
+    // =========================================================
+    const wingFlap = Math.sin(animTime * 4.5) * 7;
+    const firePulse = Math.sin(animTime * 12) * 3;
+
+    // 1. Volcanic Rock Ledge & Glowing Red Crystals under Dragon
+    ctx.fillStyle = '#3f2e3e';
+    ctx.beginPath();
+    ctx.ellipse(0, 24, 42, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Red Crystals on left & right of ledge
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(-36, 22);
+    ctx.lineTo(-32, 8);
+    ctx.lineTo(-27, 22);
+    ctx.moveTo(30, 24);
+    ctx.lineTo(36, 6);
+    ctx.lineTo(41, 24);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(0, bounce * 0.5);
+
+    // 2. Massive Tattered Fiery Bat Wings
+    const wingGrad = ctx.createLinearGradient(0, -35, 0, 15);
+    wingGrad.addColorStop(0, '#7f1d1d');
+    wingGrad.addColorStop(0.6, '#dc2626');
+    wingGrad.addColorStop(1, '#f97316');
+
+    ctx.fillStyle = wingGrad;
+    // Left Wing
+    ctx.beginPath();
+    ctx.moveTo(-12, -10);
+    ctx.lineTo(-46, -34 + wingFlap);
+    ctx.lineTo(-52, -6 + wingFlap);
+    ctx.lineTo(-36, -12 + wingFlap * 0.5);
+    ctx.lineTo(-28, 2);
+    ctx.lineTo(-14, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Right Wing
+    ctx.beginPath();
+    ctx.moveTo(12, -10);
+    ctx.lineTo(46, -34 + wingFlap);
+    ctx.lineTo(52, -6 + wingFlap);
+    ctx.lineTo(36, -12 + wingFlap * 0.5);
+    ctx.lineTo(28, 2);
+    ctx.lineTo(14, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 3. Coiled Spiked Dragon Tail with Magma Cracks
+    ctx.fillStyle = '#b91c1c';
+    ctx.beginPath();
+    ctx.moveTo(14, 12);
+    ctx.quadraticCurveTo(38, 10, 34, -4);
+    ctx.quadraticCurveTo(26, 4, 14, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // 4. Muscular Dragon Torso & Cream-Gold Segmented Belly Plates
+    ctx.fillStyle = '#b91c1c';
+    ctx.beginPath();
+    ctx.ellipse(0, 3, 19, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Cream-Gold Belly Scales
+    ctx.fillStyle = '#fde68a';
+    ctx.beginPath();
+    ctx.ellipse(0, 5, 11, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Belly segments
+    ctx.beginPath();
+    ctx.moveTo(-9, 0); ctx.lineTo(9, 0);
+    ctx.moveTo(-10, 6); ctx.lineTo(10, 6);
+    ctx.moveTo(-8, 12); ctx.lineTo(8, 12);
+    ctx.stroke();
+
+    // Dragon Claws on Ledge
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.roundRect(-20, 14, 11, 8, 3);
+    ctx.roundRect(9, 14, 11, 8, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // 5. Fierce Horned Dragon Head
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(-2, -18, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Cream-Gold Sweep Horns
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath();
+    ctx.moveTo(-6, -27);
+    ctx.lineTo(-18, -40);
+    ctx.lineTo(-1, -29);
+    ctx.moveTo(6, -26);
+    ctx.lineTo(19, -39);
+    ctx.lineTo(10, -23);
+    ctx.fill();
+    ctx.stroke();
+
+    // Glowing Yellow-Orange Dragon Eyes
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.polygon ? ctx.arc(-6, -20, 2.8, 0, Math.PI * 2) : ctx.arc(-6, -20, 2.8, 0, Math.PI * 2);
+    ctx.arc(2, -19, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 6. Roaring Fire Breath Stream (Shooting left-down from jaws like Concept Sheet!)
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.moveTo(-11, -14);
+    ctx.quadraticCurveTo(-28, -12, -38 - firePulse, -1 + firePulse);
+    ctx.quadraticCurveTo(-28, 6, -10, -9);
+    ctx.fill();
+
+    ctx.fillStyle = '#fef08a';
+    ctx.beginPath();
+    ctx.moveTo(-11, -13);
+    ctx.quadraticCurveTo(-24, -10, -30 - firePulse * 0.6, -2);
+    ctx.quadraticCurveTo(-22, 2, -10, -10);
+    ctx.fill();
+
+    ctx.restore();
+    ctx.restore();
+    return;
+  }
+
+  // Ground shadow for standard monsters
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+  ctx.beginPath();
+  ctx.ellipse(0, 20, 16, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (spriteType === 'mushroom_mon') {
+    // Forest Red-Spotted Mushroom Monster
+    ctx.save();
+    ctx.translate(0, bounce);
+    // Stalk body
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath();
+    ctx.roundRect(-8, 0, 16, 17, 5);
+    ctx.fill();
+    ctx.stroke();
+    // Red mushroom cap
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(0, 0, 17, Math.PI, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // White spots
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-8, -7, 3.5, 0, Math.PI * 2);
+    ctx.arc(2, -11, 4, 0, Math.PI * 2);
+    ctx.arc(10, -6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-4, 5, 2.5, 4);
+    ctx.fillRect(2, 5, 2.5, 4);
+    ctx.restore();
+
+  } else if (spriteType === 'slime' || spriteType === 'ice_slime') {
+    const squishX = 1 + Math.sin(animTime * 4) * 0.06;
+    const squishY = 1 - Math.sin(animTime * 4) * 0.06;
     ctx.save();
     ctx.translate(0, bounce);
     ctx.scale(squishX, squishY);
 
-    ctx.fillStyle = spriteType === 'bug_slime' ? '#84cc16' : '#10b981';
+    ctx.fillStyle = spriteType === 'ice_slime' ? '#38bdf8' : '#22c55e';
     ctx.beginPath();
     ctx.moveTo(-16, 14);
     ctx.quadraticCurveTo(-18, -10, 0, -14);
@@ -633,28 +953,21 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
     ctx.fill();
     ctx.stroke();
 
-    // Jelly highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.beginPath();
     ctx.ellipse(-6, -5, 4, 2.5, -0.4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Cute/Fierce Eyes
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.arc(-5, 2, 2.4, 0, Math.PI * 2);
     ctx.arc(5, 2, 2.4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-5.8, 0.5, 1.2, 1.2);
-    ctx.fillRect(4.2, 0.5, 1.2, 1.2);
     ctx.restore();
 
   } else if (spriteType === 'goblin') {
     ctx.save();
     ctx.translate(0, bounce * 0.6);
-
-    // Legs & Leather Tunic
     ctx.fillStyle = '#78350f';
     ctx.fillRect(-7, 6, 5, 12);
     ctx.fillRect(2, 6, 5, 12);
@@ -663,15 +976,10 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
     ctx.fill();
     ctx.stroke();
 
-    // Pointy Goblin Ears & Green Head
     ctx.fillStyle = '#65a30d';
     ctx.beginPath();
-    ctx.moveTo(-10, -14);
-    ctx.lineTo(-21, -18);
-    ctx.lineTo(-10, -9);
-    ctx.moveTo(10, -14);
-    ctx.lineTo(21, -18);
-    ctx.lineTo(10, -9);
+    ctx.moveTo(-10, -14); ctx.lineTo(-21, -18); ctx.lineTo(-10, -9);
+    ctx.moveTo(10, -14); ctx.lineTo(21, -18); ctx.lineTo(10, -9);
     ctx.fill();
     ctx.stroke();
 
@@ -680,14 +988,12 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
     ctx.fill();
     ctx.stroke();
 
-    // Red Eyes
     ctx.fillStyle = '#ef4444';
     ctx.beginPath();
     ctx.arc(-4, -13, 2, 0, Math.PI * 2);
     ctx.arc(4, -13, 2, 0, Math.PI * 2);
     ctx.fill();
 
-    // Wooden Club
     ctx.fillStyle = '#92400e';
     ctx.beginPath();
     ctx.roundRect(10, -16, 6, 20, 3);
@@ -698,114 +1004,57 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
   } else if (spriteType === 'wolf') {
     ctx.save();
     ctx.translate(0, bounce * 0.5);
-
-    // Wolf Body & Legs
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = '#cbd5e1';
     ctx.fillRect(-13, 6, 4, 12);
     ctx.fillRect(-5, 6, 4, 12);
     ctx.fillRect(5, 6, 4, 12);
     ctx.fillRect(12, 6, 4, 12);
 
-    // Bushy Tail
-    ctx.beginPath();
-    ctx.moveTo(13, 0);
-    ctx.quadraticCurveTo(24, -6, 22, 6);
-    ctx.quadraticCurveTo(16, 8, 13, 3);
-    ctx.fill();
-    ctx.stroke();
-
-    // Torso
     ctx.beginPath();
     ctx.ellipse(2, 1, 15, 9, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Wolf Head, Ears & Snout
     ctx.beginPath();
     ctx.arc(-11, -7, 8.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(-16, -13);
-    ctx.lineTo(-14, -22);
-    ctx.lineTo(-10, -14);
-    ctx.moveTo(-9, -13);
-    ctx.lineTo(-6, -22);
-    ctx.lineTo(-4, -13);
+    ctx.moveTo(-16, -13); ctx.lineTo(-14, -22); ctx.lineTo(-10, -14);
+    ctx.moveTo(-9, -13); ctx.lineTo(-6, -22); ctx.lineTo(-4, -13);
     ctx.fill();
     ctx.stroke();
 
-    // Glowing Eye
-    ctx.fillStyle = '#facc15';
+    ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
-    ctx.arc(-13, -8, 2, 0, Math.PI * 2);
+    ctx.arc(-13, -8, 2.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-  } else if (spriteType === 'scorpion') {
-    ctx.save();
-    ctx.translate(0, bounce * 0.4);
-    ctx.fillStyle = '#b45309';
-
-    // Curved Scorpion Tail & Stinger
-    ctx.beginPath();
-    ctx.moveTo(8, 2);
-    ctx.quadraticCurveTo(24, -12, 10, -22);
-    ctx.quadraticCurveTo(4, -24, 2, -18);
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = '#92400e';
-    ctx.stroke();
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath();
-    ctx.arc(1, -18, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Segmented Body
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.8;
-    ctx.fillStyle = '#d97706';
-    ctx.beginPath();
-    ctx.ellipse(0, 4, 15, 9, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Claws
-    ctx.beginPath();
-    ctx.arc(-16, 0, 6, 0.3, Math.PI * 1.7);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-  } else if (spriteType === 'golem') {
+  } else if (spriteType === 'golem' || spriteType === 'magma_golem') {
+    const isMagma = spriteType === 'magma_golem';
     ctx.save();
     ctx.translate(0, bounce * 0.3);
-
-    // Massive Stone Body
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = isMagma ? '#451a03' : '#38bdf8';
     ctx.beginPath();
     ctx.roundRect(-16, -14, 32, 26, 6);
     ctx.fill();
     ctx.stroke();
 
-    // Stone Head
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = isMagma ? '#7c2d12' : '#bae6fd';
     ctx.beginPath();
     ctx.roundRect(-10, -25, 20, 13, 4);
     ctx.fill();
     ctx.stroke();
 
-    // Glowing Rune Cracks & Eyes
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = isMagma ? '#f97316' : '#ffffff';
+    ctx.lineWidth = 2.4;
     ctx.beginPath();
-    ctx.moveTo(-6, -4);
-    ctx.lineTo(0, 2);
-    ctx.lineTo(7, -5);
-    ctx.moveTo(0, 2);
-    ctx.lineTo(0, 9);
+    ctx.moveTo(-6, -4); ctx.lineTo(0, 2); ctx.lineTo(7, -5);
+    ctx.moveTo(0, 2); ctx.lineTo(0, 9);
     ctx.stroke();
 
-    ctx.fillStyle = '#38bdf8';
+    ctx.fillStyle = isMagma ? '#fde047' : '#0284c7';
     ctx.fillRect(-6, -20, 4, 3);
     ctx.fillRect(2, -20, 4, 3);
     ctx.restore();
@@ -814,8 +1063,6 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
     const wingFlap = Math.sin(animTime * 9) * 10;
     ctx.save();
     ctx.translate(0, bounce * 1.4 - 4);
-
-    // Bat Wings
     ctx.fillStyle = '#6d28d9';
     ctx.beginPath();
     ctx.moveTo(-6, -2);
@@ -827,14 +1074,12 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
     ctx.fill();
     ctx.stroke();
 
-    // Bat Body
     ctx.fillStyle = '#4c1d95';
     ctx.beginPath();
     ctx.arc(0, 0, 9, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Yellow Eyes & Fangs
     ctx.fillStyle = '#fde047';
     ctx.beginPath();
     ctx.arc(-3.5, -2, 1.8, 0, Math.PI * 2);
@@ -842,11 +1087,32 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
     ctx.fill();
     ctx.restore();
 
+  } else if (spriteType === 'skeleton') {
+    // Dark Dungeon Skeleton Warrior
+    ctx.save();
+    ctx.translate(0, bounce * 0.5);
+    ctx.fillStyle = '#e2e8f0';
+    // Ribcage
+    ctx.fillRect(-7, -6, 14, 14);
+    ctx.strokeRect(-7, -6, 14, 14);
+    // Skull
+    ctx.beginPath();
+    ctx.arc(0, -15, 9.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Dark eye sockets
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-5, -17, 3.5, 3.5);
+    ctx.fillRect(1.5, -17, 3.5, 3.5);
+    // Bone sword
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(11, -18, 4, 20);
+    ctx.strokeRect(11, -18, 4, 20);
+    ctx.restore();
+
   } else if (spriteType === 'knight') {
     ctx.save();
     ctx.translate(0, bounce * 0.4);
-
-    // Dark Dread Armor & Cape
     ctx.fillStyle = '#7f1d1d';
     ctx.beginPath();
     ctx.roundRect(-14, -8, 28, 24, 4);
@@ -858,94 +1124,21 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
     ctx.fill();
     ctx.stroke();
 
-    // Horned Dark Helmet
     ctx.fillStyle = '#334155';
     ctx.beginPath();
     ctx.arc(0, -19, 10, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Horns
     ctx.fillStyle = '#dc2626';
     ctx.beginPath();
-    ctx.moveTo(-9, -22);
-    ctx.lineTo(-18, -32);
-    ctx.lineTo(-5, -27);
-    ctx.moveTo(9, -22);
-    ctx.lineTo(18, -32);
-    ctx.lineTo(5, -27);
+    ctx.moveTo(-9, -22); ctx.lineTo(-18, -32); ctx.lineTo(-5, -27);
+    ctx.moveTo(9, -22); ctx.lineTo(18, -32); ctx.lineTo(5, -27);
     ctx.fill();
     ctx.stroke();
 
-    // Glowing Red Visor
     ctx.fillStyle = '#ef4444';
     ctx.fillRect(-6, -20, 12, 3);
-    ctx.restore();
-
-  } else if (spriteType === 'dragon') {
-    // BOSS: Giant 2D Red/Gold Fire Dragon
-    const wingY = Math.sin(animTime * 5) * 9;
-    ctx.save();
-    ctx.translate(0, bounce * 0.6);
-
-    // Boss Flame Aura under feet
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.ellipse(0, 18, 30, 10, 0, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Dragon Wings
-    ctx.fillStyle = '#991b1b';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-10, -8);
-    ctx.quadraticCurveTo(-36, -34 + wingY, -42, -4 + wingY);
-    ctx.quadraticCurveTo(-26, 2, -12, 6);
-    ctx.moveTo(10, -8);
-    ctx.quadraticCurveTo(36, -34 + wingY, 42, -4 + wingY);
-    ctx.quadraticCurveTo(26, 2, 12, 6);
-    ctx.fill();
-    ctx.stroke();
-
-    // Dragon Body & Golden Belly
-    ctx.fillStyle = '#dc2626';
-    ctx.beginPath();
-    ctx.ellipse(0, 2, 18, 16, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#fde047';
-    ctx.beginPath();
-    ctx.ellipse(0, 4, 10, 11, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Dragon Head & Horns
-    ctx.fillStyle = '#dc2626';
-    ctx.beginPath();
-    ctx.arc(0, -18, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#f59e0b';
-    ctx.beginPath();
-    ctx.moveTo(-8, -26);
-    ctx.lineTo(-17, -38);
-    ctx.lineTo(-3, -29);
-    ctx.moveTo(8, -26);
-    ctx.lineTo(17, -38);
-    ctx.lineTo(3, -29);
-    ctx.fill();
-    ctx.stroke();
-
-    // Glowing Dragon Eyes
-    ctx.fillStyle = '#fef08a';
-    ctx.beginPath();
-    ctx.arc(-5, -19, 2.5, 0, Math.PI * 2);
-    ctx.arc(5, -19, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-
     ctx.restore();
   }
 
@@ -953,30 +1146,27 @@ function draw2dMonsterSprite(ctx, x, y, spriteType = 'slime', animTime = 0, scal
 }
 
 /**
- * Draws 2D Retro RPG Map Environment Scenery Props (Trees, Houses, Rocks, Bushes, Torches, NPCs)
+ * Draws 2D Scenery Props specific to the 4 Maps from the Concept Sheet
  */
 function draw2dMapProp(ctx, prop, animTime = 0) {
   const { type, x, y } = prop;
   ctx.save();
   ctx.translate(x, y);
-  ctx.strokeStyle = '#0f172a';
+  ctx.strokeStyle = '#181020';
   ctx.lineWidth = 1.8;
 
   if (type === 'tree_oak') {
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(0, 14, 24, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 14, 24, 8, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Trunk
     ctx.fillStyle = '#78350f';
     ctx.beginPath();
-    ctx.roundRect(-7, -14, 14, 28, 3);
+    ctx.roundRect(-8, -14, 16, 28, 3);
     ctx.fill();
     ctx.stroke();
 
-    // Lush 3-Cluster 2D Foliage Canopy
     ctx.fillStyle = '#15803d';
     ctx.beginPath();
     ctx.arc(-14, -22, 18, 0, Math.PI * 2);
@@ -985,231 +1175,248 @@ function draw2dMapProp(ctx, prop, animTime = 0) {
     ctx.fill();
     ctx.stroke();
 
-    // Highlight leaves
-    ctx.fillStyle = '#22c55e';
+    ctx.fillStyle = '#4ade80';
     ctx.beginPath();
-    ctx.arc(-8, -26, 11, 0, Math.PI * 2);
-    ctx.arc(8, -25, 10, 0, Math.PI * 2);
-    ctx.arc(0, -37, 14, 0, Math.PI * 2);
+    ctx.arc(-7, -27, 11, 0, Math.PI * 2);
+    ctx.arc(8, -26, 10, 0, Math.PI * 2);
+    ctx.arc(0, -37, 13, 0, Math.PI * 2);
     ctx.fill();
 
-  } else if (type === 'tree_pine') {
-    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  } else if (type === 'mushroom') {
+    // Spotted Red Mushroom from Forest Map
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillRect(-4, 0, 8, 10);
+    ctx.strokeRect(-4, 0, 8, 10);
+    ctx.fillStyle = '#ef4444';
     ctx.beginPath();
-    ctx.ellipse(0, 14, 20, 8, 0, 0, Math.PI * 2);
+    ctx.arc(0, 0, 11, Math.PI, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-4, -5, 2.2, 0, Math.PI * 2);
+    ctx.arc(4, -6, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Trunk
+  } else if (type === 'chest') {
+    // Wooden Treasure Chest with Gold Trim (Forest & Ice Cave Maps)
+    ctx.fillStyle = '#92400e';
+    ctx.beginPath();
+    ctx.roundRect(-14, -10, 28, 20, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-14, -2, 28, 3);
+    ctx.fillRect(-3, -4, 6, 7);
+    ctx.strokeRect(-3, -4, 6, 7);
+
+  } else if (type === 'crates') {
+    // Wooden Crate & Barrel
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(-16, -8, 16, 16);
+    ctx.strokeRect(-16, -8, 16, 16);
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath();
+    ctx.roundRect(2, -10, 14, 18, 4);
+    ctx.fill();
+    ctx.stroke();
+
+  } else if (type === 'snow_pine') {
+    // Snow-Covered Pine Tree from Ice Cave Map
     ctx.fillStyle = '#713f12';
-    ctx.fillRect(-5, -4, 10, 18);
-    ctx.strokeRect(-5, -4, 10, 18);
-
-    // 3 Layered Pine Triangles
+    ctx.fillRect(-5, -2, 10, 16);
+    ctx.strokeRect(-5, -2, 10, 16);
     const tiers = [
-      { yBase: -2, width: 44, height: 24, color: '#14532d' },
-      { yBase: -16, width: 36, height: 22, color: '#166534' },
-      { yBase: -29, width: 26, height: 20, color: '#15803d' }
+      { yBase: 0, w: 42, h: 22 },
+      { yBase: -14, w: 34, h: 20 },
+      { yBase: -26, w: 24, h: 18 }
     ];
     tiers.forEach(t => {
-      ctx.fillStyle = t.color;
+      ctx.fillStyle = '#1e3a8a';
       ctx.beginPath();
-      ctx.moveTo(-t.width / 2, t.yBase);
-      ctx.lineTo(0, t.yBase - t.height);
-      ctx.lineTo(t.width / 2, t.yBase);
+      ctx.moveTo(-t.w / 2, t.yBase);
+      ctx.lineTo(0, t.yBase - t.h);
+      ctx.lineTo(t.w / 2, t.yBase);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-    });
-
-  } else if (type === 'house_red' || type === 'house_blue') {
-    // Classic 2D RPG Village House
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(0, 22, 48, 14, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // House Walls
-    ctx.fillStyle = '#fef3c7';
-    ctx.fillRect(-38, -22, 76, 42);
-    ctx.strokeRect(-38, -22, 76, 42);
-
-    // Timber beams
-    ctx.fillStyle = '#78350f';
-    ctx.fillRect(-38, -22, 5, 42);
-    ctx.fillRect(33, -22, 5, 42);
-    ctx.fillRect(-38, -4, 76, 4);
-
-    // Wooden Door
-    ctx.fillStyle = '#92400e';
-    ctx.beginPath();
-    ctx.roundRect(-9, 1, 18, 19, [6, 6, 0, 0]);
-    ctx.fill();
-    ctx.stroke();
-
-    // Glowing Windows
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(-27, 2, 11, 11);
-    ctx.strokeRect(-27, 2, 11, 11);
-    ctx.fillRect(16, 2, 11, 11);
-    ctx.strokeRect(16, 2, 11, 11);
-
-    // Pitched Roof
-    ctx.fillStyle = type === 'house_red' ? '#dc2626' : '#2563eb';
-    ctx.beginPath();
-    ctx.moveTo(-46, -20);
-    ctx.lineTo(0, -54);
-    ctx.lineTo(46, -20);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-  } else if (type === 'palm') {
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.beginPath();
-    ctx.ellipse(0, 12, 18, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Curved Palm Trunk
-    ctx.strokeStyle = '#92400e';
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    ctx.moveTo(0, 12);
-    ctx.quadraticCurveTo(8, -10, 2, -32);
-    ctx.stroke();
-
-    // Palm Fronds
-    ctx.fillStyle = '#16a34a';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 1.4;
-    [-22, -10, 10, 22].forEach(dx => {
+      // White snow cap
+      ctx.fillStyle = '#f0f9ff';
       ctx.beginPath();
-      ctx.moveTo(2, -32);
-      ctx.quadraticCurveTo(dx, -44, dx * 1.3, -24);
-      ctx.quadraticCurveTo(dx * 0.6, -32, 2, -32);
+      ctx.moveTo(-t.w * 0.38, t.yBase - t.h * 0.25);
+      ctx.lineTo(0, t.yBase - t.h);
+      ctx.lineTo(t.w * 0.38, t.yBase - t.h * 0.25);
+      ctx.closePath();
       ctx.fill();
-      ctx.stroke();
     });
 
-  } else if (type === 'cactus') {
-    ctx.fillStyle = '#15803d';
+  } else if (type === 'ice_crystal' || type === 'red_crystal') {
+    // Glowing Cyan Ice Crystals or Red Volcano Crystals
+    const isRed = type === 'red_crystal';
+    ctx.fillStyle = isRed ? '#ef4444' : '#38bdf8';
     ctx.beginPath();
-    ctx.roundRect(-5, -24, 10, 34, 5);
-    ctx.roundRect(-15, -16, 10, 6, 3);
-    ctx.roundRect(-15, -24, 6, 12, 3);
-    ctx.roundRect(5, -12, 10, 6, 3);
-    ctx.roundRect(9, -20, 6, 12, 3);
+    ctx.moveTo(-12, 10); ctx.lineTo(-10, -10); ctx.lineTo(-4, -18); ctx.lineTo(0, 10);
+    ctx.moveTo(-2, 10); ctx.lineTo(2, -24); ctx.lineTo(8, -12); ctx.lineTo(6, 10);
+    ctx.moveTo(5, 10); ctx.lineTo(12, -14); ctx.lineTo(16, -4); ctx.lineTo(12, 10);
     ctx.fill();
     ctx.stroke();
 
-  } else if (type === 'dead_tree') {
-    ctx.strokeStyle = '#475569';
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(0, 12);
-    ctx.lineTo(0, -24);
-    ctx.moveTo(0, -10);
-    ctx.lineTo(-14, -22);
-    ctx.moveTo(0, -14);
-    ctx.lineTo(14, -26);
-    ctx.stroke();
+  } else if (type === 'snow_fence') {
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-18, -10, 5, 20);
+    ctx.fillRect(13, -10, 5, 20);
+    ctx.fillRect(-20, -5, 40, 5);
+    ctx.strokeRect(-20, -5, 40, 5);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(-20, -7, 40, 3);
 
-  } else if (type === 'bush') {
-    ctx.fillStyle = '#16a34a';
+  } else if (type === 'dungeon_torch') {
+    // Wall Torch + Red Demon Banner from Dark Dungeon Map
+    ctx.fillStyle = '#991b1b';
     ctx.beginPath();
-    ctx.arc(-8, 2, 10, 0, Math.PI * 2);
-    ctx.arc(8, 2, 10, 0, Math.PI * 2);
-    ctx.arc(0, -4, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    // Red berries
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath();
-    ctx.arc(-5, 0, 2, 0, Math.PI * 2);
-    ctx.arc(4, -3, 2, 0, Math.PI * 2);
-    ctx.arc(2, 4, 2, 0, Math.PI * 2);
-    ctx.fill();
-
-  } else if (type === 'rock') {
-    ctx.fillStyle = '#64748b';
-    ctx.beginPath();
-    ctx.moveTo(-14, 8);
-    ctx.lineTo(-10, -6);
-    ctx.lineTo(2, -10);
-    ctx.lineTo(14, -3);
-    ctx.lineTo(16, 8);
+    ctx.moveTo(-12, -16);
+    ctx.lineTo(12, -16);
+    ctx.lineTo(12, 8);
+    ctx.lineTo(0, 2);
+    ctx.lineTo(-12, 8);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-
-  } else if (type === 'torch') {
-    ctx.fillStyle = '#475569';
-    ctx.fillRect(-4, -14, 8, 24);
-    ctx.strokeRect(-4, -14, 8, 24);
-    const flicker = Math.sin(animTime * 12) * 2;
+    // Glowing Torch flame
+    const fl = Math.sin(animTime * 10) * 2;
     ctx.fillStyle = '#f97316';
     ctx.beginPath();
-    ctx.arc(0, -18, 6 + flicker * 0.4, 0, Math.PI * 2);
+    ctx.arc(0, -24, 6 + fl * 0.3, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#fde047';
+    ctx.fillStyle = '#fef08a';
     ctx.beginPath();
-    ctx.arc(0, -18, 3, 0, Math.PI * 2);
+    ctx.arc(0, -24, 3, 0, Math.PI * 2);
     ctx.fill();
+
+  } else if (type === 'hanging_cage') {
+    // Hanging Iron Cage from Dark Dungeon Map
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -45);
+    ctx.lineTo(0, -18);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(30, 41, 59, 0.75)';
+    ctx.fillRect(-12, -18, 24, 28);
+    ctx.strokeRect(-12, -18, 24, 28);
+    ctx.beginPath();
+    ctx.moveTo(-4, -18); ctx.lineTo(-4, 10);
+    ctx.moveTo(4, -18); ctx.lineTo(4, 10);
+    ctx.stroke();
+
+  } else if (type === 'iron_gate') {
+    // Arched Iron Portcullis Gate from Dark Dungeon Map
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(0, -8, 18, Math.PI, Math.PI * 2);
+    ctx.lineTo(18, 16);
+    ctx.lineTo(-18, 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    for (let gx = -12; gx <= 12; gx += 6) {
+      ctx.beginPath();
+      ctx.moveTo(gx, -22);
+      ctx.lineTo(gx, 16);
+      ctx.stroke();
+    }
+
+  } else if (type === 'skulls') {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(-6, 4, 6, 0, Math.PI * 2);
+    ctx.arc(6, 5, 5.5, 0, Math.PI * 2);
+    ctx.arc(0, -1, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+  } else if (type === 'candles') {
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillRect(-6, -4, 4, 10);
+    ctx.fillRect(2, -7, 4, 13);
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(-4, -7, 2.5, 0, Math.PI * 2);
+    ctx.arc(4, -10, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else if (type === 'volcano_banner') {
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-2, -26, 4, 38);
+    ctx.fillStyle = '#b91c1c';
+    ctx.beginPath();
+    ctx.moveTo(-11, -22);
+    ctx.lineTo(11, -22);
+    ctx.lineTo(11, 0);
+    ctx.lineTo(0, -5);
+    ctx.lineTo(-11, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+  } else if (type === 'bone_ribs') {
+    // Giant Dragon Ribcage Skeleton from Lava Volcano Map
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 3.5;
+    for (let bx = -18; bx <= 18; bx += 9) {
+      ctx.beginPath();
+      ctx.arc(bx, 6, 14, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
 }
 
 /**
- * Draws 2D Interactive Map NPCs (Healing Fountain, Blacksmith, Leaderboard Monument, Teleport Portal)
+ * Draws Interactive Map NPCs (Campfire Heal, Blacksmith, Leaderboard Monument, Teleport Portal)
  */
 function draw2dNpcObject(ctx, npc, isNear, animTime) {
   ctx.save();
   ctx.translate(npc.x, npc.y);
-  ctx.strokeStyle = '#0f172a';
+  ctx.strokeStyle = '#181020';
   ctx.lineWidth = 1.8;
 
-  if (npc.npcSprite === 'fountain') {
-    // 2D Stone Water Fountain with Animated Water Jets
-    ctx.fillStyle = '#94a3b8';
+  if (npc.npcSprite === 'campfire') {
+    // Blazing Campfire from Forest Map
+    ctx.fillStyle = '#78350f';
     ctx.beginPath();
-    ctx.ellipse(0, 6, 30, 14, 0, 0, Math.PI * 2);
+    ctx.roundRect(-16, 4, 32, 7, 3);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#38bdf8';
+    const fl = Math.sin(animTime * 10) * 3;
+    ctx.fillStyle = '#ea580c';
     ctx.beginPath();
-    ctx.ellipse(0, 5, 24, 10, 0, 0, Math.PI * 2);
+    ctx.moveTo(-13, 6);
+    ctx.quadraticCurveTo(0, -24 - fl, 13, 6);
+    ctx.closePath();
     ctx.fill();
 
-    // Center stone pillar
-    ctx.fillStyle = '#cbd5e1';
-    ctx.fillRect(-5, -14, 10, 18);
-    ctx.strokeRect(-5, -14, 10, 18);
-
-    // Animated water splash arcs
-    const splash = Math.sin(animTime * 8) * 3;
-    ctx.strokeStyle = '#bae6fd';
-    ctx.lineWidth = 2.2;
+    ctx.fillStyle = '#fde047';
     ctx.beginPath();
-    ctx.moveTo(0, -14);
-    ctx.quadraticCurveTo(-14, -26 + splash, -16, 2);
-    ctx.moveTo(0, -14);
-    ctx.quadraticCurveTo(14, -26 - splash, 16, 2);
-    ctx.stroke();
+    ctx.moveTo(-7, 6);
+    ctx.quadraticCurveTo(0, -14 + fl, 7, 6);
+    ctx.closePath();
+    ctx.fill();
 
   } else if (npc.npcSprite === 'blacksmith') {
-    // 2D Blacksmith Character + Anvil
-    draw2dHeroSprite(ctx, -8, -4, 'warrior', 1, 0, 0.85);
-    // Anvil
+    draw2dHeroSprite(ctx, -6, -4, 'warrior', 1, 0, 0.85);
     ctx.fillStyle = '#334155';
     ctx.beginPath();
-    ctx.roundRect(8, 2, 18, 12, 3);
+    ctx.roundRect(10, 2, 16, 11, 3);
     ctx.fill();
     ctx.stroke();
 
   } else if (npc.npcSprite === 'monument') {
-    // 2D Golden Trophy Monument Pedestal
     ctx.fillStyle = '#64748b';
     ctx.fillRect(-14, 0, 28, 14);
     ctx.strokeRect(-14, 0, 28, 14);
@@ -1218,37 +1425,25 @@ function draw2dNpcObject(ctx, npc, isNear, animTime) {
     ctx.arc(0, -10, 11, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#fef08a';
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('★', 0, -10);
 
   } else if (npc.npcSprite === 'portal') {
-    // Swirling 2D Magic Portal Gate
     ctx.save();
-    ctx.rotate(animTime * 2);
+    ctx.rotate(animTime * 2.2);
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(0, 0, 22, 0, Math.PI * 1.6);
+    ctx.arc(0, 0, 21, 0, Math.PI * 1.6);
     ctx.stroke();
-    ctx.strokeStyle = '#a855f7';
+    ctx.strokeStyle = '#c084fc';
     ctx.beginPath();
-    ctx.arc(0, 0, 15, Math.PI * 0.4, Math.PI * 2);
+    ctx.arc(0, 0, 14, Math.PI * 0.4, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
-    ctx.beginPath();
-    ctx.arc(0, 0, 20, 0, Math.PI * 2);
-    ctx.fill();
   }
 
-  // Label above NPC
   ctx.font = "800 12px 'Sarabun', sans-serif";
   const textW = ctx.measureText(npc.name).width + 12;
-  ctx.fillStyle = isNear ? 'rgba(37, 99, 235, 0.92)' : 'rgba(15, 23, 42, 0.8)';
+  ctx.fillStyle = isNear ? 'rgba(37, 99, 235, 0.92)' : 'rgba(15, 23, 42, 0.82)';
   ctx.beginPath();
   ctx.roundRect(-textW / 2, -46, textW, 18, 6);
   ctx.fill();
@@ -1264,12 +1459,12 @@ function draw2dNpcObject(ctx, npc, isNear, animTime) {
  * Renders the 4 Hero Class 2D Sprite Previews on the Character Selection Cards
  */
 function renderRpgClassPreviewCanvases() {
-  ['warrior', 'mage', 'ranger', 'paladin'].forEach(jobId => {
+  ['warrior', 'mage', 'archer', 'priest'].forEach(jobId => {
     const c = document.getElementById(`rpg-preview-${jobId}`);
     if (!c) return;
     const ctx = c.getContext('2d');
     ctx.clearRect(0, 0, c.width, c.height);
-    draw2dHeroSprite(ctx, c.width / 2, c.height / 2 + 12, jobId, 1, 0, 1.35);
+    draw2dHeroSprite(ctx, c.width / 2, c.height / 2 + 15, jobId, 1, 0, 1.55);
   });
 }
 
@@ -1303,6 +1498,7 @@ function initRpgFirebaseListeners() {
     const myId = getRpgPlayerId();
     if (rpgState.allCharacters[myId]) {
       rpgState.hero = rpgState.allCharacters[myId];
+      rpgState.hero.job = normalizeRpgJobId(rpgState.hero.job);
       if (rpgState.isActiveView) {
         updateRpgHudUI();
       }
@@ -1318,7 +1514,12 @@ window.onEnterRpgGameView = function() {
   renderRpgClassPreviewCanvases();
 
   const myId = getRpgPlayerId();
-  rpgState.hero = rpgState.allCharacters[myId] || null;
+  if (rpgState.allCharacters[myId]) {
+    rpgState.hero = rpgState.allCharacters[myId];
+    rpgState.hero.job = normalizeRpgJobId(rpgState.hero.job);
+  } else {
+    rpgState.hero = null;
+  }
 
   updateRpgServerStatusUI();
   spawnMapMonsters(rpgState.currentMap);
@@ -1369,12 +1570,13 @@ function syncPlayerOnlinePresence(force = false) {
   ref.set({
     id: myId,
     name: rpgState.hero.name || currentUser?.name || 'ผู้กล้า',
-    job: rpgState.hero.job || 'warrior',
+    job: normalizeRpgJobId(rpgState.hero.job),
     level: rpgState.hero.level || 1,
-    map: rpgState.currentMap || 'town',
+    map: rpgState.currentMap || 'forest',
     x: Math.round(rpgState.localX),
     y: Math.round(rpgState.localY),
     facing: rpgState.facing,
+    facingDir: rpgState.facingDir || 'right',
     chat: rpgState.chatBubbleExpire > now ? rpgState.chatBubbleText : '',
     updatedAt: now
   });
@@ -1494,7 +1696,8 @@ function giveRpgClassBonusReward() {
 }
 
 // Character Creation & Stats Calculation
-function selectRpgHeroClass(jobId) {
+function selectRpgHeroClass(rawJobId) {
+  const jobId = normalizeRpgJobId(rawJobId);
   const cls = RPG_CLASSES[jobId] || RPG_CLASSES.warrior;
   const myId = getRpgPlayerId();
   const existing = rpgState.allCharacters[myId];
@@ -1529,7 +1732,7 @@ function selectRpgHeroClass(jobId) {
     syncPlayerOnlinePresence(true);
     showPopupSuccess(
       `ต้อนรับ ${cls.name}!`,
-      `เข้าสู่โลกผจญภัย 2D เรียบร้อย ใช้ปุ่มลูกศร หรือแตะบนแผนที่เพื่อเดินข้ามสะพานแม่น้ำและโจมตีมอนสเตอร์ได้เลย!`
+      `เข้าสู่โลกผจญภัย 2D Fantasy RPG เรียบร้อย เลือกเดินสำรวจทั้ง 4 แผนที่และพิชิตบอสมังกร Infernal Cave Dragon ได้เลย!`
     );
   });
 }
@@ -1544,7 +1747,7 @@ function openRpgChangeClassScreen() {
 
 function computeRpgHeroTotalStats(hero) {
   if (!hero) return { maxHp: 100, atk: 20, def: 10, crit: 10, nextExp: 100 };
-  const cls = RPG_CLASSES[hero.job] || RPG_CLASSES.warrior;
+  const cls = RPG_CLASSES[normalizeRpgJobId(hero.job)] || RPG_CLASSES.warrior;
   const weapon = RPG_WEAPONS.find(w => w.id === hero.weaponId) || RPG_WEAPONS[0];
   const armor = RPG_ARMORS.find(a => a.id === hero.armorId) || RPG_ARMORS[0];
   const lvl = Math.max(1, hero.level || 1);
@@ -1684,8 +1887,8 @@ function switchRpgMap(mapId) {
   }
 
   rpgState.currentMap = mapId;
-  rpgState.localX = mapId === 'town' ? 280 : 140;
-  rpgState.localY = 265;
+  rpgState.localX = mapId === 'forest' ? 230 : 140;
+  rpgState.localY = 280;
   rpgState.targetX = rpgState.localX;
   rpgState.targetY = rpgState.localY;
 
@@ -1756,7 +1959,7 @@ function initRpgCanvasControls() {
           if (Math.hypot(clickX - npc.x, clickY - npc.y) <= npc.radius + 18) {
             rpgState.targetX = npc.x;
             rpgState.targetY = npc.y;
-            if (Math.hypot(rpgState.localX - npc.x, rpgState.localY - npc.y) <= 90) {
+            if (Math.hypot(rpgState.localX - npc.x, rpgState.localY - npc.y) <= 95) {
               interactWithRpgNpc(npc);
             }
             return;
@@ -1765,18 +1968,18 @@ function initRpgCanvasControls() {
       }
 
       for (const mon of rpgState.mapMonsters) {
-        if (Math.hypot(clickX - mon.x, clickY - mon.y) <= 46) {
+        if (Math.hypot(clickX - mon.x, clickY - mon.y) <= 50) {
           rpgState.targetX = mon.x;
           rpgState.targetY = mon.y;
-          if (Math.hypot(rpgState.localX - mon.x, rpgState.localY - mon.y) <= 95) {
+          if (Math.hypot(rpgState.localX - mon.x, rpgState.localY - mon.y) <= 105) {
             startRpgCombatWithMonster(mon);
           }
           return;
         }
       }
 
-      rpgState.targetX = Math.max(40, Math.min(canvas.width - 40, clickX));
-      rpgState.targetY = Math.max(55, Math.min(canvas.height - 40, clickY));
+      rpgState.targetX = Math.max(45, Math.min(canvas.width - 45, clickX));
+      rpgState.targetY = Math.max(135, Math.min(canvas.height - 40, clickY));
     });
   }
 }
@@ -1797,7 +2000,7 @@ function engageNearestRpgTarget() {
 
   if (mapDef && Array.isArray(mapDef.npcs)) {
     for (const npc of mapDef.npcs) {
-      if (Math.hypot(rpgState.localX - npc.x, rpgState.localY - npc.y) <= 90) {
+      if (Math.hypot(rpgState.localX - npc.x, rpgState.localY - npc.y) <= 95) {
         interactWithRpgNpc(npc);
         return;
       }
@@ -1805,7 +2008,7 @@ function engageNearestRpgTarget() {
   }
 
   let nearestMon = null;
-  let minDist = 110;
+  let minDist = 115;
   for (const mon of rpgState.mapMonsters) {
     const d = Math.hypot(rpgState.localX - mon.x, rpgState.localY - mon.y);
     if (d <= minDist) {
@@ -1828,7 +2031,7 @@ function interactWithRpgNpc(npc) {
     rpgState.hero.hp = stats.maxHp;
     saveData(`rpg_characters/${getRpgPlayerId()}`, rpgState.hero);
     updateRpgHudUI();
-    addRpgFloatingText(rpgState.localX, rpgState.localY - 42, '💚 ฟื้นฟู HP เต็ม 100%!', '#34d399');
+    addRpgFloatingText(rpgState.localX, rpgState.localY - 42, '💚 พักผิงไฟ ฟื้นฟู HP เต็ม 100%!', '#34d399');
   } else if (npc.type === 'shop') {
     openRpgShopModal();
   } else if (npc.type === 'rank') {
@@ -1849,15 +2052,14 @@ function addRpgFloatingText(x, y, text, color = '#fde047') {
   });
 }
 
-// Check if a point (x, y) is blocked by the river (except on the bridge!)
-function isBlockedByRpgRiver(mapDef, x, y) {
-  if (!mapDef || !mapDef.riverX) return false;
-  const halfW = (mapDef.riverWidth || 70) / 2 + 6;
-  const inRiverX = x >= mapDef.riverX - halfW && x <= mapDef.riverX + halfW;
-  if (!inRiverX) return false;
+function isBlockedByRpgChasm(mapDef, x, y) {
+  if (!mapDef || !mapDef.chasmX) return false;
+  const halfW = (mapDef.chasmWidth || 74) / 2 + 5;
+  const inChasmX = x >= mapDef.chasmX - halfW && x <= mapDef.chasmX + halfW;
+  if (!inChasmX) return false;
 
-  const bridgeHalfH = (mapDef.bridgeH || 74) / 2 - 4;
-  const onBridgeY = y >= (mapDef.bridgeY || 260) - bridgeHalfH && y <= (mapDef.bridgeY || 260) + bridgeHalfH;
+  const bridgeHalfH = (mapDef.bridgeH || 76) / 2 - 4;
+  const onBridgeY = y >= (mapDef.bridgeY || 280) - bridgeHalfH && y <= (mapDef.bridgeY || 280) + bridgeHalfH;
   return !onBridgeY;
 }
 
@@ -1879,7 +2081,7 @@ function startRpgGameLoop() {
 
 function updateRpgWorldPhysics() {
   if (!rpgState.hero || rpgState.inCombat) return;
-  const mapDef = RPG_MAPS[rpgState.currentMap] || RPG_MAPS.town;
+  const mapDef = RPG_MAPS[rpgState.currentMap] || RPG_MAPS.forest;
 
   let dx = rpgState.moveDirX;
   let dy = rpgState.moveDirY;
@@ -1900,7 +2102,12 @@ function updateRpgWorldPhysics() {
     nextY += (dy / len) * speed;
     rpgState.targetX = nextX;
     rpgState.targetY = nextY;
-    if (dx !== 0) rpgState.facing = dx > 0 ? 1 : -1;
+    if (dx !== 0) {
+      rpgState.facing = dx > 0 ? 1 : -1;
+      rpgState.facingDir = dx > 0 ? 'right' : 'left';
+    } else if (dy !== 0) {
+      rpgState.facingDir = dy < 0 ? 'up' : 'down';
+    }
     moved = true;
   } else {
     const dist = Math.hypot(rpgState.targetX - rpgState.localX, rpgState.targetY - rpgState.localY);
@@ -1910,25 +2117,29 @@ function updateRpgWorldPhysics() {
       const vy = (rpgState.targetY - rpgState.localY) / dist;
       nextX += vx * step;
       nextY += vy * step;
-      if (Math.abs(vx) > 0.1) rpgState.facing = vx > 0 ? 1 : -1;
+      if (Math.abs(vx) > 0.25) {
+        rpgState.facing = vx > 0 ? 1 : -1;
+        rpgState.facingDir = vx > 0 ? 'right' : 'left';
+      } else if (Math.abs(vy) > 0.25) {
+        rpgState.facingDir = vy < 0 ? 'up' : 'down';
+      }
       moved = true;
     }
   }
 
-  // River collision check (allows walking across the wooden bridge!)
   if (moved) {
-    if (!isBlockedByRpgRiver(mapDef, nextX, nextY)) {
+    if (!isBlockedByRpgChasm(mapDef, nextX, nextY)) {
       rpgState.localX = nextX;
       rpgState.localY = nextY;
-    } else if (!isBlockedByRpgRiver(mapDef, rpgState.localX, nextY)) {
+    } else if (!isBlockedByRpgChasm(mapDef, rpgState.localX, nextY)) {
       rpgState.localY = nextY;
-    } else if (!isBlockedByRpgRiver(mapDef, nextX, rpgState.localY)) {
+    } else if (!isBlockedByRpgChasm(mapDef, nextX, rpgState.localY)) {
       rpgState.localX = nextX;
     }
   }
 
-  rpgState.localX = Math.max(40, Math.min(920, rpgState.localX));
-  rpgState.localY = Math.max(60, Math.min(485, rpgState.localY));
+  rpgState.localX = Math.max(45, Math.min(920, rpgState.localX));
+  rpgState.localY = Math.max(135, Math.min(480, rpgState.localY));
   rpgState.isMoving = moved;
 
   if (moved) {
@@ -1938,14 +2149,13 @@ function updateRpgWorldPhysics() {
     rpgState.walkPhase = 0;
   }
 
-  // Animate roaming monsters
   const t = Date.now() * 0.002;
   rpgState.mapMonsters.forEach(mon => {
-    mon.x = mon.baseX + Math.sin(t + mon.phase) * 20;
-    mon.y = mon.baseY + Math.cos(t * 0.8 + mon.phase) * 14;
+    const amp = mon.isBoss ? 8 : 20;
+    mon.x = mon.baseX + Math.sin(t + mon.phase) * amp;
+    mon.y = mon.baseY + Math.cos(t * 0.8 + mon.phase) * (amp * 0.65);
   });
 
-  // Update floating texts
   for (let i = rpgState.floatingTexts.length - 1; i >= 0; i--) {
     const ft = rpgState.floatingTexts[i];
     ft.y += ft.vy;
@@ -1953,6 +2163,278 @@ function updateRpgWorldPhysics() {
     if (ft.alpha <= 0) {
       rpgState.floatingTexts.splice(i, 1);
     }
+  }
+}
+
+/**
+ * Renders the 4 Concept-Sheet Maps (Forest Map, Ice Cave Map, Dark Dungeon Map, Lava Volcano Map)
+ */
+function renderRpgConceptMapEnvironment(ctx, mapId, w, h, animTime) {
+  const mapDef = RPG_MAPS[mapId] || RPG_MAPS.forest;
+  const cx = mapDef.chasmX;
+  const cw = mapDef.chasmWidth;
+  const rx = cx - cw / 2;
+  const by = mapDef.bridgeY - mapDef.bridgeH / 2;
+  const bh = mapDef.bridgeH;
+
+  if (mapId === 'forest') {
+    // --- 1. FOREST MAP (Blue Sky, Distant Castle Silhouette, Rolling Hills, Tiered Grass Cliffs & River) ---
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 125);
+    skyGrad.addColorStop(0, '#38bdf8');
+    skyGrad.addColorStop(1, '#bae6fd');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, 125);
+
+    // Distant Fairytale Castle Silhouette (Center-Left Horizon like Concept Sheet)
+    ctx.fillStyle = '#60a5fa';
+    ctx.fillRect(450, 52, 46, 55);
+    ctx.fillRect(442, 40, 14, 67);
+    ctx.fillRect(490, 42, 14, 65);
+    ctx.fillRect(465, 28, 16, 79);
+    // Castle spire roofs
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.moveTo(440, 40); ctx.lineTo(449, 24); ctx.lineTo(458, 40);
+    ctx.moveTo(463, 28); ctx.lineTo(473, 10); ctx.lineTo(483, 28);
+    ctx.moveTo(488, 42); ctx.lineTo(497, 26); ctx.lineTo(506, 42);
+    ctx.fill();
+
+    // Rolling Green Hills on Horizon
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.moveTo(0, 125);
+    ctx.quadraticCurveTo(180, 65, 380, 115);
+    ctx.quadraticCurveTo(560, 75, 760, 112);
+    ctx.quadraticCurveTo(880, 80, w, 115);
+    ctx.lineTo(w, 125);
+    ctx.closePath();
+    ctx.fill();
+
+    // Lush Green Grass Ground & Tiered Dirt Ledges
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(0, 115, w, h - 115);
+
+    // Dirt Cliff Ledge Band at top & middle
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(0, 115, w, 24);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(0, 112, w, 8);
+
+    // Dirt footpath
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(40, mapDef.bridgeY - 30, w - 80, 60);
+    ctx.fillStyle = '#d97706';
+    ctx.fillRect(40, mapDef.bridgeY - 26, w - 80, 52);
+
+    // Forest River & Wooden Bridge
+    ctx.fillStyle = '#a16207';
+    ctx.fillRect(rx - 6, 115, cw + 12, h - 115);
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(rx, 115, cw, h - 115);
+
+    const waveOffset = (animTime * 45) % 44;
+    ctx.fillStyle = '#7dd3fc';
+    for (let wy = 120; wy < h; wy += 44) {
+      ctx.fillRect(rx + 12, wy + waveOffset, 18, 4);
+      ctx.fillRect(rx + cw - 28, wy + waveOffset + 18, 16, 4);
+    }
+
+    // Wooden Plank Bridge
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(rx - 12, by, cw + 24, bh);
+    ctx.strokeRect(rx - 12, by, cw + 24, bh);
+    ctx.fillStyle = '#b45309';
+    for (let px = rx - 8; px < rx + cw + 8; px += 12) {
+      ctx.fillRect(px, by + 6, 9, bh - 12);
+    }
+
+  } else if (mapId === 'ice_cave') {
+    // --- 2. ICE CAVE MAP (Dark Blue Cavern, Hanging Icicles, Snow Ground, Frozen Chasm & Stone Arch Bridge) ---
+    ctx.fillStyle = '#082f49';
+    ctx.fillRect(0, 0, w, 130);
+
+    // Hanging Sharp Icicles / Stalactites from Cave Ceiling
+    ctx.fillStyle = '#38bdf8';
+    for (let ix = 0; ix < w; ix += 34) {
+      const ih = 38 + ((ix * 17) % 45);
+      ctx.beginPath();
+      ctx.moveTo(ix, 0);
+      ctx.lineTo(ix + 17, ih);
+      ctx.lineTo(ix + 34, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Snow-Covered Cavern Floor
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillRect(0, 125, w, h - 125);
+    // Blue rock cliff wall at top & bottom
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(0, 122, w, 18);
+    ctx.fillStyle = '#f0f9ff';
+    ctx.fillRect(0, 118, w, 9);
+
+    // Icy Path
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(40, mapDef.bridgeY - 28, w - 80, 56);
+
+    // Frozen River Chasm
+    ctx.fillStyle = '#0369a1';
+    ctx.fillRect(rx - 6, 125, cw + 12, h - 125);
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillRect(rx, 125, cw, h - 125);
+    // Ice sheen lines
+    ctx.strokeStyle = '#e0f2fe';
+    ctx.lineWidth = 2;
+    for (let iy = 140; iy < h; iy += 50) {
+      ctx.beginPath();
+      ctx.moveTo(rx + 10, iy);
+      ctx.lineTo(rx + cw - 12, iy + 18);
+      ctx.stroke();
+    }
+
+    // Snow-Covered Stone Arch Bridge
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(rx - 12, by, cw + 24, bh);
+    ctx.strokeRect(rx - 12, by, cw + 24, bh);
+    ctx.fillStyle = '#f0f9ff';
+    ctx.fillRect(rx - 12, by, cw + 24, 8);
+
+  } else if (mapId === 'dark_dungeon') {
+    // --- 3. DARK DUNGEON MAP (Purple-Grey Brick Walls, Stone Arches, Spiked Pit & Stone Bridge) ---
+    ctx.fillStyle = '#1e1b2e';
+    ctx.fillRect(0, 0, w, 130);
+
+    // Stone Brick Wall Arches at top
+    ctx.fillStyle = '#312c47';
+    for (let ax = 20; ax < w; ax += 120) {
+      ctx.fillRect(ax, 15, 95, 110);
+      ctx.fillStyle = '#151221';
+      ctx.beginPath();
+      ctx.arc(ax + 47, 65, 32, Math.PI, Math.PI * 2);
+      ctx.lineTo(ax + 79, 125);
+      ctx.lineTo(ax + 15, 125);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#312c47';
+    }
+
+    // Dungeon Flagstone Floor
+    const tileSize = 40;
+    for (let gx = 0; gx < w; gx += tileSize) {
+      for (let gy = 125; gy < h; gy += tileSize) {
+        const isEven = ((gx / tileSize) + Math.floor(gy / tileSize)) % 2 === 0;
+        ctx.fillStyle = isEven ? '#3b3354' : '#322b47';
+        ctx.fillRect(gx, gy, tileSize, tileSize);
+        ctx.strokeStyle = '#221d33';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(gx, gy, tileSize, tileSize);
+      }
+    }
+
+    // Spiked Dungeon Pit Chasm
+    ctx.fillStyle = '#0f0c1a';
+    ctx.fillRect(rx - 4, 125, cw + 8, h - 125);
+    // Iron Floor Spikes inside pit
+    ctx.fillStyle = '#94a3b8';
+    for (let sy = 145; sy < h - 20; sy += 34) {
+      for (let sx = rx + 8; sx < rx + cw - 10; sx += 16) {
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + 14);
+        ctx.lineTo(sx + 6, sy);
+        ctx.lineTo(sx + 12, sy + 14);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Dungeon Stone Slab Bridge
+    ctx.fillStyle = '#4c436b';
+    ctx.fillRect(rx - 12, by, cw + 24, bh);
+    ctx.strokeStyle = '#181020';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rx - 12, by, cw + 24, bh);
+
+  } else if (mapId === 'lava_volcano') {
+    // --- 4. LAVA VOLCANO MAP (Erupting Volcano Sky, Lava Waterfall, Bubbling Lava River & Rope Bridge) ---
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 130);
+    skyGrad.addColorStop(0, '#3b1528');
+    skyGrad.addColorStop(1, '#7c2d12');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, 130);
+
+    // Erupting Volcano Mountain in Background (Right-Center like Concept Sheet!)
+    ctx.fillStyle = '#451a1c';
+    ctx.beginPath();
+    ctx.moveTo(520, 130);
+    ctx.lineTo(665, 22);
+    ctx.lineTo(725, 22);
+    ctx.lineTo(870, 130);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing Lava Streams Flowing Down the Volcano Crater
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(680, 24); ctx.quadraticCurveTo(670, 75, 640, 128);
+    ctx.moveTo(695, 24); ctx.quadraticCurveTo(700, 80, 710, 128);
+    ctx.moveTo(712, 24); ctx.quadraticCurveTo(735, 75, 765, 128);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Dark Obsidian Volcanic Rock Ground
+    ctx.fillStyle = '#2e1f27';
+    ctx.fillRect(0, 125, w, h - 125);
+    ctx.fillStyle = '#4a323e';
+    ctx.fillRect(40, mapDef.bridgeY - 28, w - 80, 56);
+
+    // Molten Lava Chasm & Cascading Lava Waterfall
+    ctx.fillStyle = '#450a0a';
+    ctx.fillRect(rx - 8, 125, cw + 16, h - 125);
+
+    const lavaGrad = ctx.createLinearGradient(rx, 0, rx + cw, 0);
+    lavaGrad.addColorStop(0, '#dc2626');
+    lavaGrad.addColorStop(0.5, '#f97316');
+    lavaGrad.addColorStop(1, '#dc2626');
+    ctx.fillStyle = lavaGrad;
+    ctx.fillRect(rx, 125, cw, h - 125);
+
+    // Animated Bright Yellow Lava Bubbles & Waterfall Streams
+    const lavaFlow = (animTime * 55) % 46;
+    ctx.fillStyle = '#fde047';
+    for (let ly = 125; ly < h; ly += 46) {
+      ctx.fillRect(rx + 14, ly + lavaFlow, 14, 18);
+      ctx.fillRect(rx + cw - 28, ly + lavaFlow + 20, 14, 16);
+    }
+
+    // Wooden Rope Suspension Bridge over the Lava Chasm (just like Concept Sheet!)
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(rx - 14, by + 6, cw + 28, bh - 12);
+    ctx.fillStyle = '#b45309';
+    for (let px = rx - 10; px < rx + cw + 10; px += 13) {
+      ctx.fillRect(px, by + 4, 9, bh - 8);
+      ctx.strokeStyle = '#181020';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(px, by + 4, 9, bh - 8);
+    }
+    // Bridge Wooden Posts & Rope Cables
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(rx - 14, by - 6, 8, 16);
+    ctx.fillRect(rx + cw + 6, by - 6, 8, 16);
+    ctx.fillRect(rx - 14, by + bh - 10, 8, 16);
+    ctx.fillRect(rx + cw + 6, by + bh - 10, 8, 16);
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(rx - 10, by - 2);
+    ctx.quadraticCurveTo(cx, by + 8, rx + cw + 10, by - 2);
+    ctx.moveTo(rx - 10, by + bh - 2);
+    ctx.quadraticCurveTo(cx, by + bh + 6, rx + cw + 10, by + bh - 2);
+    ctx.stroke();
   }
 }
 
@@ -1964,76 +2446,13 @@ function renderRpgWorldCanvas() {
   const h = canvas.height;
   const animTime = Date.now() * 0.001;
 
-  const mapDef = RPG_MAPS[rpgState.currentMap] || RPG_MAPS.town;
+  const mapId = RPG_MAPS[rpgState.currentMap] ? rpgState.currentMap : 'forest';
+  const mapDef = RPG_MAPS[mapId];
 
-  // 1. Classic 2D Retro Tilemap Ground
-  const tileSize = 40;
-  for (let gx = 0; gx < w; gx += tileSize) {
-    for (let gy = 0; gy < h; gy += tileSize) {
-      const isEven = ((gx / tileSize) + (gy / tileSize)) % 2 === 0;
-      ctx.fillStyle = isEven ? mapDef.tileA : mapDef.tileB;
-      ctx.fillRect(gx, gy, tileSize, tileSize);
+  // 1. Render Concept-Sheet 2D Map Environment (Sky, Background, Cliffs, River/Lava & Bridge)
+  renderRpgConceptMapEnvironment(ctx, mapId, w, h, animTime);
 
-      // Little 2D grass tufts / pebbles pattern
-      if ((gx * 7 + gy * 13) % 5 === 0) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
-        ctx.fillRect(gx + 12, gy + 14, 4, 6);
-        ctx.fillRect(gx + 18, gy + 16, 4, 4);
-      }
-    }
-  }
-
-  // 2. Dirt / Cobblestone Road across the map
-  const roadY = (mapDef.bridgeY || 260) - 30;
-  ctx.fillStyle = mapDef.pathBorder;
-  ctx.fillRect(45, roadY - 4, w - 90, 68);
-  ctx.fillStyle = mapDef.pathColor;
-  ctx.fillRect(45, roadY, w - 90, 60);
-
-  // 3. Animated Flowing River (Water or Lava) & Wooden Bridge
-  if (mapDef.riverX) {
-    const rx = mapDef.riverX - mapDef.riverWidth / 2;
-    const rw = mapDef.riverWidth;
-    const isLava = mapDef.riverType === 'lava';
-
-    // Riverbanks
-    ctx.fillStyle = isLava ? '#450a0a' : '#a1804f';
-    ctx.fillRect(rx - 7, 0, rw + 14, h);
-
-    // River water/lava body
-    ctx.fillStyle = isLava ? '#dc2626' : '#0284c7';
-    ctx.fillRect(rx, 0, rw, h);
-
-    // Animated flowing waves
-    ctx.fillStyle = isLava ? '#fde047' : '#7dd3fc';
-    const waveOffset = (animTime * 45) % 48;
-    for (let wy = -48; wy < h + 48; wy += 48) {
-      const yPos = wy + waveOffset;
-      ctx.fillRect(rx + 12, yPos, 16, 4);
-      ctx.fillRect(rx + rw - 30, yPos + 22, 18, 4);
-    }
-
-    // 2D Wooden Bridge over the river
-    const by = (mapDef.bridgeY || 260) - (mapDef.bridgeH || 74) / 2;
-    const bh = mapDef.bridgeH || 74;
-    ctx.fillStyle = isLava ? '#334155' : '#92400e';
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2;
-    ctx.fillRect(rx - 12, by, rw + 24, bh);
-    ctx.strokeRect(rx - 12, by, rw + 24, bh);
-
-    // Bridge wooden planks
-    ctx.fillStyle = isLava ? '#475569' : '#b45309';
-    for (let px = rx - 8; px < rx + rw + 8; px += 12) {
-      ctx.fillRect(px, by + 6, 9, bh - 12);
-    }
-    // Bridge handrails
-    ctx.fillStyle = '#451a03';
-    ctx.fillRect(rx - 14, by, rw + 28, 6);
-    ctx.fillRect(rx - 14, by + bh - 6, rw + 28, 6);
-  }
-
-  // 4. Collect All Y-Sorted Entities (2D Trees, Houses, Rocks, NPCs, Monsters, Online Classmates, Local Hero)
+  // 2. Collect All Y-Sorted Entities (2D Trees, Props, NPCs, Monsters/Boss, Online Classmates, Local Hero)
   const renderQueue = [];
 
   if (Array.isArray(mapDef.props)) {
@@ -2050,34 +2469,33 @@ function renderRpgWorldCanvas() {
       const dist = Math.hypot(rpgState.localX - npc.x, rpgState.localY - npc.y);
       renderQueue.push({
         sortY: npc.y,
-        draw: () => draw2dNpcObject(ctx, npc, dist <= 90, animTime)
+        draw: () => draw2dNpcObject(ctx, npc, dist <= 95, animTime)
       });
     });
   }
 
   rpgState.mapMonsters.forEach(mon => {
     const dist = Math.hypot(rpgState.localX - mon.x, rpgState.localY - mon.y);
-    const isNear = dist <= 95;
+    const isNear = dist <= 105;
     renderQueue.push({
       sortY: mon.y,
       draw: () => {
-        draw2dMonsterSprite(ctx, mon.x, mon.y, mon.spriteType || 'slime', animTime + mon.phase, mon.isBoss ? 1.35 : 1.05);
-        // Monster Name Tag
+        draw2dMonsterSprite(ctx, mon.x, mon.y, mon.spriteType || 'slime', animTime + mon.phase, mon.isBoss ? 1.45 : 1.1);
         ctx.save();
         ctx.font = "800 12px 'Sarabun', sans-serif";
         ctx.textAlign = 'center';
-        const tagY = mon.y - (mon.isBoss ? 52 : 34);
-        const tagW = ctx.measureText(mon.name).width + 12;
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+        const tagY = mon.y - (mon.isBoss ? 64 : 36);
+        const tagW = ctx.measureText(mon.name).width + 14;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
         ctx.beginPath();
-        ctx.roundRect(mon.x - tagW / 2, tagY - 10, tagW, 18, 6);
+        ctx.roundRect(mon.x - tagW / 2, tagY - 10, tagW, 19, 6);
         ctx.fill();
         ctx.fillStyle = mon.isBoss ? '#fde047' : '#fca5a5';
         ctx.fillText(mon.name, mon.x, tagY + 3);
         if (isNear) {
           ctx.font = "800 11px 'Sarabun', sans-serif";
           ctx.fillStyle = '#38bdf8';
-          ctx.fillText('⚔️ แตะเพื่อต่อสู้!', mon.x, mon.y + 34);
+          ctx.fillText('⚔️ แตะเพื่อต่อสู้!', mon.x, mon.y + (mon.isBoss ? 44 : 34));
         }
         ctx.restore();
       }
@@ -2087,14 +2505,14 @@ function renderRpgWorldCanvas() {
   // Online Classmates
   const myId = getRpgPlayerId();
   Object.values(rpgState.onlinePlayers || {}).forEach(p => {
-    if (!p || p.id === myId || p.map !== rpgState.currentMap) return;
+    if (!p || p.id === myId || p.map !== mapId) return;
     if (p.updatedAt && Date.now() - p.updatedAt > 600000) return;
-    const py = p.y || 265;
+    const py = p.y || 280;
     renderQueue.push({
       sortY: py,
       draw: () => {
-        draw2dHeroSprite(ctx, p.x || 280, py, p.job || 'warrior', p.facing || 1, animTime * 3, 1.0);
-        drawHeroNameAndChatTag(ctx, p.x || 280, py, p.name, p.level || 1, false, p.chat);
+        draw2dHeroSprite(ctx, p.x || 230, py, p.job || 'warrior', p.facing || 1, animTime * 3, 1.05, p.facingDir || 'right');
+        drawHeroNameAndChatTag(ctx, p.x || 230, py, p.name, p.level || 1, false, p.chat);
       }
     });
   });
@@ -2111,7 +2529,8 @@ function renderRpgWorldCanvas() {
           rpgState.hero.job || 'warrior',
           rpgState.facing,
           rpgState.walkPhase,
-          1.05
+          1.12,
+          rpgState.facingDir || 'right'
         );
         const activeChat = Date.now() < rpgState.chatBubbleExpire ? rpgState.chatBubbleText : '';
         drawHeroNameAndChatTag(ctx, rpgState.localX, rpgState.localY, rpgState.hero.name, rpgState.hero.level || 1, true, activeChat);
@@ -2119,15 +2538,14 @@ function renderRpgWorldCanvas() {
     });
   }
 
-  // Sort by Y coordinate so characters naturally pass behind/in front of trees & houses!
   renderQueue.sort((a, b) => a.sortY - b.sortY);
   renderQueue.forEach(item => item.draw());
 
-  // 5. Map Title Badge (Top-Left)
+  // 3. Map Title Banner (Top-Left)
   ctx.save();
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
   ctx.beginPath();
-  ctx.roundRect(12, 10, 290, 28, 8);
+  ctx.roundRect(12, 10, 340, 28, 8);
   ctx.fill();
   ctx.font = "800 13px 'Sarabun', sans-serif";
   ctx.fillStyle = '#fde047';
@@ -2135,7 +2553,7 @@ function renderRpgWorldCanvas() {
   ctx.fillText(mapDef.name, 22, 29);
   ctx.restore();
 
-  // 6. Floating Damage / Heal Texts
+  // 4. Floating Texts
   rpgState.floatingTexts.forEach(ft => {
     ctx.save();
     ctx.globalAlpha = Math.max(0, ft.alpha);
@@ -2155,21 +2573,21 @@ function drawHeroNameAndChatTag(ctx, x, y, name, level, isSelf, chatText) {
   const textW = ctx.measureText(label).width + 12;
   ctx.fillStyle = isSelf ? 'rgba(15, 23, 42, 0.9)' : 'rgba(30, 41, 59, 0.82)';
   ctx.beginPath();
-  ctx.roundRect(x - textW / 2, y - 54, textW, 18, 6);
+  ctx.roundRect(x - textW / 2, y - 56, textW, 18, 6);
   ctx.fill();
 
   ctx.fillStyle = isSelf ? '#fde047' : '#e2e8f0';
-  ctx.fillText(label, x, y - 41);
+  ctx.fillText(label, x, y - 43);
 
   if (chatText) {
     ctx.font = "700 12px 'Sarabun', sans-serif";
     const chatW = ctx.measureText(chatText).width + 16;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(x - chatW / 2, y - 78, chatW, 21, 10);
+    ctx.roundRect(x - chatW / 2, y - 80, chatW, 21, 10);
     ctx.fill();
     ctx.fillStyle = '#0f172a';
-    ctx.fillText(chatText, x, y - 64);
+    ctx.fillText(chatText, x, y - 66);
   }
   ctx.restore();
 }
@@ -2185,14 +2603,14 @@ function renderRpgBattleSpritesCanvas() {
   if (heroCanvas && rpgState.hero) {
     const hCtx = heroCanvas.getContext('2d');
     hCtx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
-    draw2dHeroSprite(hCtx, heroCanvas.width / 2, heroCanvas.height / 2 + 16, rpgState.hero.job || 'warrior', 1, animTime * 3, 1.45);
+    draw2dHeroSprite(hCtx, heroCanvas.width / 2, heroCanvas.height / 2 + 18, rpgState.hero.job || 'warrior', 1, animTime * 3, 1.5);
   }
 
   if (monCanvas && rpgState.activeMonster) {
     const mCtx = monCanvas.getContext('2d');
     mCtx.clearRect(0, 0, monCanvas.width, monCanvas.height);
     const mon = rpgState.activeMonster;
-    draw2dMonsterSprite(mCtx, monCanvas.width / 2, monCanvas.height / 2 + 14, mon.spriteType || 'slime', animTime, mon.isBoss ? 1.2 : 1.45);
+    draw2dMonsterSprite(mCtx, monCanvas.width / 2, monCanvas.height / 2 + 16, mon.spriteType || 'slime', animTime, mon.isBoss ? 1.05 : 1.45);
   }
 }
 
@@ -2295,8 +2713,8 @@ function startRpgAttackQuiz(mode) {
     </button>
   `).join('');
 
-  const isRanger = rpgState.hero?.job === 'ranger';
-  rpgState.quizRemainingSec = isRanger ? 25 : 20;
+  const job = normalizeRpgJobId(rpgState.hero?.job);
+  rpgState.quizRemainingSec = job === 'archer' ? 25 : 20;
   updateRpgQuizTimerBadge();
 
   clearRpgQuizTimer();
@@ -2332,6 +2750,7 @@ function submitRpgBattleAnswer(selectedIndex) {
   const isCorrect = selectedIndex === q.correctIndex;
   const stats = computeRpgHeroTotalStats(rpgState.hero);
   const mon = rpgState.activeMonster;
+  const job = normalizeRpgJobId(rpgState.hero.job);
 
   const cmdBox = document.getElementById('rpg-battle-commands');
   const quizBox = document.getElementById('rpg-battle-quiz-box');
@@ -2343,7 +2762,7 @@ function submitRpgBattleAnswer(selectedIndex) {
     const isSkill = rpgState.pendingSkillMode === 'skill';
     let dmgMultiplier = isSkill ? 1.6 : 1.0;
 
-    if (rpgState.hero.job === 'mage') {
+    if (job === 'mage') {
       dmgMultiplier += rpgState.combatCombo * 0.15;
     }
 
@@ -2354,10 +2773,10 @@ function submitRpgBattleAnswer(selectedIndex) {
     rpgState.monsterHp = Math.max(0, rpgState.monsterHp - rawDmg);
 
     let healMsg = '';
-    if (rpgState.hero.job === 'paladin') {
-      const healAmt = Math.round(stats.maxHp * 0.18);
+    if (job === 'priest') {
+      const healAmt = Math.round(stats.maxHp * 0.2);
       rpgState.hero.hp = Math.min(stats.maxHp, rpgState.hero.hp + healAmt);
-      healMsg = ` (+ฟื้นฟู ${healAmt} HP)`;
+      healMsg = ` (+พรศักดิ์สิทธิ์ฟื้นฟู ${healAmt} HP)`;
     }
 
     updateRpgCombatArenaUI(
@@ -2372,7 +2791,7 @@ function submitRpgBattleAnswer(selectedIndex) {
     rpgState.combatCombo = 0;
     const correctChoiceText = q.options[q.correctIndex] || '';
     let enemyDmg = Math.max(6, Math.round(mon.atk - stats.def * 0.55));
-    if (rpgState.hero.job === 'warrior' && rpgState.pendingSkillMode === 'skill') {
+    if (job === 'warrior' && rpgState.pendingSkillMode === 'skill') {
       enemyDmg = Math.round(enemyDmg * 0.6);
     }
 
@@ -2421,9 +2840,9 @@ function handleRpgHeroDefeat() {
   setTimeout(() => {
     rpgState.inCombat = false;
     document.getElementById('rpg-combat-overlay').style.display = 'none';
-    switchRpgMap('town');
+    switchRpgMap('forest');
     updateRpgHudUI();
-    showPopupWarning("หมดสติในการต่อสู้!", "คุณถูกส่งกลับมาฟื้นฟูพลังชีวิตที่น้ำพุเมืองเริ่มต้น ลองอัปเกรดอาวุธหรือชุดเกราะแล้วไปท้าสู้อีกครั้งนะ!");
+    showPopupWarning("หมดสติในการต่อสู้!", "คุณถูกส่งกลับมาพักฟื้นที่กองไฟแคมป์ใน Forest Map ลองอัปเกรดอาวุธหรือชุดเกราะแล้วไปท้าสู้อีกครั้งนะ!");
   }, 600);
 }
 
@@ -2570,7 +2989,7 @@ function openRpgLeaderboardModal() {
   });
 
   const rowsHtml = list.slice(0, 20).map((ch, idx) => {
-    const cls = RPG_CLASSES[ch.job] || RPG_CLASSES.warrior;
+    const cls = RPG_CLASSES[normalizeRpgJobId(ch.job)] || RPG_CLASSES.warrior;
     const medal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`));
     return `
       <tr>
