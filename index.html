@@ -16,7 +16,7 @@
   
   <!-- FontAwesome 6.5.1 Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="css/styles.css?v=8.21.0">
+  <link rel="stylesheet" href="css/styles.css?v=8.22.0">
 
   <!-- Firebase JS SDK (Compat version for smooth Realtime DB access) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -762,16 +762,16 @@
             <div class="rpg-class-grid">
               <!-- Class 1: Warrior -->
               <div class="rpg-class-card" onclick="selectRpgHeroClass('warrior')" id="rpg-class-card-warrior">
-                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #ef4444, #b91c1c);">⚔️</div>
+                <canvas id="rpg-preview-warrior" width="96" height="96" style="background:radial-gradient(circle, rgba(239,68,68,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #ef4444;"></canvas>
                 <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">นักรบอัลกอริทึม (Warrior)</h4>
                 <span class="badge badge-red" style="font-size:0.74rem; margin-bottom:8px;">HP สูง • เกราะหนา</span>
-                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 150 | โจมตี 20 | ป้องกัน 15<br>สกิล: <strong>ดาบผ่าตรรกะ</strong> (โจมตีแรง 150% + ลดดาเมจเมื่อตอบผิด)</p>
+                <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 150 | โจมตี 20 | ป้องกัน 15<br>สกิล: <strong>ดาบผ่าตรรกะ</strong> (โจมตีแรง 160% + ลดดาเมจเมื่อตอบผิด)</p>
                 <button type="button" class="btn btn-sm btn-primary" style="width:100%; border-radius:8px; font-weight:800;">เลือกสายอาชีพนี้</button>
               </div>
 
               <!-- Class 2: Mage -->
               <div class="rpg-class-card" onclick="selectRpgHeroClass('mage')" id="rpg-class-card-mage">
-                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #8b5cf6, #6d28d9);">🪄</div>
+                <canvas id="rpg-preview-mage" width="96" height="96" style="background:radial-gradient(circle, rgba(139,92,246,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #8b5cf6;"></canvas>
                 <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">จอมเวทโค้ดดิ้ง (Mage)</h4>
                 <span class="badge badge-purple" style="font-size:0.74rem; margin-bottom:8px;">โจมตีเวทสูงสุด • คอมโบแรง</span>
                 <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 105 | โจมตี 30 | ป้องกัน 8<br>สกิล: <strong>มหาเวทไบนารี</strong> (ยิ่งตอบถูกต่อเนื่อง ดาเมจยิ่งคูณทวีคูณ)</p>
@@ -780,7 +780,7 @@
 
               <!-- Class 3: Ranger -->
               <div class="rpg-class-card" onclick="selectRpgHeroClass('ranger')" id="rpg-class-card-ranger">
-                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #10b981, #047857);">🏹</div>
+                <canvas id="rpg-preview-ranger" width="96" height="96" style="background:radial-gradient(circle, rgba(16,185,129,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #10b981;"></canvas>
                 <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">นักธนูไซเบอร์ (Ranger)</h4>
                 <span class="badge badge-green" style="font-size:0.74rem; margin-bottom:8px;">คริติคอล 35% • เพิ่มเวลาคิด</span>
                 <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 115 | โจมตี 24 | ป้องกัน 10<br>สกิล: <strong>ศรทะลวงบั๊ก</strong> (โอกาสคริติคอล ×2 + เพิ่มเวลาตอบคำถาม +5 วินาที)</p>
@@ -789,7 +789,7 @@
 
               <!-- Class 4: Paladin -->
               <div class="rpg-class-card" onclick="selectRpgHeroClass('paladin')" id="rpg-class-card-paladin">
-                <div class="rpg-class-avatar" style="background:linear-gradient(135deg, #f59e0b, #b45309);">🛡️</div>
+                <canvas id="rpg-preview-paladin" width="96" height="96" style="background:radial-gradient(circle, rgba(245,158,11,0.28), rgba(15,23,42,0.9)); border-radius:50%; border:2px solid #f59e0b;"></canvas>
                 <h4 style="color:#fff; font-weight:800; margin:8px 0 4px;">พาลาดินดาต้า (Paladin)</h4>
                 <span class="badge badge-yellow" style="font-size:0.74rem; margin-bottom:8px;">สมดุล • ฟื้นฟูเลือดอัตโนมัติ</span>
                 <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.4; margin-bottom:10px;">พลังชีวิต 135 | โจมตี 21 | ป้องกัน 13<br>สกิล: <strong>แสงแห่งปัญญา</strong> (โจมตีพร้อมฟื้นฟู HP 20% ทุกครั้งที่ตอบถูก)</p>
@@ -905,11 +905,12 @@
               <!-- 4. Turn-Based Quiz Combat Overlay -->
               <div id="rpg-combat-overlay" class="rpg-combat-overlay" style="display:none;">
                 <div class="rpg-combat-card">
-                  <!-- Battle Arena Top (Hero vs Monster) -->
+                  <!-- Battle Arena Top (Hero vs Monster 2D Canvas Sprites) -->
                   <div class="rpg-battle-arena">
                     <!-- Hero Side -->
                     <div class="rpg-combatant-box">
-                      <div class="rpg-combat-sprite" id="rpg-battle-hero-sprite">⚔️</div>
+                      <canvas id="rpg-battle-hero-canvas" width="104" height="104" style="background:rgba(15,23,42,0.75); border-radius:16px; border:2px solid #60a5fa; margin-bottom:6px; box-shadow:0 6px 16px rgba(0,0,0,0.45);"></canvas>
+                      <span id="rpg-battle-hero-sprite" style="display:none;"></span>
                       <div style="font-weight:800; color:#fff; font-size:0.95rem;" id="rpg-battle-hero-name">ผู้กล้า</div>
                       <div class="rpg-bar-wrap" style="width:150px; margin-top:4px;">
                         <div class="rpg-bar-fill rpg-hp-fill" id="rpg-battle-hero-hp-bar" style="width:100%;"></div>
@@ -926,7 +927,8 @@
 
                     <!-- Monster Side -->
                     <div class="rpg-combatant-box">
-                      <div class="rpg-combat-sprite monster-bob" id="rpg-battle-monster-sprite">👾</div>
+                      <canvas id="rpg-battle-monster-canvas" class="monster-bob" width="116" height="104" style="background:rgba(15,23,42,0.75); border-radius:16px; border:2px solid #f87171; margin-bottom:6px; box-shadow:0 6px 16px rgba(0,0,0,0.45);"></canvas>
+                      <span id="rpg-battle-monster-sprite" style="display:none;"></span>
                       <div style="font-weight:800; color:#fca5a5; font-size:0.95rem;" id="rpg-battle-monster-name">มอนสเตอร์</div>
                       <div class="rpg-bar-wrap" style="width:150px; margin-top:4px;">
                         <div class="rpg-bar-fill" id="rpg-battle-monster-hp-bar" style="width:100%; background:linear-gradient(90deg, #ef4444, #f97316);"></div>
@@ -2310,9 +2312,9 @@
 
 
   <!-- JS Scripts with Cache-Busting -->
-  <script src="js/firebase-config.js?v=8.21.0"></script>
-  <script src="js/cloudinary.js?v=8.21.0"></script>
-  <script src="js/app.js?v=8.21.0"></script>
-  <script src="js/rpg-game.js?v=8.21.0"></script>
+  <script src="js/firebase-config.js?v=8.22.0"></script>
+  <script src="js/cloudinary.js?v=8.22.0"></script>
+  <script src="js/app.js?v=8.22.0"></script>
+  <script src="js/rpg-game.js?v=8.22.0"></script>
 </body>
 </html>
